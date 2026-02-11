@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
+using SmartClinic.Models;
 
 namespace SmartClinic
 {
@@ -11,6 +13,8 @@ namespace SmartClinic
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
+            builder.Services.AddDbContext<SmartClinicDbContext>(options =>
+                options.UseNpgsql(builder.Configuration.GetConnectionString("MyCnn")));
 
             var app = builder.Build();
 
