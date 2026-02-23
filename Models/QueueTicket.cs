@@ -25,3 +25,4 @@ public partial class QueueTicket
 
     public virtual Prescription? Prescription { get; set; }
 }
+    

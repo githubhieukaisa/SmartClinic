@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
 using SmartClinic.Models;
+using SmartClinic.Services;
 
 namespace SmartClinic
 {
@@ -15,6 +16,7 @@ namespace SmartClinic
                 .AddInteractiveServerComponents();
             builder.Services.AddDbContext<SmartClinicDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("MyCnn")));
+            builder.Services.AddScoped<ITicketService, TicketService>();
 
             var app = builder.Build();
 

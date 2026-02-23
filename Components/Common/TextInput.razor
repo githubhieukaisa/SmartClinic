@@ -1,0 +1,32 @@
+﻿@rendermode InteractiveServer
+
+<div class="mb-4">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <label for="@Id" class="block mb-1 text-sm font-medium text-slate-700">
+            @Label
+        </label>
+    }
+    <input id="@Id"
+           type="@Type"
+           value="@Value"
+           @oninput="OnInput"
+           placeholder="@Placeholder"
+           class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm @CssClass" />
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = Guid.NewGuid().ToString();
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Type { get; set; } = "text";
+    [Parameter] public string Placeholder { get; set; } = string.Empty;
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private Task OnInput(ChangeEventArgs e)
+    {
+        return ValueChanged.InvokeAsync(e.Value?.ToString());
+    }
+}

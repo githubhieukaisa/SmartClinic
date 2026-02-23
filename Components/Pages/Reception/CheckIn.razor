@@ -1,0 +1,75 @@
+﻿@page "/checkin"
+@using SmartClinic.Components.Common
+@using SmartClinic.Models
+@using SmartClinic.Services
+@inject ITicketService TicketService
+@rendermode InteractiveServer
+
+<div class="flex items-center justify-center min-h-screen p-4 bg-slate-50">
+    <div class="w-full max-w-md p-6 bg-white rounded-2xl shadow-xl ring-1 ring-slate-900/5 sm:p-8">
+        
+        <div class="mb-8 text-center">
+            <h3 class="text-2xl font-bold tracking-tight text-slate-900">Quầy Lễ Tân</h3>
+            <p class="mt-2 text-sm text-slate-500">Vui lòng nhập thông tin để cấp số đợi</p>
+        </div>
+
+        <div class="space-y-4">
+            <TextInput Label="Tên bệnh nhân" 
+                       Placeholder="VD: Nguyễn Văn A" 
+                       @bind-Value="patientName" />
+
+            <TextInput Label="Số điện thoại" 
+                       Placeholder="VD: 0901234567" 
+                       @bind-Value="patientPhone" />
+
+            <div class="pt-2">
+                <PrimaryButton IsLoading="isLoading" 
+                               Disabled="@string.IsNullOrWhiteSpace(patientName)" 
+                               OnClick="HandleGetTicket">
+                    Cấp Số Nhé
+                </PrimaryButton>
+            </div>
+        </div>
+
+        @if (generatedTicket != null)
+        {
+            <div class="flex flex-col items-center justify-center p-6 mt-8 border-2 border-green-100 bg-green-50 rounded-xl animate-fade-in-up">
+                <div class="flex items-center justify-center w-12 h-12 mb-3 bg-green-100 rounded-full">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h4 class="text-lg font-semibold text-green-800">Cấp số thành công!</h4>
+                <p class="mt-1 text-sm text-green-600">Bệnh nhân: <span class="font-medium text-green-900">@patientName</span></p>
+                <div class="mt-4 text-center">
+                    <span class="block text-xs font-medium text-green-600 uppercase">Số thứ tự của bạn</span>
+                    <span class="text-5xl font-black text-green-700">@generatedTicket.TicketNumber</span>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string patientName = string.Empty;
+    private string patientPhone = string.Empty;
+    private bool isLoading = false;
+    private QueueTicket? generatedTicket;
+
+    private async Task HandleGetTicket()
+    {
+        if (string.IsNullOrWhiteSpace(patientName)) return;
+
+        isLoading = true;
+        // Xóa kết quả cũ nếu đang lấy số mới
+        generatedTicket = null; 
+        
+        // Mô phỏng delay UI cho hiệu ứng mượt mà (nếu muốn)
+        // await Task.Delay(500); 
+
+        var newPatient = new Patient { FullName = patientName, Phone = patientPhone };
+        generatedTicket = await TicketService.GenerateTicketAsync(newPatient);
+
+        isLoading = false;
+    }
+}
