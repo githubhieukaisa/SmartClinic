@@ -1,4 +1,5 @@
-﻿using SmartClinic.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using SmartClinic.Models;
 
 namespace SmartClinic.Services
 {
@@ -16,17 +17,14 @@ namespace SmartClinic.Services
             _context.Patients.Add(newPatient);
             await _context.SaveChangesAsync();
 
-            var today = DateTime.Today;
-            var maxTicketNum = _context.QueueTickets
-                .Where(t => t.CreatedAt.Value.Date == today)
-                .Max(t => (int?)t.TicketNumber) ?? 0;
-
-            var newTicketNum = maxTicketNum + 1;
+            var nextTicketNumber = await _context.Database
+                .SqlQueryRaw<int>("SELECT NEXT VALUE FOR TicketNumberSeq")
+                .SingleAsync();
 
             var ticket = new QueueTicket
             {
                 PatientId = newPatient.Id,
-                TicketNumber = newTicketNum,
+                TicketNumber = nextTicketNumber,
                 Status = "Waiting",
                 CreatedAt = DateTime.Now
             };

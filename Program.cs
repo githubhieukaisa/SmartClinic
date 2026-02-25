@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
+using SmartClinic.Hubs;
 using SmartClinic.Models;
 using SmartClinic.Services;
 
@@ -17,6 +18,9 @@ namespace SmartClinic
             builder.Services.AddDbContext<SmartClinicDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("MyCnn")));
             builder.Services.AddScoped<ITicketService, TicketService>();
+            builder.Services.AddSignalR();
+
+            builder.Services.AddHostedService<DailyResetWorker>();
 
             var app = builder.Build();
 
@@ -27,6 +31,8 @@ namespace SmartClinic
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
+
+            app.MapHub<QueueHub>("/queueHub");
 
             app.UseHttpsRedirection();
 

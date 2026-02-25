@@ -1,0 +1,77 @@
+﻿@page "/waiting-room"
+@using Microsoft.AspNetCore.SignalR.Client
+@using SmartClinic.DTOs
+@implements IAsyncDisposable
+@inject NavigationManager Navigation
+
+<div class="waiting-room-container">
+    <h1 class="text-center">SẢNH CHỜ KHÁM BỆNH</h1>
+
+    @if (!IsConnected)
+    {
+        <div class="alert alert-warning">
+            Đang kết nối đến hệ thống... (Hoặc rớt mạng, đang thử lại)
+        </div>
+    }
+    else
+    {
+        <div class="current-call">
+            <h2>SỐ ĐANG GỌI:</h2>
+            <h1 class="display-1 fw-bold text-danger">@DisplayData.CurrentTicketNumber</h1>
+            <h3>Vào phòng: @DisplayData.RoomName</h3>
+        </div>
+
+        <div class="next-calls mt-5">
+            <h4>CHUẨN BỊ:</h4>
+            <ul>
+                @foreach (var ticket in DisplayData.NextTickets)
+                {
+                    <li>Số: @ticket</li>
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    private HubConnection? hubConnection;
+    private QueueDisplayDto DisplayData { get; set; } = new QueueDisplayDto();
+
+    public bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/queueHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<QueueDisplayDto>("ReceiveNewCall", (data) =>
+        {
+            DisplayData = data;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.Reconnected += async (connectionId) =>
+        {
+            await InvokeAsync(StateHasChanged);
+        };
+
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting SignalR: {ex.Message}");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

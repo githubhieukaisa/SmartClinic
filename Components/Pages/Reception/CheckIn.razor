@@ -23,11 +23,9 @@
                        @bind-Value="patientPhone" />
 
             <div class="pt-2">
-                <PrimaryButton IsLoading="isLoading" 
-                               Disabled="@string.IsNullOrWhiteSpace(patientName)" 
-                               OnClick="HandleGetTicket">
+                <Button IsLoading="isLoading" OnClick="HandleGetTicket" Disabled="@string.IsNullOrWhiteSpace(patientName)">
                     Cấp Số Nhé
-                </PrimaryButton>
+                </Button>
             </div>
         </div>
 
