@@ -1,3 +1,5 @@
+﻿using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
@@ -20,7 +22,16 @@ namespace SmartClinic
             builder.Services.AddScoped<ITicketService, TicketService>();
             builder.Services.AddSignalR();
 
-            builder.Services.AddHostedService<DailyResetWorker>();
+            // 1. ĐĂNG KÝ HANGFIRE VÀ KẾT NỐI DB POSTGRESQL
+            builder.Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UsePostgreSqlStorage(options =>
+                    options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("MyCnn"))));
+
+            // 2. KHỞI ĐỘNG HANGFIRE SERVER
+            builder.Services.AddHangfireServer();
 
             var app = builder.Build();
 
@@ -39,8 +50,20 @@ namespace SmartClinic
             app.UseStaticFiles();
             app.UseAntiforgery();
 
+            app.UseHangfireDashboard("/hangfire");
+
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
+
+            RecurringJob.AddOrUpdate<SequenceResetJob>(
+                "daily-sequence-reset", // ID của Job (đặt tên tùy ý)
+                job => job.ExecuteAsync(), // Hàm sẽ được gọi
+                "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
+                new RecurringJobOptions
+                {
+                    // Fix triệt để lỗi sai múi giờ trên Server
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
+                });
 
             app.Run();
         }

@@ -18,7 +18,7 @@ namespace SmartClinic.Services
             await _context.SaveChangesAsync();
 
             var nextTicketNumber = await _context.Database
-                .SqlQueryRaw<int>("SELECT NEXT VALUE FOR TicketNumberSeq")
+                .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
                 .SingleAsync();
 
             var ticket = new QueueTicket
@@ -26,7 +26,7 @@ namespace SmartClinic.Services
                 PatientId = newPatient.Id,
                 TicketNumber = nextTicketNumber,
                 Status = "Waiting",
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             };
 
             _context.QueueTickets.Add(ticket);
