@@ -1,0 +1,205 @@
+﻿@page "/"
+@using SmartClinic.Web.Layout
+@layout DoctorLayout
+<div class="p-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Dashboard</h1>
+            <p class="text-muted-foreground mt-1">Welcome back, Dr. Miller</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-right">
+                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+            </div>
+            <button class="relative p-2 hover:bg-muted rounded-lg transition">
+                <i class="ph-bold ph-bell text-xl text-foreground"></i>
+                <span class="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Appointment Summary -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Total Patients -->
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Total Patients</h4>
+                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <i class="ph-bold ph-users text-xl text-primary"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-primary">12</p>
+            <div class="mt-4 bg-primary/10 rounded-full h-2">
+                <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Completed -->
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Completed</h4>
+                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i class="ph-bold ph-check-circle text-xl text-green-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-green-600">7</p>
+            <div class="mt-4 bg-green-100 rounded-full h-2">
+                <div class="bg-green-600 h-full rounded-full" style="width: 58%"></div>
+            </div>
+        </div>
+
+        <!-- In Progress -->
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">In Progress</h4>
+                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i class="ph-bold ph-clock text-xl text-blue-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-blue-600">2</p>
+            <div class="mt-4 bg-blue-100 rounded-full h-2">
+                <div class="bg-blue-600 h-full rounded-full" style="width: 17%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Today's Queue -->
+        <div class="lg:col-span-2 bg-card rounded-xl border border-border p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-2">
+                    <i class="ph-bold ph-queue text-xl text-foreground"></i>
+                    <h2 class="text-xl font-bold text-foreground">Today's Queue</h2>
+                </div>
+                <button class="flex items-center gap-1 text-primary hover:text-primary/80 text-sm font-medium">
+                    View All <i class="ph-bold ph-arrow-right"></i>
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border">
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Patient</th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Age</th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Time</th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Status</th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var patient in patients)
+                        {
+                            <tr class="border-b border-border transition @GetRowBgClass(patient.Status)">
+                                <td class="py-3 px-4">
+                                    <p class="font-medium text-foreground">@patient.Name</p>
+                                    <p class="text-xs text-muted-foreground">@patient.Condition</p>
+                                </td>
+                                <td class="py-3 px-4 text-foreground">@patient.Age</td>
+                                <td class="py-3 px-4 text-foreground">@patient.Time</td>
+                                <td class="py-3 px-4">
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(patient.Status)">
+                                        @patient.Status
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <button class="flex items-center gap-1 text-primary hover:text-primary/80 font-medium text-xs">
+                                        View <i class="ph-bold ph-arrow-right"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quick Actions & Upcoming -->
+        <div class="space-y-6">
+            <!-- Quick Actions -->
+            <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="ph-bold ph-lightning text-xl text-foreground"></i>
+                    <h3 class="text-lg font-bold text-foreground">Quick Actions</h3>
+                </div>
+                <div class="space-y-3">
+                    <button class="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90 transition">
+                        <i class="ph-bold ph-note-pencil"></i> Create Medical Record
+                    </button>
+                    <button class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
+                        <i class="ph-bold ph-pill"></i> Prescribe Medicine
+                    </button>
+                    <button class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
+                        <i class="ph-bold ph-test-tube"></i> Request Lab Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upcoming Appointments -->
+            <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="ph-bold ph-calendar-check text-xl text-foreground"></i>
+                    <h3 class="text-lg font-bold text-foreground">Upcoming Appointments</h3>
+                </div>
+                <div class="space-y-3">
+                    @foreach (var appointment in upcomingAppointments)
+                    {
+                        <div class="border-l-4 border-primary pl-4 py-2">
+                            <p class="font-medium text-foreground text-sm">@appointment.PatientName</p>
+                            <p class="text-xs text-muted-foreground">@appointment.Time</p>
+                            <p class="text-xs text-muted-foreground mt-1">@appointment.Reason</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<PatientQueueItem> patients = new();
+    private List<UpcomingAppointment> upcomingAppointments = new();
+
+    protected override void OnInitialized()
+    {
+        patients = new List<PatientQueueItem>
+        {
+            new("Christopher T.", 29, "08:30 AM", "In Progress", "Chest Pain"),
+            new("Sarah Anderson", 34, "08:50 AM", "Waiting", "Headache"),
+            new("Michael Chen", 45, "09:10 AM", "Waiting", "Blood Pressure Check"),
+            new("Emily Rodriguez", 28, "09:30 AM", "Done", "Flu Symptoms"),
+            new("David Kumar", 52, "09:50 AM", "Waiting", "Diabetes Checkup"),
+            new("Lisa Johnson", 38, "10:10 AM", "Done", "Annual Checkup"),
+        };
+
+        upcomingAppointments = new List<UpcomingAppointment>
+        {
+            new("Jennifer White", "02:00 PM", "Follow-up Consultation"),
+            new("Robert Brown", "03:30 PM", "Lab Results Review"),
+            new("Maria Garcia", "04:15 PM", "Chronic Pain Management"),
+            new("James Wilson", "05:00 PM", "Post-Surgery Check"),
+        };
+    }
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Done" => "bg-green-100 text-green-700",
+        "In Progress" => "bg-blue-100 text-blue-700",
+        "Waiting" => "bg-amber-100 text-amber-700",
+        _ => "bg-gray-100 text-gray-700"
+    };
+
+    private string GetRowBgClass(string status) => status switch
+    {
+        "Done" => "bg-green-50",
+        "In Progress" => "bg-blue-50",
+        "Waiting" => "bg-amber-50",
+        _ => ""
+    };
+
+    private record PatientQueueItem(string Name, int Age, string Time, string Status, string Condition);
+    private record UpcomingAppointment(string PatientName, string Time, string Reason);
+}

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using SmartClinic.Components;
+using SmartClinic.Web;
 using SmartClinic.Models;
 
 namespace SmartClinic
