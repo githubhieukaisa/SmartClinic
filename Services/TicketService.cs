@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using SmartClinic.Hubs;
 using SmartClinic.Models;
 
 namespace SmartClinic.Services
@@ -6,10 +8,14 @@ namespace SmartClinic.Services
     public class TicketService : ITicketService
     {
         private readonly SmartClinicDbContext _context;
+        private readonly IQueueService _queueService;
+        private readonly IHubContext<QueueHub> _hubContext;
 
-        public TicketService(SmartClinicDbContext context)
+        public TicketService(SmartClinicDbContext context, IQueueService queueService, IHubContext<QueueHub> hubContext)
         {
             _context = context;
+            _queueService = queueService;
+            _hubContext = hubContext;
         }
 
         public async Task<QueueTicket> GenerateTicketAsync(Patient newPatient)
@@ -31,6 +37,12 @@ namespace SmartClinic.Services
 
             _context.QueueTickets.Add(ticket);
             await _context.SaveChangesAsync();
+
+            // 1. Lấy dữ liệu sảnh chờ mới nhất (lúc này đã có số vừa tạo nằm trong list Waiting)
+            var displayData = await _queueService.GetDisplayDataAsync();
+
+            // 2. Bắn SignalR tới TẤT CẢ các màn hình đang mở trang /waiting-room
+            await _hubContext.Clients.All.SendAsync("ReceiveNewCall", displayData);
 
             return ticket;
         }

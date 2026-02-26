@@ -33,6 +33,9 @@ namespace SmartClinic
             // 2. KHỞI ĐỘNG HANGFIRE SERVER
             builder.Services.AddHangfireServer();
 
+            // Đăng ký QueueService để có thể Inject vào TicketService và SequenceResetJob
+            builder.Services.AddScoped<IQueueService, QueueService>();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
