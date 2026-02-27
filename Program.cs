@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Web;
 using SmartClinic.Models;
+using SmartClinic.Hubs;
 
 namespace SmartClinic
 {
@@ -15,7 +16,7 @@ namespace SmartClinic
                 .AddInteractiveServerComponents();
             builder.Services.AddDbContext<SmartClinicDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("MyCnn")));
-
+            builder.Services.AddSignalR();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -25,6 +26,7 @@ namespace SmartClinic
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
+            app.MapHub<PatientHub>("/hubs/patient");
 
             app.UseHttpsRedirection();
 
@@ -33,7 +35,6 @@ namespace SmartClinic
 
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
-
             app.Run();
         }
     }
