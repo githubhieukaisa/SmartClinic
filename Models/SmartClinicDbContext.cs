@@ -26,6 +26,8 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<QueueTicket> QueueTickets { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<Department> Departments { get; set; }
+    public virtual DbSet<Room> Rooms { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
@@ -155,6 +157,11 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.RoleMask).HasDefaultValue(0);
             entity.Property(e => e.Username).HasMaxLength(50);
         });
+
+        foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+        {
+            relationship.DeleteBehavior = DeleteBehavior.Restrict;
+        }
 
         OnModelCreatingPartial(modelBuilder);
     }

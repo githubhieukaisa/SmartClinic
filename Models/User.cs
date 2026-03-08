@@ -3,10 +3,8 @@ using System.Collections.Generic;
 
 namespace SmartClinic.Models;
 
-public partial class User
+public partial class User : BaseEntity
 {
-    public int Id { get; set; }
-
     public string Username { get; set; } = null!;
 
     public string PasswordHash { get; set; } = null!;
@@ -16,8 +14,7 @@ public partial class User
     public int RoleMask { get; set; }
 
     public bool? IsActive { get; set; }
-
-    public DateTime? CreatedAt { get; set; }
-
+    public int? RoomId { get; set; }
+    public virtual Room? Room { get; set; }
     public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
 }

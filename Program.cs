@@ -1,4 +1,5 @@
-﻿using Hangfire;
+﻿using Blazored.Toast;
+using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
@@ -35,6 +36,7 @@ namespace SmartClinic
 
             // Đăng ký QueueService để có thể Inject vào TicketService và SequenceResetJob
             builder.Services.AddScoped<IQueueService, QueueService>();
+            builder.Services.AddBlazoredToast();
 
             var app = builder.Build();
 
