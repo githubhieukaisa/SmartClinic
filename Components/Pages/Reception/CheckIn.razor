@@ -3,6 +3,7 @@
 @using SmartClinic.Models
 @using SmartClinic.Services
 @inject ITicketService TicketService
+@inject IDepartmentService DepartmentService
 @rendermode InteractiveServer
 
 <div class="flex items-center justify-center min-h-screen p-4 bg-slate-50">
@@ -46,6 +47,31 @@
             </div>
         }
     </div>
+
+    <div class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">Chọn Chuyên Khoa</label>
+            <select @bind="selectedDepartmentId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <option value="0">-- Vui lòng chọn khoa --</option>
+                @foreach (var dept in departments)
+                {
+                    <option value="@dept.Id">@dept.Name</option>
+                }
+            </select>
+        </div>
+
+    </div>
+
+    <div class="mt-4 text-center">
+        <span class="block text-xs font-medium text-green-600 uppercase">Số thứ tự của bạn</span>
+        <span class="text-5xl font-black text-green-700">@generatedTicket.TicketNumber</span>
+
+        <div class="mt-3 p-2 bg-white rounded shadow-sm border border-green-200">
+            <span class="block text-sm text-gray-600">Xin mời đến:</span>
+            <span class="text-xl font-bold text-blue-700">@generatedTicket.Room.Name</span>
+            <span class="block text-xs text-gray-500">(@generatedTicket.Room.Location)</span>
+        </div>
+    </div>
 </div>
 
 @code {
@@ -53,20 +79,27 @@
     private string patientPhone = string.Empty;
     private bool isLoading = false;
     private QueueTicket? generatedTicket;
+    private List<Department> departments = new();
+    private int selectedDepartmentId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Giả sử em có một hàm GetDepartmentsAsync trong service
+		departments = await DepartmentService.GetAllDepartmentsAsync();
+    }
 
     private async Task HandleGetTicket()
     {
-        if (string.IsNullOrWhiteSpace(patientName)) return;
+        if (string.IsNullOrWhiteSpace(patientName) || selectedDepartmentId == 0) return;
 
         isLoading = true;
-        // Xóa kết quả cũ nếu đang lấy số mới
         generatedTicket = null; 
         
         // Mô phỏng delay UI cho hiệu ứng mượt mà (nếu muốn)
         // await Task.Delay(500); 
 
         var newPatient = new Patient { FullName = patientName, Phone = patientPhone };
-        generatedTicket = await TicketService.GenerateTicketAsync(newPatient);
+        generatedTicket = await TicketService.GenerateTicketAsync(newPatient, selectedDepartmentId);
 
         isLoading = false;
     }

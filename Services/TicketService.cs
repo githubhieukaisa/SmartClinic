@@ -18,10 +18,25 @@ namespace SmartClinic.Services
             _hubContext = hubContext;
         }
 
-        public async Task<QueueTicket> GenerateTicketAsync(Patient newPatient)
+        public async Task<QueueTicket> GenerateTicketAsync(Patient newPatient, int departmentId)
         {
             _context.Patients.Add(newPatient);
             await _context.SaveChangesAsync();
+
+            var selectedRoomInfo = await _context.Rooms
+                .Where(r => r.DepartmentId == departmentId && r.IsActive)
+                .Select(r => new
+                {
+                    Room = r,
+                    WaitingCount = _context.QueueTickets.Count(t => t.Id == r.Id && t.Status == "Waiting")
+                })
+                .OrderBy(x => x.WaitingCount)
+                .FirstOrDefaultAsync();
+
+            if (selectedRoomInfo == null)
+            {
+                throw new Exception("Hiện tại không có phòng nào mở cửa cho khoa này!");
+            }
 
             var nextTicketNumber = await _context.Database
                 .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
@@ -32,6 +47,7 @@ namespace SmartClinic.Services
                 PatientId = newPatient.Id,
                 TicketNumber = nextTicketNumber,
                 Status = "Waiting",
+                RoomId = selectedRoomInfo.Room.Id,
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             };
 

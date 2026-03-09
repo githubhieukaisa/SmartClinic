@@ -20,8 +20,12 @@ namespace SmartClinic
                 .AddInteractiveServerComponents();
             builder.Services.AddDbContext<SmartClinicDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("MyCnn")));
-            builder.Services.AddScoped<ITicketService, TicketService>();
+            
             builder.Services.AddSignalR();
+
+            //Đăng ký service class
+            builder.Services.AddScoped<ITicketService, TicketService>();
+            builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 
             // 1. ĐĂNG KÝ HANGFIRE VÀ KẾT NỐI DB POSTGRESQL
             builder.Services.AddHangfire(config => config

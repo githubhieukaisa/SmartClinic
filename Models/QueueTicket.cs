@@ -19,5 +19,8 @@ public partial class QueueTicket : BaseEntity
 
     public virtual Patient? Patient { get; set; }
 
+    public int RoomId { get; set; }
+    public virtual Room Room { get; set; } = null!;
+
     public virtual Prescription? Prescription { get; set; }
 }
