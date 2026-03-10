@@ -1,0 +1,610 @@
+﻿@page "/doctor/my-patients"
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using SmartClinic.Web.Layout
+@rendermode InteractiveServer
+@layout DoctorLayout
+@implements IDisposable
+@inject PatientService PatientService
+@inject NavigationManager NavigationManager
+@inject NotificationService Notification
+@inject SmartClinicDbContext DbContext
+
+<div class="p-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Patient Queue</h1>
+            <p class="text-muted-foreground mt-1">Real-time updates from the system</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-right">
+                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+            </div>
+            @if (_isUpdating)
+            {
+                <div class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium">
+                    <span class="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+                    Updating...
+                </div>
+            }
+            else
+            {
+                <button class="relative p-2 hover:bg-muted rounded-lg transition">
+                    <i class="ph-bold ph-bell text-xl text-foreground"></i>
+                    @if (_showNotification)
+                    {
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+                    }
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    @if (_showNotification)
+    {
+        <div class="mb-6 p-4 bg-card border border-primary/30 rounded-xl shadow-sm flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <i class="ph-bold ph-bell-ringing text-lg text-primary"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-foreground">New patient added to queue</p>
+                    <p class="text-xs text-muted-foreground">Queue has been updated</p>
+                </div>
+            </div>
+            <button @onclick="() => _showNotification = false"
+                    class="p-1 hover:bg-muted rounded-lg transition text-muted-foreground hover:text-foreground">
+                <i class="ph-bold ph-x text-sm"></i>
+            </button>
+        </div>
+    }
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Total in Queue</h4>
+                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <i class="ph-bold ph-queue text-xl text-primary"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-primary">@TotalCount</p>
+            <div class="mt-4 bg-primary/10 rounded-full h-2">
+                <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Waiting</h4>
+                <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <i class="ph-bold ph-hourglass text-xl text-amber-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-amber-600">@WaitingCount</p>
+            <div class="mt-4 bg-amber-100 rounded-full h-2">
+                <div class="bg-amber-500 h-full rounded-full" style="width: @WaitingPct%"></div>
+            </div>
+        </div>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">In Progress</h4>
+                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i class="ph-bold ph-clock text-xl text-blue-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-blue-600">@InProgressCount</p>
+            <div class="mt-4 bg-blue-100 rounded-full h-2">
+                <div class="bg-blue-600 h-full rounded-full" style="width: @InProgressPct%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Table -->
+    <div class="bg-card rounded-xl border border-border shadow-sm">
+        <div class="flex items-center justify-between p-6 border-b border-border">
+            <div class="flex items-center gap-2">
+                <i class="ph-bold ph-list-numbers text-xl text-foreground"></i>
+                <h2 class="text-xl font-bold text-foreground">Today's Queue</h2>
+            </div>
+            <div class="flex items-center gap-2">
+                <button @onclick="RefreshQueueAsync"
+                        class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                    <i class="ph-bold ph-arrows-clockwise"></i>
+                    Refresh
+                </button>
+                <button @onclick="AddTestQueueTicketAsync"
+                        class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                    <i class="ph-bold ph-plus"></i>
+                    Add Test Ticket
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            @if (_queueTickets == null)
+            {
+                <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph-bold ph-spinner-gap text-2xl animate-spin"></i>
+                    <span class="text-sm">Loading queue...</span>
+                </div>
+            }
+            else if (!_queueTickets.Any())
+            {
+                <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph-bold ph-queue text-4xl"></i>
+                    <p class="text-sm font-medium">No patients in queue today</p>
+                </div>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border bg-muted/30">
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">#</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Patient</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Age</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Phone</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Diagnosis</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Wait Time</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Status</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ticket in _queueTickets)
+                        {
+                            <tr class="border-b border-border transition @GetRowBgClass(ticket.Status)">
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
+                                        @ticket.TicketNumber
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
+                                            @GetInitials(ticket.Patient?.FullName)
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-foreground">@(ticket.Patient?.FullName ?? "—")</p>
+                                            <p class="text-xs text-muted-foreground">@(ticket.Patient?.Address ?? "No address")</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-5 text-center text-foreground">
+                                    @(GetAge(ticket.Patient?.DoB) > 0 ? $"{GetAge(ticket.Patient?.DoB)} yrs" : "—")
+                                </td>
+                                <td class="py-3 px-5 text-center text-foreground">
+                                    @(ticket.Patient?.Phone ?? "—")
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <span class="text-foreground">@(ticket.ClinicalDiagnosis ?? "—")</span>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <div class="flex items-center justify-center gap-1 text-muted-foreground">
+                                        <i class="ph-bold ph-clock text-xs"></i>
+                                        <span>@GetWaitTime(ticket.CreatedAt)</span>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.Status)">
+                                        @ticket.Status
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5 flex items-center justify-center">
+                                    <button @onclick="() => OnSeePatientAsync(ticket.Id, ticket.PatientId)"
+                                            disabled="@(ticket.Status == "Completed")"
+                                            class="flex items-center gap-1 px-4 py-2 @GetButtonClass(ticket.Status) text-primary-foreground rounded-lg text-xs font-medium hover:@GetButtonHoverClass(ticket.Status) transition">
+                                        <i class="ph-bold @GetButtonIcon(ticket.Status)"></i>
+                                        @GetButtonText(ticket.Status)
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<QueueTicket>? _queueTickets;
+    private bool _showNotification = false;
+    private bool _isUpdating = false;
+    private int _currentDoctorId = 1;
+
+    private int TotalCount => _queueTickets?.Count ?? 0;
+    private int WaitingCount => _queueTickets?.Count(t => t.Status == "Waiting") ?? 0;
+    private int InProgressCount => _queueTickets?.Count(t => t.Status == "In Progress") ?? 0;
+    private int WaitingPct => TotalCount > 0 ? WaitingCount * 100 / TotalCount : 0;
+    private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        System.Diagnostics.Debug.WriteLine("🔵 [MyPatient] OnInitializedAsync starting");
+        
+        // 1. Load queue data immediately (doesn't require SignalR)
+        await LoadDataAsync();
+        System.Diagnostics.Debug.WriteLine("✅ [MyPatient] Queue data loaded");
+        
+        // 2. Ensure SignalR connection is started (lazy initialization)
+        // This happens in the background, page renders without waiting
+        System.Diagnostics.Debug.WriteLine("🔵 [MyPatient] Ensuring SignalR connection...");
+        _ = EnsureSignalRConnectedAsync();  // Fire and forget
+        
+        System.Diagnostics.Debug.WriteLine("✅ [MyPatient] OnInitializedAsync completed");
+    }
+
+    /// <summary>
+    /// Background task to ensure SignalR is connected and subscribe to events
+    /// Runs without blocking the page rendering
+    /// </summary>
+    private async Task EnsureSignalRConnectedAsync()
+    {
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("🔵 [MyPatient.EnsureSignalRConnectedAsync] Starting connection");
+            
+            // This will either connect immediately (if already started) or start a new connection
+            await Notification.EnsureStartedAsync();
+            
+            System.Diagnostics.Debug.WriteLine("✅ [MyPatient.EnsureSignalRConnectedAsync] SignalR connection ready");
+            
+            // Subscribe to events
+            System.Diagnostics.Debug.WriteLine("🔵 [MyPatient.EnsureSignalRConnectedAsync] Subscribing to events");
+            Notification.OnPatientQueueUpdated += HandleQueueUpdatedAsync;
+            Notification.OnQueueStatusUpdated += HandleStatusChangedAsync;
+            System.Diagnostics.Debug.WriteLine("✅ [MyPatient.EnsureSignalRConnectedAsync] Events subscribed");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"⚠️ [MyPatient.EnsureSignalRConnectedAsync] SignalR connection failed: {ex.Message}");
+            // Page still works without SignalR - just won't get real-time updates
+            // User can manually refresh to reload data
+        }
+    }
+
+    private async void HandleQueueUpdatedAsync()
+    {
+        System.Diagnostics.Debug.WriteLine("🔵 [SignalR] HandleQueueUpdatedAsync called");
+        
+        await InvokeAsync(async () =>
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🔵 [SignalR] Inside InvokeAsync");
+                
+                _isUpdating = true;
+                _showNotification = true;
+                StateHasChanged();
+                System.Diagnostics.Debug.WriteLine("🔵 [SignalR] Set _isUpdating=true, _showNotification=true");
+
+                System.Diagnostics.Debug.WriteLine($"🔵 [SignalR] Queue before reload: {_queueTickets?.Count ?? 0} items");
+                
+                await LoadDataAsync(withDelay: true);
+                
+                System.Diagnostics.Debug.WriteLine($"✅ [SignalR] Queue after reload: {_queueTickets?.Count ?? 0} items");
+                
+                if (_queueTickets?.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ [SignalR] First ticket: {_queueTickets[0].TicketNumber} - {_queueTickets[0].Patient?.FullName}");
+                }
+
+                _isUpdating = false;
+                StateHasChanged();  // ✅ Critical state update
+                System.Diagnostics.Debug.WriteLine("✅ [SignalR] Called StateHasChanged() - UI should now update");
+
+                await Task.Delay(3000);
+                _showNotification = false;
+                StateHasChanged();
+                System.Diagnostics.Debug.WriteLine("✅ [SignalR] Hidden notification after 3 seconds");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] ERROR in HandleQueueUpdatedAsync: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+                _isUpdating = false;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Handles status changes for queue tickets (Waiting → Examining, etc)
+    /// Called when another doctor or the same doctor updates a ticket's status
+    /// </summary>
+    private async void HandleStatusChangedAsync(int ticketId)
+    {
+        System.Diagnostics.Debug.WriteLine($"🔵 [SignalR] HandleStatusChangedAsync called for TicketId={ticketId}");
+        
+        await InvokeAsync(async () =>
+        {
+            try
+            {
+                // Find and reload the ticket from database to get updated status
+                var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
+                if (ticketToUpdate != null)
+                {
+                    // For now, just update the UI
+                    // In a real scenario, you might reload from DB to get the latest status
+                    System.Diagnostics.Debug.WriteLine($"✅ [SignalR] Found TicketId={ticketId} in local queue");
+                    System.Diagnostics.Debug.WriteLine($"✅ [SignalR] Queue still has {_queueTickets?.Count ?? 0} tickets");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [SignalR] TicketId={ticketId} not found in local queue");
+                }
+
+                // Update UI
+                StateHasChanged();
+                System.Diagnostics.Debug.WriteLine("✅ [SignalR] Called StateHasChanged() for status update");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] ERROR in HandleStatusChangedAsync: {ex.Message}");
+            }
+        });
+    }
+
+    private async Task RefreshQueueAsync()
+    {
+        try
+        {
+            _isUpdating = true;
+            StateHasChanged();  // Show "Updating..." indicator
+            
+            await LoadDataAsync(withDelay: true);
+            
+            _isUpdating = false;
+            StateHasChanged();  // ✅ CRITICAL: Trigger UI update with new data
+        }
+        catch (Exception ex)
+        {
+            _isUpdating = false;
+            System.Diagnostics.Debug.WriteLine($"Error refreshing queue: {ex.Message}");
+        }
+    }
+
+    private async Task LoadDataAsync(bool withDelay = false)
+    {
+        if (withDelay)
+        {
+            System.Diagnostics.Debug.WriteLine("🔵 [LoadData] Clearing queue and waiting 1 second for DB commit...");
+            _queueTickets = null;
+            StateHasChanged();
+            await Task.Delay(1000);
+        }
+
+        System.Diagnostics.Debug.WriteLine($"🔵 [LoadData] Querying database for DoctorId={_currentDoctorId}...");
+        
+        try
+        {
+            _queueTickets = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
+            System.Diagnostics.Debug.WriteLine($"✅ [LoadData] Got {_queueTickets?.Count ?? 0} queue tickets from database");
+            
+            if (_queueTickets?.Count > 0)
+            {
+                foreach (var ticket in _queueTickets)
+                {
+                    System.Diagnostics.Debug.WriteLine($"   - Ticket #{ticket.TicketNumber}: {ticket.Patient?.FullName} ({ticket.Status})");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [LoadData] ERROR loading queue: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"❌ [LoadData] Stack: {ex.StackTrace}");
+            _queueTickets = new();
+        }
+    }
+
+    public void Dispose()
+    {
+        Notification.OnPatientQueueUpdated -= HandleQueueUpdatedAsync;
+        Notification.OnQueueStatusUpdated -= HandleStatusChangedAsync;
+    }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    private static int GetAge(DateOnly? dob)
+    {
+        if (!dob.HasValue) return 0;
+        var age = DateTime.Today.Year - dob.Value.Year;
+        if (dob.Value.ToDateTime(TimeOnly.MinValue) > DateTime.Today.AddYears(-age)) age--;
+        return age;
+    }
+
+    private static string GetWaitTime(DateTime? createdAt)
+    {
+        if (!createdAt.HasValue) return "—";
+        var elapsed = DateTime.Now - createdAt.Value;
+        if (elapsed.TotalHours >= 1) return $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m";
+        if (elapsed.TotalMinutes < 1) return "Just now";
+        return $"{(int)elapsed.TotalMinutes} min";
+    }
+
+    private static string GetStatusClass(string status) => status switch
+    {
+        "Done" => "bg-green-100 text-green-700",
+        "In Progress" => "bg-blue-100 text-blue-700",
+        "Waiting" => "bg-amber-100 text-amber-700",
+        _ => "bg-gray-100 text-gray-700"
+    };
+
+    private static string GetRowBgClass(string status) => status switch
+    {
+        "Done" => "bg-green-50",
+        "In Progress" => "bg-blue-50",
+        "Waiting" => "bg-amber-50",
+        _ => ""
+    };
+
+    private async Task AddTestQueueTicketAsync()
+    {
+        try
+        {
+            // First, create a test patient
+            var testPatient = new Patient
+            {
+                FullName = $"Test Patient {DateTime.Now:HHmmss}",
+                Phone = "0123456789",
+                Address = "123 Test Street",
+                DoB = new DateOnly(1990, 1, 1),
+                CreatedAt = DateTime.Now
+            };
+
+            DbContext.Patients.Add(testPatient);
+            await DbContext.SaveChangesAsync();
+
+            // Now create a QueueTicket for Doctor ID 1
+            // ✅ This will trigger SignalR notification for DoctorId = 1
+            await PatientService.AddQueueTicketAsync(
+                doctorId: 1,  // Current doctor
+                patientId: testPatient.Id,
+                diagnosis: "Test Diagnosis"
+            );
+
+            // Show feedback
+            _showNotification = true;
+            StateHasChanged();
+            
+            await Task.Delay(3000);
+            _showNotification = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private SmartClinicDbContext _context;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+
+    /// <summary>
+    /// Called when doctor clicks "See Patient" or "Examine" button
+    /// If status is "Waiting", updates to "Examining"
+    /// If status is "Examining", just navigates to examination page
+    /// </summary>
+    private async Task OnSeePatientAsync(int ticketId, int? patientId)
+    {
+        if (!patientId.HasValue)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] PatientId is null");
+            return;
+        }
+
+        System.Diagnostics.Debug.WriteLine($"🔵 [OnSeePatient] Doctor clicked button for TicketId={ticketId}, PatientId={patientId}");
+        
+        try
+        {
+            var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
+            if (ticketToUpdate == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] Ticket not found");
+                return;
+            }
+
+            // Only update status if currently Waiting
+            if (ticketToUpdate.Status == "Waiting")
+            {
+                _isUpdating = true;
+                StateHasChanged();
+                System.Diagnostics.Debug.WriteLine("🔵 [OnSeePatient] Set _isUpdating=true");
+
+                // Update ticket status in database to "Examining"
+                System.Diagnostics.Debug.WriteLine($"🔵 [OnSeePatient] Updating ticket status to 'Examining'...");
+                await PatientService.UpdateQueueTicketStatusAsync(ticketId, "Examining", _currentDoctorId);
+                System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Ticket status updated to 'Examining'");
+
+                // Update local ticket status
+                ticketToUpdate.Status = "Examining";
+                System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Updated local ticket status to 'Examining'");
+
+                _isUpdating = false;
+                StateHasChanged();  // Update UI to show new status
+                System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Updated UI");
+
+                await Task.Delay(300);  // Small delay for visual feedback
+            }
+
+            // Navigate to examination page (whether it was Waiting or already Examining)
+            System.Diagnostics.Debug.WriteLine($"🔵 [OnSeePatient] Navigating to examination page...");
+            NavigationManager.NavigateTo($"/doctor/examination/{ticketId}/{patientId.Value}");
+            System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Navigation complete");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] ERROR: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] Stack: {ex.StackTrace}");
+            _isUpdating = false;
+            
+            // Show error to user
+            _showNotification = true;
+            StateHasChanged();
+            await Task.Delay(3000);
+            _showNotification = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Get button text based on ticket status
+    /// </summary>
+    private static string GetButtonText(string status) => status switch
+    {
+        "Waiting" => "See Patient",
+        "Examining" => "Examining",
+        "Completed" => "Completed",
+        _ => "View"
+    };
+
+    /// <summary>
+    /// Get button icon based on ticket status
+    /// </summary>
+    private static string GetButtonIcon(string status) => status switch
+    {
+        "Waiting" => "ph-stethoscope",
+        "Examining" => "ph-stethoscope",
+        "Completed" => "ph-check-circle",
+        _ => "ph-eye"
+    };
+
+    /// <summary>
+    /// Get button background color based on status
+    /// </summary>
+    private static string GetButtonClass(string status) => status switch
+    {
+        "Waiting" => "bg-primary hover:bg-primary/90",
+        "Examining" => "bg-blue-600 hover:bg-blue-700",  // ✅ Still clickable!
+        "Completed" => "bg-green-600 opacity-50 cursor-not-allowed",  // Only this is disabled
+        _ => "bg-gray-500 hover:bg-gray-600"
+    };
+
+    /// <summary>
+    /// Get button hover class based on status
+    /// </summary>
+    private static string GetButtonHoverClass(string status) => status switch
+    {
+        "Waiting" => "bg-primary/90",
+        "Examining" => "bg-blue-700",
+        "Completed" => "bg-green-700",
+        _ => "bg-gray-600"
+    };
+}
