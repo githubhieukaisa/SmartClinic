@@ -35,8 +35,9 @@ namespace SmartClinic
                 .UsePostgreSqlStorage(options =>
                     options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("MyCnn"))));
 
-            // 2. KHỞI ĐỘNG HANGFIRE SERVER
+            // 2. KHỞI ĐỘNG External services
             builder.Services.AddHangfireServer();
+            builder.Services.AddBlazoredToast();
 
             // Đăng ký QueueService để có thể Inject vào TicketService và SequenceResetJob
             builder.Services.AddScoped<IQueueService, QueueService>();
