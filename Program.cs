@@ -1,6 +1,7 @@
 ﻿using Blazored.Toast;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
@@ -26,6 +27,10 @@ namespace SmartClinic
             //Đăng ký service class
             builder.Services.AddScoped<ITicketService, TicketService>();
             builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+            builder.Services.AddCascadingAuthenticationState();
+            builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+            builder.Services.AddAuthorizationCore();
+            builder.Services.AddScoped<IAuthService, AuthService>();
 
             // 1. ĐĂNG KÝ HANGFIRE VÀ KẾT NỐI DB POSTGRESQL
             builder.Services.AddHangfire(config => config

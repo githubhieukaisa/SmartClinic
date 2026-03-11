@@ -1,0 +1,105 @@
+﻿@page "/login"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SmartClinic.Components.Common
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using Blazored.Toast.Services
+@using System.ComponentModel.DataAnnotations
+
+@inject IAuthService AuthService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@rendermode InteractiveServer
+
+<div class="flex items-center justify-center min-h-screen p-4 bg-slate-100">
+    <div class="w-full max-w-md p-8 bg-white shadow-2xl rounded-2xl ring-1 ring-slate-900/5">
+
+        <div class="mb-8 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-blue-50">
+                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold tracking-tight text-slate-900">Đăng Nhập SmartClinic</h3>
+            <p class="mt-2 text-sm text-slate-500">Hệ thống quản lý phòng khám thông minh</p>
+        </div>
+
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="space-y-5">
+            <DataAnnotationsValidator />
+
+            <div>
+                <TextInput Label="Tên đăng nhập"
+                           Placeholder="Nhập username..."
+                           @bind-Value="loginModel.Username" />
+                <ValidationMessage For="@(() => loginModel.Username)" class="mt-1 text-xs text-red-500" />
+            </div>
+
+            <div>
+                <TextInput Label="Mật khẩu"
+                           Type="password"
+                           Placeholder="••••••••"
+                           @bind-Value="loginModel.Password" />
+                <ValidationMessage For="@(() => loginModel.Password)" class="mt-1 text-xs text-red-500" />
+            </div>
+
+            <div class="pt-2">
+                @* Do EditForm quản lý việc submit, ta chỉ cần truyền Type="submit".
+                   Component Button đã tự mặc định Variant là Primary và IsFullWidth là true.
+                *@
+                <Button Type="submit" IsLoading="isLoading">
+                    Đăng Nhập Vào Hệ Thống
+                </Button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private bool isLoading = false;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+
+        try
+        {
+            var response = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+
+            if (response != null)
+            {
+                if (AuthStateProvider as CustomAuthStateProvider is var customProvider && customProvider != null)
+                {
+                    await customProvider.MarkUserAsAuthenticated(response.AccessToken, response.RefreshToken);
+                    NavigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    ToastService.ShowError("Lỗi cấu hình hệ thống xác thực!");
+                }
+            }
+            else
+            {
+                ToastService.ShowError("Sai tên đăng nhập hoặc mật khẩu! Vui lòng thử lại.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi hệ thống: " + ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Vui lòng nhập tên đăng nhập!")]
+        public string Username { get; set; } = "";
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu!")]
+        public string Password { get; set; } = "";
+    }
+}

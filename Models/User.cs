@@ -14,6 +14,8 @@ public partial class User : BaseEntity
     public int RoleMask { get; set; }
 
     public bool? IsActive { get; set; }
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiryTime { get; set; }
     public int? RoomId { get; set; }
     public virtual Room? Room { get; set; }
     public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
