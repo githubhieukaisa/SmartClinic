@@ -31,9 +31,15 @@ public class NotificationService : IAsyncDisposable
     public event Action? OnPatientQueueUpdated;
     public event Action<int>? OnQueueStatusUpdated;
 
-    public NotificationService()
+    private readonly GlobalNotificationService _globalNotificationService;
+
+    public NotificationService(GlobalNotificationService globalNotificationService)
     {
-        System.Diagnostics.Debug.WriteLine("✅ [NotificationService] Service initialized (Singleton, no dependencies)");
+        _globalNotificationService = globalNotificationService;
+        System.Diagnostics.Debug.WriteLine($"");
+        System.Diagnostics.Debug.WriteLine($"[NotificationService] ===== INITIALIZED =====");
+        System.Diagnostics.Debug.WriteLine($"[NotificationService] Ready to handle SignalR events");
+        System.Diagnostics.Debug.WriteLine($"");
     }
 
     /// <summary>
@@ -201,8 +207,13 @@ public class NotificationService : IAsyncDisposable
                 // Only notify if for current doctor (doctorId = 1 in this case)
                 if (doctorId == 1)
                 {
+                    System.Diagnostics.Debug.WriteLine("[SignalR] QueueTicketUpdated received");
                     System.Diagnostics.Debug.WriteLine("✅ [NotificationService] Invoking OnPatientQueueUpdated");
                     OnPatientQueueUpdated?.Invoke();
+                    
+                    // Note: Toast notification is now shown from the page/component level
+                    // using ToastNotificationService directly
+                    System.Diagnostics.Debug.WriteLine("[NotificationService] Toast notification will be shown by the page");
                 }
             }
             catch (Exception ex)
@@ -226,6 +237,8 @@ public class NotificationService : IAsyncDisposable
 
                 OnQueueStatusUpdated?.Invoke(ticketId);
                 System.Diagnostics.Debug.WriteLine("✅ [NotificationService] Invoked OnQueueStatusUpdated");
+                
+                System.Diagnostics.Debug.WriteLine($"[NotificationService] Toast notification will be shown by the page");
             }
             catch (Exception ex)
             {

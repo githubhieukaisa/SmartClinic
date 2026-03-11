@@ -26,9 +26,19 @@ namespace SmartClinic
             
             builder.Services.AddScoped<PatientService>();
             
+            // ✅ Register ToastNotificationService as Scoped
+            // Simple JavaScript-based toast notifications
+            // Independent of Blazor component lifecycle
+            builder.Services.AddScoped<ToastNotificationService>();
+            
+            // ✅ Register GlobalNotificationService as Singleton FIRST
+            // Manages UI notifications globally across the app
+            builder.Services.AddSingleton<GlobalNotificationService>();
+            
             // ✅ Register NotificationService as Singleton
             // This ensures only ONE connection per user session
             // All pages share the same connection instance
+            // Depends on GlobalNotificationService (registered above)
             builder.Services.AddSingleton<NotificationService>();
             
             var app = builder.Build();

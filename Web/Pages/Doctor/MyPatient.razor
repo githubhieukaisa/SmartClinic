@@ -8,6 +8,7 @@
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
 @inject NotificationService Notification
+@inject ToastNotificationService Toast
 @inject SmartClinicDbContext DbContext
 
 <div class="p-8">
@@ -227,18 +228,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        System.Diagnostics.Debug.WriteLine("🔵 [MyPatient] OnInitializedAsync starting");
-        
         // 1. Load queue data immediately (doesn't require SignalR)
         await LoadDataAsync();
-        System.Diagnostics.Debug.WriteLine("✅ [MyPatient] Queue data loaded");
         
         // 2. Ensure SignalR connection is started (lazy initialization)
         // This happens in the background, page renders without waiting
-        System.Diagnostics.Debug.WriteLine("🔵 [MyPatient] Ensuring SignalR connection...");
         _ = EnsureSignalRConnectedAsync();  // Fire and forget
-        
-        System.Diagnostics.Debug.WriteLine("✅ [MyPatient] OnInitializedAsync completed");
     }
 
     /// <summary>
@@ -249,22 +244,16 @@
     {
         try
         {
-            System.Diagnostics.Debug.WriteLine("🔵 [MyPatient.EnsureSignalRConnectedAsync] Starting connection");
-            
             // This will either connect immediately (if already started) or start a new connection
             await Notification.EnsureStartedAsync();
             
-            System.Diagnostics.Debug.WriteLine("✅ [MyPatient.EnsureSignalRConnectedAsync] SignalR connection ready");
-            
             // Subscribe to events
-            System.Diagnostics.Debug.WriteLine("🔵 [MyPatient.EnsureSignalRConnectedAsync] Subscribing to events");
             Notification.OnPatientQueueUpdated += HandleQueueUpdatedAsync;
             Notification.OnQueueStatusUpdated += HandleStatusChangedAsync;
-            System.Diagnostics.Debug.WriteLine("✅ [MyPatient.EnsureSignalRConnectedAsync] Events subscribed");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"⚠️ [MyPatient.EnsureSignalRConnectedAsync] SignalR connection failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"⚠️ [SignalR] Connection failed: {ex.Message}");
             // Page still works without SignalR - just won't get real-time updates
             // User can manually refresh to reload data
         }
@@ -272,43 +261,31 @@
 
     private async void HandleQueueUpdatedAsync()
     {
-        System.Diagnostics.Debug.WriteLine("🔵 [SignalR] HandleQueueUpdatedAsync called");
+        System.Diagnostics.Debug.WriteLine("[SignalR] New patient added to queue - refreshing");
         
         await InvokeAsync(async () =>
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🔵 [SignalR] Inside InvokeAsync");
-                
                 _isUpdating = true;
                 _showNotification = true;
                 StateHasChanged();
-                System.Diagnostics.Debug.WriteLine("🔵 [SignalR] Set _isUpdating=true, _showNotification=true");
 
-                System.Diagnostics.Debug.WriteLine($"🔵 [SignalR] Queue before reload: {_queueTickets?.Count ?? 0} items");
-                
+                // Show toast notification
+                await Toast.ShowAsync("New patient added to the queue", "info");
+
                 await LoadDataAsync(withDelay: true);
-                
-                System.Diagnostics.Debug.WriteLine($"✅ [SignalR] Queue after reload: {_queueTickets?.Count ?? 0} items");
-                
-                if (_queueTickets?.Count > 0)
-                {
-                    System.Diagnostics.Debug.WriteLine($"✅ [SignalR] First ticket: {_queueTickets[0].TicketNumber} - {_queueTickets[0].Patient?.FullName}");
-                }
 
                 _isUpdating = false;
-                StateHasChanged();  // ✅ Critical state update
-                System.Diagnostics.Debug.WriteLine("✅ [SignalR] Called StateHasChanged() - UI should now update");
+                StateHasChanged();
 
                 await Task.Delay(3000);
                 _showNotification = false;
                 StateHasChanged();
-                System.Diagnostics.Debug.WriteLine("✅ [SignalR] Hidden notification after 3 seconds");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] ERROR in HandleQueueUpdatedAsync: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] Error: {ex.Message}");
                 _isUpdating = false;
             }
         });
@@ -320,8 +297,6 @@
     /// </summary>
     private async void HandleStatusChangedAsync(int ticketId)
     {
-        System.Diagnostics.Debug.WriteLine($"🔵 [SignalR] HandleStatusChangedAsync called for TicketId={ticketId}");
-        
         await InvokeAsync(async () =>
         {
             try
@@ -332,21 +307,14 @@
                 {
                     // For now, just update the UI
                     // In a real scenario, you might reload from DB to get the latest status
-                    System.Diagnostics.Debug.WriteLine($"✅ [SignalR] Found TicketId={ticketId} in local queue");
-                    System.Diagnostics.Debug.WriteLine($"✅ [SignalR] Queue still has {_queueTickets?.Count ?? 0} tickets");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [SignalR] TicketId={ticketId} not found in local queue");
                 }
 
                 // Update UI
                 StateHasChanged();
-                System.Diagnostics.Debug.WriteLine("✅ [SignalR] Called StateHasChanged() for status update");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] ERROR in HandleStatusChangedAsync: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] Error in HandleStatusChangedAsync: {ex.Message}");
             }
         });
     }
@@ -374,31 +342,18 @@
     {
         if (withDelay)
         {
-            System.Diagnostics.Debug.WriteLine("🔵 [LoadData] Clearing queue and waiting 1 second for DB commit...");
             _queueTickets = null;
             StateHasChanged();
             await Task.Delay(1000);
         }
 
-        System.Diagnostics.Debug.WriteLine($"🔵 [LoadData] Querying database for DoctorId={_currentDoctorId}...");
-        
         try
         {
             _queueTickets = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
-            System.Diagnostics.Debug.WriteLine($"✅ [LoadData] Got {_queueTickets?.Count ?? 0} queue tickets from database");
-            
-            if (_queueTickets?.Count > 0)
-            {
-                foreach (var ticket in _queueTickets)
-                {
-                    System.Diagnostics.Debug.WriteLine($"   - Ticket #{ticket.TicketNumber}: {ticket.Patient?.FullName} ({ticket.Status})");
-                }
-            }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [LoadData] ERROR loading queue: {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"❌ [LoadData] Stack: {ex.StackTrace}");
+            System.Diagnostics.Debug.WriteLine($"❌ [LoadData] Error: {ex.Message}");
             _queueTickets = new();
         }
     }
@@ -598,7 +553,7 @@
     };
 
     /// <summary>
-    /// Get button hover class based on status
+    /// Get button hover class baesed on status
     /// </summary>
     private static string GetButtonHoverClass(string status) => status switch
     {

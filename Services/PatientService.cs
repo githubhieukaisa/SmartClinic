@@ -28,7 +28,6 @@ namespace SmartClinic.Services
         {
             _contextFactory = contextFactory;
             _hubContext = hubContext;
-            System.Diagnostics.Debug.WriteLine("✅ [PatientService] Initialized with DbContextFactory");
         }
 
         /// <summary>
@@ -37,8 +36,6 @@ namespace SmartClinic.Services
         /// </summary>
         public async Task AddPatientAsync(Patient patient)
         {
-            System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddPatientAsync] Adding patient: {patient.FullName}");
-            
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
             
@@ -46,11 +43,10 @@ namespace SmartClinic.Services
             {
                 context.Patients.Add(patient);
                 await context.SaveChangesAsync();
-                System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddPatientAsync] Patient saved with ID={patient.Id}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [PatientService.AddPatientAsync] ERROR: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [PatientService] AddPatientAsync ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -61,8 +57,6 @@ namespace SmartClinic.Services
         /// </summary>
         public async Task<List<Patient>> GetActivePatientsAsync()
         {
-            System.Diagnostics.Debug.WriteLine("🔵 [PatientService.GetActivePatientsAsync] Fetching all patients");
-            
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
             
@@ -73,12 +67,11 @@ namespace SmartClinic.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .ToListAsync();
                 
-                System.Diagnostics.Debug.WriteLine($"✅ [PatientService.GetActivePatientsAsync] Found {patients.Count} patients");
                 return patients;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [PatientService.GetActivePatientsAsync] ERROR: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [PatientService] GetActivePatientsAsync ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -90,8 +83,6 @@ namespace SmartClinic.Services
         /// </summary>
         public async Task<Patient?> GetPatientByIdAsync(int patientId)
         {
-            System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.GetPatientByIdAsync] Fetching patient ID={patientId}");
-            
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
             
@@ -101,20 +92,11 @@ namespace SmartClinic.Services
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == patientId);
                 
-                if (patient != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"✅ [PatientService.GetPatientByIdAsync] Found patient: {patient.FullName}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [PatientService.GetPatientByIdAsync] Patient not found");
-                }
-                
                 return patient;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [PatientService.GetPatientByIdAsync] ERROR: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [PatientService] GetPatientByIdAsync ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -126,9 +108,7 @@ namespace SmartClinic.Services
         /// </summary>
         public async Task<List<QueueTicket>> GetDoctorQueueAsync(int doctorId)
         {
-            System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.GetDoctorQueueAsync] Fetching queue for DoctorId={doctorId}");
-            
-            // ✅ Create a fresh context for this operation
+            // Create a fresh context for this operation
             // This prevents ObjectDisposedException when called from SignalR
             await using var context = await _contextFactory.CreateDbContextAsync();
             
@@ -141,19 +121,11 @@ namespace SmartClinic.Services
                     .OrderBy(t => t.CreatedAt)
                     .ToListAsync();
 
-                System.Diagnostics.Debug.WriteLine($"✅ [PatientService.GetDoctorQueueAsync] Found {tickets.Count} tickets");
-                
-                foreach (var t in tickets)
-                {
-                    System.Diagnostics.Debug.WriteLine($"   - Ticket #{t.TicketNumber}: {t.Patient?.FullName} (Status: {t.Status})");
-                }
-                
                 return tickets;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [PatientService.GetDoctorQueueAsync] ERROR: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"❌ [PatientService.GetDoctorQueueAsync] Stack: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"❌ [PatientService] GetDoctorQueueAsync ERROR: {ex.Message}");
                 throw;
             }
         }
