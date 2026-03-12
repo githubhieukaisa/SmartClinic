@@ -4,7 +4,7 @@
 @using SmartClinic.Web.Layout
 @rendermode InteractiveServer
 @layout DoctorLayout
-@implements IDisposable
+@implements IAsyncDisposable
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
 @inject NotificationService Notification
@@ -226,42 +226,36 @@
     private int WaitingPct => TotalCount > 0 ? WaitingCount * 100 / TotalCount : 0;
     private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
 
+    /// <summary>
+    /// INITIALIZATION: Load queue data FIRST
+    /// Then subscribe to events to avoid race conditions
+    /// SignalR connection already started globally by Program.cs
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        // 1. Load queue data immediately (doesn't require SignalR)
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Loading data...");
         await LoadDataAsync();
-        
-        // 2. Ensure SignalR connection is started (lazy initialization)
-        // This happens in the background, page renders without waiting
-        _ = EnsureSignalRConnectedAsync();  // Fire and forget
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Data loaded");
     }
 
-    /// <summary>
-    /// Background task to ensure SignalR is connected and subscribe to events
-    /// Runs without blocking the page rendering
-    /// </summary>
-    private async Task EnsureSignalRConnectedAsync()
+    /// Subscribe SAU khi data sẵn sàng
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        try
+        if (firstRender)
         {
-            // This will either connect immediately (if already started) or start a new connection
-            await Notification.EnsureStartedAsync();
+            System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ OnAfterRender - subscribing to events");
             
-            // Subscribe to events
+            // Data đã load xong, an toàn subscribe
             Notification.OnPatientQueueUpdated += HandleQueueUpdatedAsync;
             Notification.OnQueueStatusUpdated += HandleStatusChangedAsync;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"⚠️ [SignalR] Connection failed: {ex.Message}");
-            // Page still works without SignalR - just won't get real-time updates
-            // User can manually refresh to reload data
+            
+            System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Events subscribed safely");
         }
     }
 
     private async void HandleQueueUpdatedAsync()
     {
-        System.Diagnostics.Debug.WriteLine("[SignalR] New patient added to queue - refreshing");
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ HandleQueueUpdated: New patient added to queue");
         
         await InvokeAsync(async () =>
         {
@@ -272,20 +266,26 @@
                 StateHasChanged();
 
                 // Show toast notification
+                System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Showing toast notification");
                 await Toast.ShowToastAsync("New patient added to the queue", "info");
 
+                // Reload queue from database
+                System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Reloading queue data from database");
                 await LoadDataAsync(withDelay: true);
 
                 _isUpdating = false;
                 StateHasChanged();
 
+                // Auto-hide notification after 3 seconds
                 await Task.Delay(3000);
                 _showNotification = false;
                 StateHasChanged();
+                
+                System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Queue updated successfully");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleQueueUpdated: {ex.Message}");
                 _isUpdating = false;
             }
         });
@@ -297,24 +297,29 @@
     /// </summary>
     private async void HandleStatusChangedAsync(int ticketId)
     {
+        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ HandleStatusChanged: TicketId={ticketId}");
+        
         await InvokeAsync(async () =>
         {
             try
             {
-                // Find and reload the ticket from database to get updated status
+                // Find the ticket that changed
                 var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
                 if (ticketToUpdate != null)
                 {
-                    // For now, just update the UI
-                    // In a real scenario, you might reload from DB to get the latest status
+                    System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Updating UI for ticket {ticketId}");
+                    // Trigger UI update
+                    StateHasChanged();
+                    System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ UI updated for ticket {ticketId}");
                 }
-
-                // Update UI
-                StateHasChanged();
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MyPatient] ⚠️ Ticket {ticketId} not found in local list");
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [SignalR] Error in HandleStatusChangedAsync: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleStatusChanged: {ex.Message}");
             }
         });
     }
@@ -346,7 +351,6 @@
             StateHasChanged();
             await Task.Delay(1000);
         }
-
         try
         {
             _queueTickets = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
@@ -358,10 +362,25 @@
         }
     }
 
-    public void Dispose()
+    /// <summary>
+    /// CLEANUP: Unsubscribe from events when page is destroyed
+    /// Do NOT dispose NotificationService - it's a Singleton!
+    /// </summary>
+    async ValueTask IAsyncDisposable.DisposeAsync()
     {
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Disposing - unsubscribing from SignalR events");
+        
+        // Unsubscribe from events
         Notification.OnPatientQueueUpdated -= HandleQueueUpdatedAsync;
         Notification.OnQueueStatusUpdated -= HandleStatusChangedAsync;
+        
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Unsubscribed from SignalR events");
+        
+        // NOTE: We do not dispose NotificationService here!
+        // It's a Singleton - connection must persist across page navigation
+        // It will be disposed by DI container when app shuts down
+        
+        await ValueTask.CompletedTask;
     }
 
     private static string GetInitials(string? name)
@@ -443,13 +462,6 @@
         {
             System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
         }
-    }
-
-    private SmartClinicDbContext _context;
-
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
     }
 
     /// <summary>

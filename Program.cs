@@ -35,10 +35,20 @@ namespace SmartClinic
             // ✅ Register NotificationService as Singleton
             // This ensures only ONE connection per user session
             // All pages share the same connection instance
-            // Depends on GlobalNotificationService (registered above)
+            // Connection is initialized GLOBALLY below (not tied to any page)
             builder.Services.AddSingleton<NotificationService>();
             
             var app = builder.Build();
+            
+            // ============================================================================
+            // ✅ GLOBAL SIGNALR INITIALIZATION (Fire-and-Forget)
+            // ============================================================================
+            // Start the SignalR connection globally when app starts
+            // Does NOT block app startup - runs async in background
+            // Connection persists across all pages and components
+            // This replaces per-page initialization in MyPatient.razor
+            _ = app.Services.GetRequiredService<NotificationService>().EnsureStartedAsync();
+            System.Diagnostics.Debug.WriteLine("[Program] ✅ Global SignalR initialization started (fire-and-forget)");
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
