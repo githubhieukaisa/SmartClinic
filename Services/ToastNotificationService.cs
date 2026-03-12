@@ -1,79 +1,75 @@
-using Microsoft.JSInterop;
+using System;
+using System.Threading.Tasks;
 
 namespace SmartClinic.Services;
 
 /// <summary>
-/// JavaScript Toast Notification Service
+/// Toast Notification Service - Event Publisher Pattern
 /// 
-/// Simple wrapper around client-side JavaScript toast notifications.
-/// Completely decoupled from Blazor component lifecycle.
+/// Handles toast notification events that components subscribe to.
+/// Supports optional URL for clickable toasts with navigation.
 /// 
 /// Usage:
-/// - Inject: @inject ToastNotificationService Toast
-/// - Call: await Toast.ShowAsync("Message", "info")
+///   await toastService.ShowToastAsync("Message", "info");
+///   await toastService.ShowToastAsync("Message", "success", "/doctor/queue");
 /// </summary>
 public class ToastNotificationService
 {
-    private readonly IJSRuntime _jsRuntime;
-
-    public ToastNotificationService(IJSRuntime jsRuntime)
-    {
-        _jsRuntime = jsRuntime;
-        System.Diagnostics.Debug.WriteLine("[ToastNotificationService] Initialized with IJSRuntime");
-    }
+    /// <summary>
+    /// Event raised when a toast should be shown
+    /// Signature: (message: string, type: string, url: string?) => Task
+    /// </summary>
+    public event Func<string, string, string?, Task>? OnToast;
 
     /// <summary>
-    /// Show a toast notification
+    /// Show a toast notification with optional URL for navigation
     /// </summary>
-    public async Task ShowAsync(string message, string type = "info")
+    public async Task ShowToastAsync(string message, string type = "info", string? url = null)
     {
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        System.Diagnostics.Debug.WriteLine($"[NotificationService] Calling JS toast");
-        System.Diagnostics.Debug.WriteLine($"[NotificationService] Message: {message}");
-        System.Diagnostics.Debug.WriteLine($"[NotificationService] Type: {type}");
+        System.Diagnostics.Debug.WriteLine(
+            $"[ToastService] Show: message='{message}', type='{type}', url='{url}'");
 
-        try
+        if (OnToast != null)
         {
-            await _jsRuntime.InvokeVoidAsync("appNotifications.showToast", message, type);
-            System.Diagnostics.Debug.WriteLine($"[NotificationService] JS invocation completed");
+            try
+            {
+                await OnToast.Invoke(message, type, url);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ToastService] ERROR: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        else
         {
-            System.Diagnostics.Debug.WriteLine($"[NotificationService] Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[ToastService] WARNING: No subscribers!");
         }
     }
 
     /// <summary>
-    /// Show success notification
+    /// Show success toast (green)
     /// </summary>
-    public async Task ShowSuccessAsync(string message)
-    {
-        await ShowAsync(message, "success");
-    }
+    public async Task ShowSuccessAsync(string message, string? url = null)
+        => await ShowToastAsync(message, "success", url);
 
     /// <summary>
-    /// Show error notification
+    /// Show error toast (red)
     /// </summary>
-    public async Task ShowErrorAsync(string message)
-    {
-        await ShowAsync(message, "error");
-    }
+    public async Task ShowErrorAsync(string message, string? url = null)
+        => await ShowToastAsync(message, "error", url);
 
     /// <summary>
-    /// Show warning notification
+    /// Show warning toast (orange)
     /// </summary>
-    public async Task ShowWarningAsync(string message)
-    {
-        await ShowAsync(message, "warning");
-    }
+    public async Task ShowWarningAsync(string message, string? url = null)
+        => await ShowToastAsync(message, "warning", url);
 
     /// <summary>
-    /// Show info notification
+    /// Show info toast (blue)
     /// </summary>
-    public async Task ShowInfoAsync(string message)
-    {
-        await ShowAsync(message, "info");
-    }
+    public async Task ShowInfoAsync(string message, string? url = null)
+        => await ShowToastAsync(message, "info", url);
 }

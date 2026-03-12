@@ -1,170 +1,502 @@
 /**
- * Application Notification System
- * Simple JavaScript toast notifications
- * Decoupled from Blazor component lifecycle
+ * Enhanced Toast Notification System - Centered Modal Toast
+ * 
+ * FIXES Applied:
+ * ✓ Perfect centering (no transform conflicts)
+ * ✓ Compact size (smaller text, padding)
+ * ✓ Overlay cleanup (removes pointer-events when hidden)
+ * ✓ Minimal logging (only important events)
+ * ✓ Proper lifecycle management
+ * 
+ * Usage:
+ *   window.appToasts.show(message, type, url?)
+ *   window.appToasts.show("Patient added", "success")
+ *   window.appToasts.show("Critical error!", "error")
  */
 
-window.appNotifications = {
-    showToast: function(message, type = "info") {
-        console.log("========== TOAST DEBUG ==========");
-        console.log("Toast message:", message);
-        console.log("Toast type:", type);
-        console.log("Timestamp:", new Date().toISOString());
-        console.log("=================================");
+window.appToasts = {
+    config: {
+        duration: 4000,              // Auto-dismiss after 4 seconds
+        toastContainerId: 'toast-container',
+        overlayId: 'toast-overlay',
+        useOverlay: true,
+        enableLogging: false          // Set to true for debugging
+    },
 
-        // Create toast container if it doesn't exist
-        let container = document.getElementById("toast-container");
-        if (!container) {
-            container = document.createElement("div");
-            container.id = "toast-container";
-            container.style.position = "fixed";
-            container.style.top = "20px";
-            container.style.left = "50%";
-            container.style.transform = "translateX(-50%)";
-            container.style.zIndex = "9999";
-            container.style.display = "flex";
-            container.style.flexDirection = "column";
-            container.style.gap = "10px";
-            container.style.maxWidth = "90%";
-            document.body.appendChild(container);
-            console.log("[JS] Toast container created");
+    /**
+     * Show a centered modal toast notification with overlay
+     */
+    show: function(message, type = 'info', url = null) {
+        this.log('show()', { message, type, url });
+
+        // Create overlay if needed
+        if (this.config.useOverlay) {
+            this.showOverlay();
         }
+
+        // Get or create container
+        const container = this.getOrCreateContainer();
 
         // Create toast element
-        const toast = document.createElement("div");
-        toast.className = "app-toast " + type;
+        const toast = document.createElement('div');
+        toast.className = this.getTailwindClasses(type);
+
+        // Create compact content
+        const icon = this.getIcon(type);
         
-        // Get colors based on type
-        let bgColor, textColor, borderColor, iconColor;
-        switch(type) {
-            case "success":
-                bgColor = "#10b981";
-                textColor = "#fff";
-                borderColor = "#059669";
-                iconColor = "✓";
-                break;
-            case "error":
-                bgColor = "#ef4444";
-                textColor = "#fff";
-                borderColor = "#dc2626";
-                iconColor = "✕";
-                break;
-            case "warning":
-                bgColor = "#f59e0b";
-                textColor = "#fff";
-                borderColor = "#d97706";
-                iconColor = "⚠";
-                break;
-            default: // info
-                bgColor = "#3b82f6";
-                textColor = "#fff";
-                borderColor = "#2563eb";
-                iconColor = "ℹ";
+        toast.innerHTML = `
+            <div class="flex items-center gap-3 flex-1">
+                <span class="text-2xl font-bold flex-shrink-0">${icon}</span>
+                <span class="text-sm font-medium">${message}</span>
+            </div>
+            <button type="button" class="ml-3 text-xl flex-shrink-0 hover:opacity-70 transition-opacity" aria-label="Close notification">
+                ×
+            </button>
+        `;
+
+        this.log('Toast created');
+
+        // Navigation handler
+        if (url) {
+            const messageArea = toast.querySelector('.flex-1');
+            messageArea.style.cursor = 'pointer';
+            messageArea.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.log('Toast navigating', { url });
+                this.removeAllToasts();
+                window.location.href = url;
+            });
         }
 
-        // Style the toast
-        toast.style.position = "fixed";
-        toast.style.top = "20px";
-        toast.style.left = "50%";
-        toast.style.transform = "translateX(-50%)";
-        toast.style.background = bgColor;
-        toast.style.color = textColor;
-        toast.style.padding = "12px 20px";
-        toast.style.borderRadius = "8px";
-        toast.style.zIndex = "9999";
-        toast.style.boxShadow = "0 4px 10px rgba(0,0,0,0.2)";
-        toast.style.border = "2px solid " + borderColor;
-        toast.style.display = "flex";
-        toast.style.alignItems = "center";
-        toast.style.gap = "8px";
-        toast.style.minWidth = "300px";
-        toast.style.maxWidth = "500px";
-        toast.style.animation = "slideDown 0.3s ease-out";
-        toast.style.fontWeight = "500";
-        toast.style.fontSize = "14px";
+        // Close button
+        const closeBtn = toast.querySelector('button');
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.log('Close button clicked');
+            this.removeToast(toast);
+        });
 
-        // Add icon
-        const icon = document.createElement("span");
-        icon.textContent = iconColor;
-        icon.style.fontSize = "18px";
-        icon.style.flexShrink = "0";
-        toast.appendChild(icon);
+        // Add to DOM
+        container.appendChild(toast);
+        this.log('Toast added to DOM');
 
-        // Add message
-        const messageSpan = document.createElement("span");
-        messageSpan.textContent = message;
-        toast.appendChild(messageSpan);
+        // Trigger animation
+        void toast.offsetHeight; // Force reflow
+        toast.classList.add('toast-animate-in');
 
-        // Add close button
-        const closeBtn = document.createElement("button");
-        closeBtn.textContent = "×";
-        closeBtn.style.background = "none";
-        closeBtn.style.border = "none";
-        closeBtn.style.color = textColor;
-        closeBtn.style.fontSize = "24px";
-        closeBtn.style.cursor = "pointer";
-        closeBtn.style.padding = "0";
-        closeBtn.style.marginLeft = "auto";
-        closeBtn.style.opacity = "0.8";
-        closeBtn.style.lineHeight = "1";
-        closeBtn.onclick = function() {
-            toast.style.animation = "slideUp 0.3s ease-out";
-            setTimeout(() => toast.remove(), 300);
-            console.log("[JS] Toast closed by user");
+        // Auto-dismiss with hover pause
+        let timeoutId = null;
+        let isPaused = false;
+
+        const startTimer = () => {
+            if (isPaused) return;
+            if (timeoutId) clearTimeout(timeoutId);
+            
+            timeoutId = setTimeout(() => {
+                this.removeToast(toast);
+            }, this.config.duration);
         };
-        toast.appendChild(closeBtn);
 
-        // Add to document
-        document.body.appendChild(toast);
-        console.log("[JS] Toast added to DOM");
+        toast.addEventListener('mouseenter', () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            isPaused = true;
+        });
 
-        // Auto-remove after 4 seconds
-        const timeoutId = setTimeout(() => {
+        toast.addEventListener('mouseleave', () => {
+            isPaused = false;
+            startTimer();
+        });
+
+        startTimer();
+        this.log('Toast ready');
+    },
+
+    /**
+     * Remove individual toast
+     */
+    removeToast: function(toast) {
+        if (!toast || !toast.parentElement) return;
+
+        // Animate out
+        toast.classList.remove('toast-animate-in');
+        toast.classList.add('toast-animate-out');
+
+        // Remove after animation
+        setTimeout(() => {
             if (toast.parentElement) {
-                toast.style.animation = "slideUp 0.3s ease-out";
-                setTimeout(() => {
-                    if (toast.parentElement) {
-                        toast.remove();
-                    }
-                }, 300);
-                console.log("[JS] Toast auto-removed after 4 seconds");
+                toast.remove();
+                this.log('Toast removed');
+                
+                // Check if container is empty
+                const container = document.getElementById(this.config.toastContainerId);
+                if (container && container.children.length === 0) {
+                    this.hideOverlay();
+                }
             }
-        }, 4000);
+        }, 300);
+    },
 
-        // Store timeout ID for cleanup
-        toast.timeoutId = timeoutId;
+    /**
+     * Remove all toasts at once
+     */
+    removeAllToasts: function() {
+        const container = document.getElementById(this.config.toastContainerId);
+        if (!container) return;
+
+        this.log('Removing all toasts');
+        const toasts = Array.from(container.querySelectorAll('[class*="bg-"]'));
+        
+        toasts.forEach(toast => {
+            toast.classList.remove('toast-animate-in');
+            toast.classList.add('toast-animate-out');
+        });
+
+        setTimeout(() => {
+            toasts.forEach(toast => {
+                if (toast.parentElement) toast.remove();
+            });
+            this.hideOverlay();
+        }, 300);
+    },
+
+    /**
+     * Get or create the centered toast container
+     */
+    getOrCreateContainer: function() {
+        let container = document.getElementById(this.config.toastContainerId);
+
+        if (!container) {
+            container = document.createElement('div');
+            container.id = this.config.toastContainerId;
+
+            // FIXED: Proper centering without transform conflicts
+            // Using absolute positioning that doesn't conflict with animation transforms
+            container.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                max-width: 500px;
+                width: 90%;
+                pointer-events: auto;
+            `;
+
+            container.setAttribute('role', 'region');
+            container.setAttribute('aria-live', 'assertive');
+            container.setAttribute('aria-label', 'Notifications');
+
+            document.body.appendChild(container);
+            this.log('Container created');
+        }
+
+        return container;
+    },
+
+    /**
+     * Show the overlay backdrop - FIXED pointer-events handling
+     */
+    showOverlay: function() {
+        let overlay = document.getElementById(this.config.overlayId);
+
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = this.config.overlayId;
+
+            // FIXED: Use CSS to manage pointer-events
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 9998;
+                background-color: rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+                opacity: 0;
+                transition: opacity 0.3s ease-out;
+                pointer-events: none;
+            `;
+
+            document.body.appendChild(overlay);
+            this.log('Overlay created');
+        }
+
+        // Show overlay
+        overlay.style.opacity = '1';
+        overlay.style.pointerEvents = 'auto'; // Only when visible!
+        this.log('Overlay shown');
+
+        // Close all on overlay click (escape hatch)
+        if (!overlay._clickHandlerSet) {
+            overlay.addEventListener('click', () => {
+                this.log('Overlay clicked, closing toasts');
+                this.removeAllToasts();
+            });
+            overlay._clickHandlerSet = true;
+        }
+
+        return overlay;
+    },
+
+    /**
+     * Hide the overlay - FIXED to actually disable pointer events
+     */
+    hideOverlay: function() {
+        const overlay = document.getElementById(this.config.overlayId);
+        if (!overlay) return;
+
+        this.log('Hiding overlay');
+        
+        // Fade out
+        overlay.style.opacity = '0';
+        
+        // Disable pointer events IMMEDIATELY (not after animation)
+        // This is the KEY fix for blocking interactions!
+        overlay.style.pointerEvents = 'none';
+
+        this.log('Overlay hidden and pointer-events disabled');
+    },
+
+    /**
+     * Get Tailwind CSS classes for compact modal toast
+     */
+    getTailwindClasses: function(type) {
+        // FIXED: Compact sizing instead of large modal
+        const baseClasses = [
+            'bg-white',
+            'border',           // Thinner border
+            'shadow-lg',        // Still nice shadow
+            'rounded-xl',       // Rounded corners
+            'p-4',              // Compact padding (reduced from p-8)
+            'flex',
+            'items-center',
+            'gap-3',
+            'w-full',
+            'transition-all',
+            'duration-300',
+            'pointer-events-auto'
+        ];
+
+        const typeStyles = {
+            success: {
+                border: 'border-green-300',
+                bg: 'bg-green-50'
+            },
+            error: {
+                border: 'border-red-300',
+                bg: 'bg-red-50'
+            },
+            warning: {
+                border: 'border-amber-300',
+                bg: 'bg-amber-50'
+            },
+            info: {
+                border: 'border-blue-300',
+                bg: 'bg-blue-50'
+            }
+        };
+
+        const style = typeStyles[type] || typeStyles.info;
+
+        return [
+            ...baseClasses,
+            style.border,
+            style.bg
+        ].join(' ');
+    },
+
+    /**
+     * Get icon with proper color
+     */
+    getIcon: function(type) {
+        const icons = {
+            success: { char: '✓', color: 'text-green-600' },
+            error: { char: '✕', color: 'text-red-600' },
+            warning: { char: '⚠', color: 'text-amber-600' },
+            info: { char: 'ℹ', color: 'text-blue-600' }
+        };
+
+        const icon = icons[type] || icons.info;
+        return `<span class="${icon.color}">${icon.char}</span>`;
+    },
+
+    /**
+     * Logging utility - only when enabled
+     */
+    log: function(message, data) {
+        if (!this.config.enableLogging) return;
+        console.log(`[Toast] ${message}`, data || '');
     }
 };
 
-// Add CSS animations if not already present
-if (!document.getElementById("toast-animations")) {
-    const style = document.createElement("style");
-    style.id = "toast-animations";
+// ============================================================================
+// ANIMATIONS - Injected into document head
+// ============================================================================
+
+function initializeToastAnimations() {
+    const styleId = 'toast-animations-style';
+
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
     style.textContent = `
-        @keyframes slideDown {
+        /* ====================================================================
+           ANIMATIONS FOR CENTERED MODAL TOAST - FIXED
+           ==================================================================== */
+        
+        /* Fade In + Scale Up (no transform conflict) */
+        @keyframes toastFadeInScale {
             from {
-                transform: translateX(-50%) translateY(-20px);
                 opacity: 0;
+                scale: 0.9;
             }
             to {
-                transform: translateX(-50%) translateY(0);
                 opacity: 1;
+                scale: 1;
             }
         }
-        
-        @keyframes slideUp {
+
+        /* Fade Out + Scale Down */
+        @keyframes toastFadeOutScale {
             from {
-                transform: translateX(-50%) translateY(0);
                 opacity: 1;
+                scale: 1;
             }
             to {
-                transform: translateX(-50%) translateY(-20px);
                 opacity: 0;
+                scale: 0.9;
+            }
+        }
+
+        /* ====================================================================
+           ANIMATION CLASSES
+           ==================================================================== */
+        
+        .toast-animate-in {
+            animation: toastFadeInScale 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+            animation-fill-mode: forwards;
+        }
+
+        .toast-animate-out {
+            animation: toastFadeOutScale 0.3s ease-in;
+            animation-fill-mode: forwards;
+        }
+
+        /* ====================================================================
+           FALLBACK STYLES - CSS only (if Tailwind fails)
+           ==================================================================== */
+        
+        #toast-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 500px;
+            width: 90%;
+            pointer-events: auto;
+        }
+
+        #toast-container > div {
+            position: relative;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease-out;
+            pointer-events: auto;
+        }
+
+        #toast-container > div:hover {
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Toast type colors */
+        #toast-container > div.success {
+            border-color: #86efac;
+            background: #f0fdf4;
+        }
+
+        #toast-container > div.error {
+            border-color: #fca5a5;
+            background: #fef2f2;
+        }
+
+        #toast-container > div.warning {
+            border-color: #fcd34d;
+            background: #fffbeb;
+        }
+
+        #toast-container > div.info {
+            border-color: #93c5fd;
+            background: #f0f9ff;
+        }
+
+        #toast-container button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            font-size: 20px;
+        }
+
+        #toast-overlay {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 9998;
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            pointer-events: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            #toast-container {
+                width: 95%;
+            }
+
+            #toast-container > div {
+                padding: 12px;
+                font-size: 13px;
+                gap: 10px;
             }
         }
     `;
+
     document.head.appendChild(style);
-    console.log("[JS] Toast animations added");
 }
 
-console.log("[JS] Notification system loaded");
+// Initialize on document load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeToastAnimations);
+} else {
+    initializeToastAnimations();
+}
+
+// Final check
+window.addEventListener('load', initializeToastAnimations);
+
+console.log('[Toast] System ready');

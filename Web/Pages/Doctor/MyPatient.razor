@@ -272,7 +272,7 @@
                 StateHasChanged();
 
                 // Show toast notification
-                await Toast.ShowAsync("New patient added to the queue", "info");
+                await Toast.ShowToastAsync("New patient added to the queue", "info");
 
                 await LoadDataAsync(withDelay: true);
 

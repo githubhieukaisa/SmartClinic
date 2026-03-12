@@ -1,6 +1,13 @@
 ﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@using SmartClinic.Models
+@using SmartClinic.Services
 @using SmartClinic.Web.Layout
+@rendermode InteractiveServer
 @layout DoctorLayout
+@inject PatientService PatientService
+@inject ToastNotificationService ToastService
+@inject SmartClinicDbContext DbContext
 <div class="p-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
@@ -16,6 +23,11 @@
             <button class="relative p-2 hover:bg-muted rounded-lg transition">
                 <i class="ph-bold ph-bell text-xl text-foreground"></i>
                 <span class="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+            </button>
+            <button @onclick="AddTestQueueTicketAsync"
+                    class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                <i class="ph-bold ph-plus"></i>
+                Add Test Ticket
             </button>
         </div>
     </div>
@@ -162,7 +174,59 @@
 @code {
     private List<PatientQueueItem> patients = new();
     private List<UpcomingAppointment> upcomingAppointments = new();
+    
+    /// <summary>
+    /// Add a test queue ticket to trigger notifications
+    /// Uses ToastNotificationService event pattern for global notifications
+    /// </summary>
+    private async Task AddTestQueueTicketAsync()
+    {
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("[Dashboard] AddTestQueueTicketAsync called");
 
+            // First, create a test patient
+            var testPatient = new Patient
+            {
+                FullName = $"Test Patient {DateTime.Now:HHmmss}",
+                Phone = "0123456789",
+                Address = "123 Test Street",
+                DoB = new DateOnly(1990, 1, 1),
+                CreatedAt = DateTime.Now
+            };
+
+            DbContext.Patients.Add(testPatient);
+            await DbContext.SaveChangesAsync();
+
+            System.Diagnostics.Debug.WriteLine($"[Dashboard] Test patient created: ID={testPatient.Id}");
+
+            // Now create a QueueTicket for Doctor ID 1
+            await PatientService.AddQueueTicketAsync(
+                doctorId: 1,
+                patientId: testPatient.Id,
+                diagnosis: "Test Diagnosis"
+            );
+
+            System.Diagnostics.Debug.WriteLine("[Dashboard] Test ticket created, triggering toast notification");
+
+            // Show toast with navigation URL to queue page
+            await ToastService.ShowToastAsync(
+                message: "New patient added to queue",
+                type: "success",
+                url: "/doctor/my-patients"  // Click toast to navigate
+            );
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Dashboard] Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[Dashboard] Stack trace: {ex.StackTrace}");
+            
+            // Show error toast
+            await ToastService.ShowErrorAsync($"Error: {ex.Message}");
+        }
+    }
     protected override void OnInitialized()
     {
         patients = new List<PatientQueueItem>

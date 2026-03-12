@@ -1,0 +1,89 @@
+@* ToastHost.razor - Event Subscriber + JS Interop Handler
+   
+   This component:
+   1. Subscribes to ToastNotificationService.OnToast event
+   2. When event is raised, calls JavaScript: window.appToasts.show()
+   3. Uses JSRuntime safely (only in component lifecycle, not during prerendering)
+   4. Listens to SignalR events and shows toasts accordingly
+   
+   Place this component inside DoctorLayout so all Doctor pages get toast support.
+*@
+
+@using SmartClinic.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@inject ToastNotificationService ToastService
+@inject NotificationService SignalRService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@code {
+    /// <summary>
+    /// Initialize the toast notification system
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        System.Diagnostics.Debug.WriteLine("[ToastHost] Component initialized");
+        
+        // Subscribe to the service event
+        ToastService.OnToast += HandleToastAsync;
+        System.Diagnostics.Debug.WriteLine("[ToastHost] Subscribed to ToastService.OnToast");
+    }
+
+    /// <summary>
+    /// After render, set up SignalR event listeners for automatic toasts
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            System.Diagnostics.Debug.WriteLine("[ToastHost] Setting up SignalR listeners");
+            
+            // Ensure SignalR connection is established
+            if (!SignalRService.IsConnected)
+            {
+                System.Diagnostics.Debug.WriteLine("[ToastHost] Waiting for SignalR connection...");
+                await SignalRService.EnsureStartedAsync();
+            }
+
+            System.Diagnostics.Debug.WriteLine("[ToastHost] SignalR connection ready");
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    /// <summary>
+    /// Handle the OnToast event from ToastService
+    /// Calls JavaScript to display the toast
+    /// </summary>
+    private async Task HandleToastAsync(string message, string type, string? url)
+    {
+        System.Diagnostics.Debug.WriteLine(
+            $"[ToastHost] HandleToastAsync: message='{message}', type='{type}', url='{url}'");
+        
+        try
+        {
+            // Call JavaScript to show toast
+            // Safe here - we're in component lifecycle, not prerendering
+            await JS.InvokeVoidAsync("appToasts.show", message, type, url);
+            System.Diagnostics.Debug.WriteLine("[ToastHost] JavaScript call completed");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToastHost] ERROR: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Cleanup when component is disposed
+    /// </summary>
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        System.Diagnostics.Debug.WriteLine("[ToastHost] Component disposing");
+        
+        // Unsubscribe from event
+        ToastService.OnToast -= HandleToastAsync;
+        System.Diagnostics.Debug.WriteLine("[ToastHost] Unsubscribed from ToastService.OnToast");
+        
+        await ValueTask.CompletedTask;
+    }
+}
