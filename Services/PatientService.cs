@@ -161,7 +161,8 @@ namespace SmartClinic.Services
                     TicketNumber = nextTicketNumber,
                     Status = "Waiting",
                     ClinicalDiagnosis = diagnosis,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.Now,
+                    RoomId = 1// Default room, can be updated later
                 };
 
                 context.QueueTickets.Add(queueTicket);

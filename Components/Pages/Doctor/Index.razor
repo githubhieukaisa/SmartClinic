@@ -2,11 +2,12 @@
 @using Microsoft.EntityFrameworkCore
 @using SmartClinic.Models
 @using SmartClinic.Services
-@using SmartClinic.Web.Layout
+@using SmartClinic.Components.Layout
+@using Blazored.Toast.Services
 @rendermode InteractiveServer
 @layout DoctorLayout
 @inject PatientService PatientService
-@inject ToastNotificationService ToastService
+@inject IToastService Toaster
 @inject SmartClinicDbContext DbContext
 <div class="p-8">
     <!-- Header -->
@@ -214,8 +215,8 @@
             System.Diagnostics.Debug.WriteLine($"[Dashboard] Error: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"[Dashboard] Stack trace: {ex.StackTrace}");
             
-            // Show error toast
-            await ToastService.ShowErrorAsync($"Error: {ex.Message}");
+            // Show error toast using BlazoredToasts (ShowError doesn't return Task)
+            Toaster.ShowError($"Error: {ex.Message}");
         }
     }
     protected override void OnInitialized()

@@ -1,10 +1,19 @@
-﻿@using SmartClinic.Services
+﻿@using Blazored.Toast.Configuration
+@using SmartClinic.Components.Common
+@using SmartClinic.Services
+@using Blazored.Toast
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
 @inject NotificationService NotificationService
 
-<!-- Global Toast Notification System -->
-<ToastHost />
+<!-- ✅ BlazoredToasts - Global Toast UI for all pages -->
+<BlazoredToasts Position="ToastPosition.TopCenter"
+                Timeout="3"
+                IconType="IconType.Blazored"
+                @rendermode="InteractiveServer" />
+
+<!-- ✅ Toast Handler - SignalR event listener (no UI rendering) -->
+<ToastHandler />
 
 <div class="flex h-screen bg-background">
     <aside class="w-64 bg-sidebar border-r border-border flex flex-col fixed h-full">

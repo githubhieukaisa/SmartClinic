@@ -1,14 +1,13 @@
 ﻿@page "/doctor/my-patients"
 @using SmartClinic.Models
 @using SmartClinic.Services
-@using SmartClinic.Web.Layout
+@using SmartClinic.Components.Layout
 @rendermode InteractiveServer
 @layout DoctorLayout
 @implements IAsyncDisposable
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
 @inject NotificationService Notification
-@inject ToastNotificationService Toast
 @inject SmartClinicDbContext DbContext
 
 <div class="p-8">

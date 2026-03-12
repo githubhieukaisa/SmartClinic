@@ -3,7 +3,6 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
-using SmartClinic.Web;
 using SmartClinic.Models;
 using SmartClinic.Hubs;
 using SmartClinic.Components;
@@ -31,20 +30,12 @@ namespace SmartClinic
             
             builder.Services.AddScoped<PatientService>();
             
-            // ✅ Register ToastNotificationService as Scoped
-            // Simple JavaScript-based toast notifications
-            // Independent of Blazor component lifecycle
-            builder.Services.AddScoped<ToastNotificationService>();
-            
-            
             // ✅ Register NotificationService as Singleton
             // This ensures only ONE connection per user session
             // All pages share the same connection instance
             // Connection is initialized GLOBALLY below (not tied to any page)
             builder.Services.AddSingleton<NotificationService>();
             
-
-
             //Đăng ký service class
             builder.Services.AddScoped<ITicketService, TicketService>();
             builder.Services.AddScoped<IDepartmentService, DepartmentService>();
