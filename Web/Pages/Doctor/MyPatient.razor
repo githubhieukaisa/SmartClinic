@@ -228,34 +228,41 @@
 
     /// <summary>
     /// INITIALIZATION: Load queue data FIRST
-    /// Then subscribe to events to avoid race conditions
-    /// SignalR connection already started globally by Program.cs
+    /// Then subscribe to events in OnAfterRenderAsync to avoid race conditions
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Loading data...");
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Page initializing - loading queue data");
+        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ SignalR IsConnected: {Notification.IsConnected}");
+        
+        // STEP 1: Load queue data immediately
         await LoadDataAsync();
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Data loaded");
+        
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Queue data loaded");
     }
 
-    /// Subscribe SAU khi data sẵn sàng
+    /// <summary>
+    /// AFTER RENDER: Subscribe to SignalR events
+    /// Data is guaranteed to be loaded before subscription
+    /// This prevents race conditions
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ OnAfterRender - subscribing to events");
+            System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ OnAfterRender - subscribing to SignalR events");
             
-            // Data đã load xong, an toàn subscribe
+            // STEP 2: Subscribe to events AFTER data is loaded (safe!)
             Notification.OnPatientQueueUpdated += HandleQueueUpdatedAsync;
             Notification.OnQueueStatusUpdated += HandleStatusChangedAsync;
             
-            System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Events subscribed safely");
+            System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Subscribed to SignalR events");
         }
     }
 
-    private async void HandleQueueUpdatedAsync()
+    private async void HandleQueueUpdatedAsync(string patientName)
     {
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ HandleQueueUpdated: New patient added to queue");
+        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ HandleQueueUpdated: New patient '{patientName}' added to queue");
         
         await InvokeAsync(async () =>
         {
@@ -264,10 +271,6 @@
                 _isUpdating = true;
                 _showNotification = true;
                 StateHasChanged();
-
-                // Show toast notification
-                System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Showing toast notification");
-                await Toast.ShowToastAsync("New patient added to the queue", "info");
 
                 // Reload queue from database
                 System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Reloading queue data from database");
@@ -376,7 +379,7 @@
         
         System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Unsubscribed from SignalR events");
         
-        // NOTE: We do not dispose NotificationService here!
+        // NOTE: We do NOT dispose NotificationService here!
         // It's a Singleton - connection must persist across page navigation
         // It will be disposed by DI container when app shuts down
         

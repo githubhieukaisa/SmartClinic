@@ -1,12 +1,10 @@
-@* ToastHost.razor - Event Subscriber + JS Interop Handler
+@* ToastHost.razor - Dual Flow Handler (SignalR + Manual Toasts)
    
-   This component:
-   1. Subscribes to ToastNotificationService.OnToast event
-   2. When event is raised, calls JavaScript: window.appToasts.show()
-   3. Uses JSRuntime safely (only in component lifecycle, not during prerendering)
-   4. Listens to SignalR events and shows toasts accordingly
+   This component handles TWO separate flows:
+   1. SignalR Flow: Backend events → Direct JS call (no event system)
+   2. Manual Flow: Pages → ToastService.OnToast → JS call
    
-   Place this component inside DoctorLayout so all Doctor pages get toast support.
+   This architecture avoids circular dependencies and keeps concerns separated.
 *@
 
 @using SmartClinic.Services
@@ -18,58 +16,114 @@
 
 @code {
     /// <summary>
-    /// Initialize the toast notification system
+    /// Initialize subscriptions
     /// </summary>
     protected override void OnInitialized()
     {
         System.Diagnostics.Debug.WriteLine("[ToastHost] Component initialized");
         
-        // Subscribe to the service event
-        ToastService.OnToast += HandleToastAsync;
-        System.Diagnostics.Debug.WriteLine("[ToastHost] Subscribed to ToastService.OnToast");
+        // ✅ Subscribe to SignalR events (automatic toasts from backend)
+        SignalRService.OnPatientQueueUpdated += HandlePatientQueueUpdatedAsync;
+        System.Diagnostics.Debug.WriteLine("[ToastHost] Subscribed to SignalRService.OnPatientQueueUpdated");
+        
+        // ✅ Subscribe to manual toasts (optional - only if pages need to show toasts)
+        // This supports future enhancement without changing SignalR flow
+        ToastService.OnToast += HandleManualToastAsync;
+        System.Diagnostics.Debug.WriteLine("[ToastHost] Subscribed to ToastService.OnToast (optional manual flow)");
     }
 
     /// <summary>
-    /// After render, set up SignalR event listeners for automatic toasts
+    /// After render, ensure SignalR connection is established
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            System.Diagnostics.Debug.WriteLine("[ToastHost] Setting up SignalR listeners");
+            System.Diagnostics.Debug.WriteLine("[ToastHost] Setting up SignalR connection");
             
             // Ensure SignalR connection is established
             if (!SignalRService.IsConnected)
             {
                 System.Diagnostics.Debug.WriteLine("[ToastHost] Waiting for SignalR connection...");
                 await SignalRService.EnsureStartedAsync();
+                System.Diagnostics.Debug.WriteLine("[ToastHost] SignalR connection established");
             }
-
-            System.Diagnostics.Debug.WriteLine("[ToastHost] SignalR connection ready");
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[ToastHost] SignalR already connected");
+            }
         }
 
         await base.OnAfterRenderAsync(firstRender);
     }
 
     /// <summary>
-    /// Handle the OnToast event from ToastService
-    /// Calls JavaScript to display the toast
+    /// ═══════════════════════════════════════════════════════════
+    /// FLOW 1: SignalR Events (Automatic Toasts from Backend)
+    /// ═══════════════════════════════════════════════════════════
+    /// 
+    /// Triggered by: Backend broadcasts "QueueTicketUpdated"
+    /// Direct JS call: No dependency on ToastService event system
+    /// Performance: Fast, no event propagation overhead
     /// </summary>
-    private async Task HandleToastAsync(string message, string type, string? url)
+    private async void HandlePatientQueueUpdatedAsync(string patientName)
     {
         System.Diagnostics.Debug.WriteLine(
-            $"[ToastHost] HandleToastAsync: message='{message}', type='{type}', url='{url}'");
+            $"[ToastHost] SIGNALR FLOW: Patient added event received - {patientName}");
+        
+        await InvokeAsync(async () =>
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ToastHost] SIGNALR FLOW: Calling JS directly (no ToastService)");
+                
+                // ✅ Call JavaScript directly - don't go through ToastService event system
+                // This avoids: SignalR → ShowToastAsync → OnToast → HandleToastAsync (circular)
+                await JS.InvokeVoidAsync("appToasts.show", 
+                    $"✓ {patientName} added to queue", 
+                    "success", 
+                    null);  // url parameter
+                
+                System.Diagnostics.Debug.WriteLine(
+                    "[ToastHost] SIGNALR FLOW: Toast displayed via JS");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ToastHost] SIGNALR FLOW ERROR: {ex.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// ═══════════════════════════════════════════════════════════
+    /// FLOW 2: Manual Toasts (From Pages - Optional Future Use)
+    /// ═══════════════════════════════════════════════════════════
+    /// 
+    /// Triggered by: Pages call await Toast.ShowToastAsync(...)
+    /// Via: ToastService.OnToast event system
+    /// Use case: Form validation, user action feedback, custom messages
+    /// 
+    /// Note: Currently not used in this app, but available for future enhancement
+    /// </summary>
+    private async Task HandleManualToastAsync(string message, string type, string? url)
+    {
+        System.Diagnostics.Debug.WriteLine(
+            $"[ToastHost] MANUAL FLOW: Toast requested - msg='{message}', type='{type}'");
         
         try
         {
-            // Call JavaScript to show toast
-            // Safe here - we're in component lifecycle, not prerendering
+            // ✅ Call JavaScript to display manual toast
             await JS.InvokeVoidAsync("appToasts.show", message, type, url);
-            System.Diagnostics.Debug.WriteLine("[ToastHost] JavaScript call completed");
+            
+            System.Diagnostics.Debug.WriteLine(
+                "[ToastHost] MANUAL FLOW: Toast displayed via JS");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[ToastHost] ERROR: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine(
+                $"[ToastHost] MANUAL FLOW ERROR: {ex.Message}");
         }
     }
 
@@ -80,10 +134,13 @@
     {
         System.Diagnostics.Debug.WriteLine("[ToastHost] Component disposing");
         
-        // Unsubscribe from event
-        ToastService.OnToast -= HandleToastAsync;
-        System.Diagnostics.Debug.WriteLine("[ToastHost] Unsubscribed from ToastService.OnToast");
+        // Unsubscribe from both flows
+        SignalRService.OnPatientQueueUpdated -= HandlePatientQueueUpdatedAsync;
+        ToastService.OnToast -= HandleManualToastAsync;
+        
+        System.Diagnostics.Debug.WriteLine("[ToastHost] Unsubscribed from all events");
         
         await ValueTask.CompletedTask;
     }
 }
+

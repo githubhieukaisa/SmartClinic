@@ -20,6 +20,11 @@ namespace SmartClinic.Services;
 public class NotificationService : IAsyncDisposable
 {
     private HubConnection? _hubConnection;
+    
+    /// <summary>
+    /// Public access to HubConnection for ToastHost to register listeners
+    /// </summary>
+    public HubConnection? HubConnection => _hubConnection;
     private bool _isConnecting = false;
     private TaskCompletionSource<bool>? _connectionTask;
     private readonly object _connectionLock = new();
@@ -28,7 +33,8 @@ public class NotificationService : IAsyncDisposable
     private const string HubUrl = "https://localhost:7062/hubs/patient";
 
     // Events for queue updates
-    public event Action? OnPatientQueueUpdated;
+    // OnPatientQueueUpdated now passes patient name for toast notification
+    public event Action<string>? OnPatientQueueUpdated;
     public event Action<int>? OnQueueStatusUpdated;
 
     public NotificationService()
@@ -190,7 +196,7 @@ public class NotificationService : IAsyncDisposable
         }
 
         // Handle QueueTicketUpdated event - when a new patient is added to queue
-        _hubConnection.On("QueueTicketUpdated", (JsonElement data) =>
+        _hubConnection.On("QueueTicketUpdated", async (JsonElement data) =>
         {
             System.Diagnostics.Debug.WriteLine("🔵 [NotificationService] Received QueueTicketUpdated event");
 
@@ -198,19 +204,19 @@ public class NotificationService : IAsyncDisposable
             {
                 int doctorId = data.GetProperty("doctorId").GetInt32();
                 int ticketId = data.GetProperty("ticketId").GetInt32();
+                string patientName = data.GetProperty("patientName").GetString() ?? "Unknown Patient";
 
-                System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService] Event: DoctorId={doctorId}, TicketId={ticketId}");
+                System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService] Event: DoctorId={doctorId}, TicketId={ticketId}, PatientName={patientName}");
 
                 // Only notify if for current doctor (doctorId = 1 in this case)
                 if (doctorId == 1)
                 {
                     System.Diagnostics.Debug.WriteLine("[SignalR] QueueTicketUpdated received");
-                    System.Diagnostics.Debug.WriteLine("✅ [NotificationService] Invoking OnPatientQueueUpdated");
-                    OnPatientQueueUpdated?.Invoke();
+                    System.Diagnostics.Debug.WriteLine($"✅ [NotificationService] Invoking OnPatientQueueUpdated with patientName: {patientName}");
                     
-                    // Note: Toast notification is now shown from the page/component level
-                    // using ToastNotificationService directly
-                    System.Diagnostics.Debug.WriteLine("[NotificationService] Toast notification will be shown by the page");
+                    // Pass patient name to subscribers so they can show it in toast
+                    OnPatientQueueUpdated?.Invoke(patientName);
+                    System.Diagnostics.Debug.WriteLine("[NotificationService] Toast notification will be shown by the page with patient name");
                 }
             }
             catch (Exception ex)

@@ -207,15 +207,6 @@
                 diagnosis: "Test Diagnosis"
             );
 
-            System.Diagnostics.Debug.WriteLine("[Dashboard] Test ticket created, triggering toast notification");
-
-            // Show toast with navigation URL to queue page
-            await ToastService.ShowToastAsync(
-                message: "New patient added to queue",
-                type: "success",
-                url: "/doctor/my-patients"  // Click toast to navigate
-            );
-
             StateHasChanged();
         }
         catch (Exception ex)

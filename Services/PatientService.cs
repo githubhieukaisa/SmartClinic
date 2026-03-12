@@ -168,12 +168,18 @@ namespace SmartClinic.Services
                 await context.SaveChangesAsync();
                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddQueueTicketAsync] Ticket #{nextTicketNumber} created with ID={queueTicket.Id}");
 
+                var patient = await context.Patients
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == patientId);
+
+                string patientName = patient?.FullName ?? "Unknown";   
                 // Broadcast SignalR notification
                 System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddQueueTicketAsync] Broadcasting QueueTicketUpdated event");
                 await _hubContext.Clients.All.SendAsync("QueueTicketUpdated", new 
                 { 
                     doctorId, 
-                    ticketId = queueTicket.Id 
+                    ticketId = queueTicket.Id,
+                    patientName  
                 });
                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddQueueTicketAsync] SignalR event sent");
             }
