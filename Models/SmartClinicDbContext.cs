@@ -26,12 +26,20 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<QueueTicket> QueueTickets { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<Department> Departments { get; set; }
+    public virtual DbSet<Room> Rooms { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.HasSequence<int>("TicketNumberSeq")
+                .StartsAt(1)
+                .IncrementsBy(1);
+
         modelBuilder
             .HasPostgresEnum("auth", "aal_level", new[] { "aal1", "aal2", "aal3" })
             .HasPostgresEnum("auth", "code_challenge_method", new[] { "s256", "plain" })
@@ -149,6 +157,11 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.RoleMask).HasDefaultValue(0);
             entity.Property(e => e.Username).HasMaxLength(50);
         });
+
+        foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+        {
+            relationship.DeleteBehavior = DeleteBehavior.Restrict;
+        }
 
         OnModelCreatingPartial(modelBuilder);
     }

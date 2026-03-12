@@ -1,0 +1,13 @@
+﻿<div class="flex items-center p-4 border rounded-lg shadow-sm bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 animate-pulse">
+    <svg class="w-6 h-6 mr-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <span class="font-medium text-amber-800 dark:text-amber-200">
+        @Message
+    </span>
+</div>
+
+@code {
+    [Parameter]
+    public string Message { get; set; } = "Đang kết nối...";
+}
