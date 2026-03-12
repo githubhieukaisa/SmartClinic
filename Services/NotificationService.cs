@@ -31,11 +31,8 @@ public class NotificationService : IAsyncDisposable
     public event Action? OnPatientQueueUpdated;
     public event Action<int>? OnQueueStatusUpdated;
 
-    private readonly GlobalNotificationService _globalNotificationService;
-
-    public NotificationService(GlobalNotificationService globalNotificationService)
+    public NotificationService()
     {
-        _globalNotificationService = globalNotificationService;
         System.Diagnostics.Debug.WriteLine($"");
         System.Diagnostics.Debug.WriteLine($"[NotificationService] ===== INITIALIZED =====");
         System.Diagnostics.Debug.WriteLine($"[NotificationService] Ready to handle SignalR events");
