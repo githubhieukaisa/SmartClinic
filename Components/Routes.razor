@@ -1,6 +1,31 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
-    </Found>
-</Router>
+﻿@using Microsoft.AspNetCore.Components.Authorization
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+
+                <NotAuthorized>
+                    <div class="flex items-center justify-center min-h-screen">
+                        <div class="text-center">
+                            <h1 class="text-4xl font-bold text-red-600">403</h1>
+                            <h2 class="mt-2 text-2xl font-semibold">Cấm Truy Cập!</h2>
+                            <p class="mt-4 text-gray-500">Bạn không có quyền hạn (Role) để xem trang này.</p>
+                            <a href="/" class="mt-6 inline-block text-blue-600 underline">Quay về trang chủ</a>
+                        </div>
+                    </div>
+                </NotAuthorized>
+
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Không tìm thấy trang</PageTitle>
+            <LayoutView Layout="@typeof(Layout.MainLayout)">
+                <div class="text-center mt-10">
+                    <h1 class="text-4xl font-bold text-gray-600">404</h1>
+                    <p>Đường dẫn không tồn tại.</p>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

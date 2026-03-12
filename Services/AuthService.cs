@@ -23,6 +23,7 @@ namespace SmartClinic.Services
         public async Task<AuthResponse?> LoginAsync(string username, string password)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username && u.IsActive == true);
+            Console.WriteLine($"[AuthService] Login attempt for username: {username}, password: {password}");
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
                 return null;
 

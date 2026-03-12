@@ -1,4 +1,6 @@
 @page "/checkin"
+@using Microsoft.AspNetCore.Authorization  
+@attribute [Authorize(Policy = "ReceptionPolicy")]
 @using Blazored.Toast.Services
 @using SmartClinic.Components.Common
 @using SmartClinic.Models

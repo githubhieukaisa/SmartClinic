@@ -72,7 +72,7 @@ namespace SmartClinic.Services
                 //Call SignalR
                 try
                 {
-                    var displayData = await _queueService.GetDisplayDataAsync();
+                    var displayData = await _queueService.GetDisplayDataAsync(selectedRoomInfo.Room.Id);
                     await _hubContext.Clients.All.SendAsync("ReceiveNewCall", displayData);
                 }
                 catch (Exception ex)

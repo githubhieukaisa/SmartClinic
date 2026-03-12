@@ -17,12 +17,12 @@ namespace SmartClinic.Services
             _hubContext = hubContext;
         }
 
-        public async Task<QueueDisplayDto> GetDisplayDataAsync()
+        public async Task<QueueDisplayDto> GetDisplayDataAsync(int RoomId)
         {
             // 1. Tìm số đang được gọi vào phòng (Giả sử Status là "Calling")
             // Nếu hệ thống của bạn lưu Status khác, hãy đổi lại cho khớp nhé!
             var currentCall = await _context.QueueTickets
-                .Where(t => t.Status == "Calling")
+                .Where(t => t.Status == "Calling" && t.RoomId == RoomId)
                 .OrderByDescending(t => t.CreatedAt) // Lấy người mới được gọi nhất
                 .FirstOrDefaultAsync();
 
@@ -71,7 +71,7 @@ namespace SmartClinic.Services
             await _context.SaveChangesAsync();
 
             // 4. Lấy data mới nhất sau khi DB thay đổi
-            var displayData = await GetDisplayDataAsync();
+            var displayData = await GetDisplayDataAsync(nextPatient.RoomId);
 
             // 5. Bắn SignalR ra TẤT CẢ các màn hình sảnh chờ
             await _hubContext.Clients.All.SendAsync("ReceiveNewCall", displayData);

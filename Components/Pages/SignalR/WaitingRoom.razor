@@ -1,4 +1,4 @@
-﻿@page "/waiting-room"
+﻿@page "/waiting-room/{RoomId:int}"
 @using Microsoft.AspNetCore.SignalR.Client
 @using SmartClinic.Components.Common
 @using SmartClinic.DTOs
@@ -37,12 +37,14 @@
 @code {
 	private HubConnection? hubConnection;
 	private QueueDisplayDto DisplayData { get; set; } = new QueueDisplayDto();
+	[Parameter]
+	public int RoomId { get; set; }
 
 	public bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
 
 	protected override async Task OnInitializedAsync()
 	{
-		DisplayData = await QueueService.GetDisplayDataAsync();
+		DisplayData = await QueueService.GetDisplayDataAsync(RoomId);
 
 		hubConnection = new HubConnectionBuilder()
 			.WithUrl(Navigation.ToAbsoluteUri("/queueHub"))
