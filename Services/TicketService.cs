@@ -73,7 +73,8 @@ namespace SmartClinic.Services
                 try
                 {
                     var displayData = await _queueService.GetDisplayDataAsync(selectedRoomInfo.Room.Id);
-                    await _hubContext.Clients.All.SendAsync("ReceiveNewCall", displayData);
+                    string groupName = $"Room_{selectedRoomInfo.Room.Id}";
+                    await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
                 }
                 catch (Exception ex)
                 {

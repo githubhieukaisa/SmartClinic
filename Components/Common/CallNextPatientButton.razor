@@ -26,6 +26,7 @@
 
 @code {
     // 1. Parameters cho phép ghi đè linh hoạt từ component cha
+    [Parameter] public int RoomId { get; set; } = 1;
     [Parameter] public string RoomName { get; set; } = "Phòng Khám 1";
     [Parameter] public string ButtonText { get; set; } = "Gọi bệnh nhân";
     [Parameter] public string CssClass { get; set; } = ""; // Mở rộng CSS khi cần (VD: w-full trên mobile)
@@ -57,7 +58,7 @@
             // Mô phỏng network delay (Có thể xóa đi khi chạy thực tế)
             await Task.Delay(500);
 
-            bool success = await QueueService.CallNextPatientAsync(RoomName);
+            bool success = await QueueService.CallNextPatientAsync(RoomId);
             if (!success)
             {
                 ToastService.ShowWarning("Đã hết bệnh nhân trong hàng đợi!");

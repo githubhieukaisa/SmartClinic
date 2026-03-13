@@ -17,37 +17,48 @@ namespace SmartClinic.Services
             _hubContext = hubContext;
         }
 
-        public async Task<QueueDisplayDto> GetDisplayDataAsync(int RoomId)
+        public async Task<QueueDisplayDto> GetDisplayDataAsync(int roomId)
         {
-            // 1. Tìm số đang được gọi vào phòng (Giả sử Status là "Calling")
-            // Nếu hệ thống của bạn lưu Status khác, hãy đổi lại cho khớp nhé!
+            Console.WriteLine($"Fetching display data for RoomId {roomId}...");
+            // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
+            var activeShift = await _context.DoctorShifts
+                .Include(s => s.Doctor) // Join sang bảng User để lấy tên
+                .Include(s => s.Room)   // Join sang bảng Room để lấy tên phòng
+                .FirstOrDefaultAsync(s => s.RoomId == roomId && s.Status == "Active");
+
+            var today = DateTime.Today;
+
+            // 2. TÌM SỐ ĐANG GỌI (Nhớ thêm điều kiện RoomId)
             var currentCall = await _context.QueueTickets
-                .Where(t => t.Status == "Calling" && t.RoomId == RoomId)
-                .OrderByDescending(t => t.CreatedAt) // Lấy người mới được gọi nhất
+                .Where(t => t.RoomId == roomId && t.Status == "Calling" && t.CreatedAt.Date == today)
+                .OrderByDescending(t => t.CreatedAt)
                 .FirstOrDefaultAsync();
 
-            // 2. Tìm danh sách 5 số tiếp theo đang chờ (Status = "Waiting")
+            // 3. TÌM DANH SÁCH CHỜ (Nhớ thêm điều kiện RoomId)
             var nextTickets = await _context.QueueTickets
-                .Where(t => t.Status == "Waiting")
-                .OrderBy(t => t.TicketNumber) // Xếp theo số thứ tự từ nhỏ đến lớn
+                .Where(t => t.RoomId == roomId && t.Status == "Waiting" && t.CreatedAt.Date == today)
+                .OrderBy(t => t.TicketNumber)
                 .Take(5)
                 .Select(t => t.TicketNumber.ToString())
                 .ToListAsync();
 
-            // 3. Đóng gói trả về DTO cho màn hình
+            // 4. TRẢ VỀ CHO TIVI
             return new QueueDisplayDto
             {
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
-                RoomName = currentCall != null ? "Phòng Khám 1" : "---", // Tạm fix cứng, sau này có thể lấy từ DB
+                RoomName = activeShift?.Room.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
+                DoctorName = activeShift != null ? $"BS. {activeShift.Doctor.FullName}" : "Phòng đang trống",
+                Specialty = "Chuyên khoa Ngoại", // Tạm fix, sau này có thể thêm vào bảng User
                 NextTickets = nextTickets
             };
         }
 
-        public async Task<bool> CallNextPatientAsync(string roomName)
+        public async Task<bool> CallNextPatientAsync(int roomId)
         {
-            // 1. Dọn dẹp: Chuyển người đang Calling (nếu có) sang "Examining"
+            var today = DateTime.Today;
+
             var currentCalling = await _context.QueueTickets
-                .FirstOrDefaultAsync(t => t.Status == "Calling"); // Giả sử DB em có cột RoomName
+                .FirstOrDefaultAsync(t => t.Status == "Calling" && t.CreatedAt.Date == today && t.RoomId == roomId);
 
             if (currentCalling != null)
             {
@@ -56,7 +67,7 @@ namespace SmartClinic.Services
 
             // 2. Tìm bệnh nhân tiếp theo đang chờ
             var nextPatient = await _context.QueueTickets
-                .Where(t => t.Status == "Waiting")
+                .Where(t => t.Status == "Waiting" && t.CreatedAt.Date == today && t.RoomId == roomId)
                 .OrderBy(t => t.TicketNumber)
                 .FirstOrDefaultAsync();
 
@@ -67,14 +78,13 @@ namespace SmartClinic.Services
             nextPatient.Status = "Calling";
             //nextPatient.RoomName = roomName; // Gán phòng cho bệnh nhân
 
-            // LƯU DB: Phải lưu thành công thì mới bắn SignalR
             await _context.SaveChangesAsync();
 
             // 4. Lấy data mới nhất sau khi DB thay đổi
             var displayData = await GetDisplayDataAsync(nextPatient.RoomId);
 
-            // 5. Bắn SignalR ra TẤT CẢ các màn hình sảnh chờ
-            await _hubContext.Clients.All.SendAsync("ReceiveNewCall", displayData);
+            string groupName = $"Room_{roomId}";
+            await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
 
             return true;
         }

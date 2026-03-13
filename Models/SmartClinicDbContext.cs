@@ -28,6 +28,7 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
     public virtual DbSet<Department> Departments { get; set; }
     public virtual DbSet<Room> Rooms { get; set; }
+    public virtual DbSet<DoctorShift> DoctorShifts { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }

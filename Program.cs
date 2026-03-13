@@ -126,6 +126,11 @@ namespace SmartClinic
 
             app.UseStaticFiles();
 
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.UseAntiforgery();
+
             app.UseHangfireDashboard("/hangfire", new DashboardOptions
             {
                 DashboardTitle = "SmartClinic Background Jobs",
@@ -135,11 +140,6 @@ namespace SmartClinic
 
                 AppPath = "/login"
             });
-
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            app.UseAntiforgery();
 
             // Định nghĩa route cho logout
             app.MapPost("/logout", (HttpContext context) =>
