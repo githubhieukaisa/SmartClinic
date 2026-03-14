@@ -59,7 +59,7 @@ namespace SmartClinic.Services
                     TicketNumber = nextTicketNumber,
                     Status = "Waiting",
                     RoomId = selectedRoomInfo.Room.Id,
-                    CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                    CreatedAt = DateTime.UtcNow,
                     Room = selectedRoomInfo.Room
                 };
 

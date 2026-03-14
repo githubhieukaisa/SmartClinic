@@ -167,5 +167,26 @@ public partial class SmartClinicDbContext : DbContext
         OnModelCreatingPartial(modelBuilder);
     }
 
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        // 1. Lấy tất cả các Entity kế thừa từ BaseEntity đang ở trạng thái "Chuẩn bị thêm mới"
+        var entries = ChangeTracker.Entries<BaseEntity>()
+            .Where(e => e.State == EntityState.Added);
+
+        // 2. Tính toán giờ Việt Nam chuẩn (Unspecified để PostgreSQL không chửi)
+        var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var vnTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone);
+        var unspecifiedVnTime = DateTime.SpecifyKind(vnTime, DateTimeKind.Unspecified);
+
+        // 3. Tự động gán giờ cho tất cả
+        foreach (var entry in entries)
+        {
+            entry.Entity.CreatedAt = unspecifiedVnTime;
+        }
+
+        // 4. Cho phép EF Core tiếp tục lưu vào Database
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }

@@ -48,11 +48,11 @@
 
 	public bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
 
+	private Timer? _watchdogTimer;
+
 	protected override async Task OnInitializedAsync()
 	{
 		DisplayData = await QueueService.GetDisplayDataAsync(RoomId);
-
-		Console.WriteLine($"Initial data loaded for RoomId {RoomId}: CurrentTicket={DisplayData.CurrentTicketNumber}, NextCount={DisplayData.NextTickets.Count}");
 
 		hubConnection = new HubConnectionBuilder()
 			.WithUrl(Navigation.ToAbsoluteUri("/queueHub"))
@@ -63,6 +63,7 @@
 		{
 			DisplayData = data;
 			InvokeAsync(StateHasChanged);
+			ResetWatchdog();
 		});
 
 		hubConnection.Reconnecting += async (error) =>
@@ -89,6 +90,7 @@
 		{
 			await hubConnection.StartAsync();
 			await hubConnection.InvokeAsync("JoinRoomGroup", RoomId);
+			StartWatchdog();
 		}
 		catch (Exception ex)
 		{
@@ -96,8 +98,42 @@
 		}
 	}
 
+	private void StartWatchdog()
+    {
+        _watchdogTimer = new Timer(async _ => await FallbackSyncAsync(), null, 
+            TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+	private void ResetWatchdog()
+    {
+        _watchdogTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+	private async Task FallbackSyncAsync()
+    {
+        try
+        {
+            // Tivi chủ động gọi API lấy data mới nhất
+            var freshData = await QueueService.GetDisplayDataAsync(RoomId);
+            
+            // Cập nhật lại UI
+            DisplayData = freshData;
+            await InvokeAsync(StateHasChanged);
+            
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Watchdog Sync: Đã đồng bộ dữ liệu dự phòng.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Watchdog lỗi kết nối: {ex.Message}");
+        }
+    }
+
 	public async ValueTask DisposeAsync()
 	{
+		if (_watchdogTimer is not null)
+        {
+            await _watchdogTimer.DisposeAsync();
+        }
 		if (hubConnection is not null)
 		{
 			await hubConnection.DisposeAsync();

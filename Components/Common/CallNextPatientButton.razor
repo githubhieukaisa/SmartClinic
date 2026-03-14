@@ -55,9 +55,6 @@
 
         try
         {
-            // Mô phỏng network delay (Có thể xóa đi khi chạy thực tế)
-            await Task.Delay(500);
-
             bool success = await QueueService.CallNextPatientAsync(RoomId);
             if (!success)
             {
