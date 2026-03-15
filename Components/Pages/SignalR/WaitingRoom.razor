@@ -1,4 +1,5 @@
 ﻿@page "/waiting-room/{RoomId:int}"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
 @using SmartClinic.Components.Common
 @using SmartClinic.DTOs
@@ -75,7 +76,12 @@
 
 		hubConnection.Reconnected += async (connectionId) =>
 		{
-			Console.WriteLine("Đã kết nối lại. Đang đồng bộ dữ liệu...");
+			Console.WriteLine("Đã kết nối lại. Đang join lại group và đồng bộ dữ liệu...");
+			if (hubConnection is not null)
+			{
+				await hubConnection.InvokeAsync("JoinRoomGroup", RoomId);
+			}
+
 			DisplayData = await QueueService.GetDisplayDataAsync(RoomId);
 			await InvokeAsync(StateHasChanged);
 		};

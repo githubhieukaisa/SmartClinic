@@ -27,8 +27,10 @@ namespace SmartClinic.Services
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
                 return null;
 
+            var (roomId, roomName) = await GetDoctorRoomContextAsync(user);
+
             // 1. Tạo bộ đôi Token
-            var accessToken = GenerateJwtToken(user);
+            var accessToken = GenerateJwtToken(user, roomId, roomName);
             var refreshToken = GenerateRefreshToken();
 
             // 2. Lưu Refresh Token xuống DB để kiểm soát
@@ -48,8 +50,10 @@ namespace SmartClinic.Services
 
             if (user == null) return null; // Token bậy bạ hoặc đã hết hạn -> Bắt đăng nhập lại
 
+            var (roomId, roomName) = await GetDoctorRoomContextAsync(user);
+
             // Nếu hợp lệ -> Tạo bộ đôi mới (Thu hồi token cũ luôn cho bảo mật xoay vòng - Token Rotation)
-            var newAccessToken = GenerateJwtToken(user);
+            var newAccessToken = GenerateJwtToken(user, roomId, roomName);
             var newRefreshToken = GenerateRefreshToken();
 
             user.RefreshToken = newRefreshToken;
@@ -69,7 +73,7 @@ namespace SmartClinic.Services
             }
         }
 
-        private string GenerateJwtToken(User user)
+        private string GenerateJwtToken(User user, int? roomId, string? roomName)
         {
             var secretKey = _configuration["Jwt:Key"];
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
@@ -83,7 +87,8 @@ namespace SmartClinic.Services
                 new Claim("RoleMask", user.RoleMask.ToString())
             };
 
-            if (user.RoomId.HasValue) claims.Add(new Claim("RoomId", user.RoomId.Value.ToString()));
+            if (roomId.HasValue) claims.Add(new Claim("RoomId", roomId.Value.ToString()));
+            if (!string.IsNullOrWhiteSpace(roomName)) claims.Add(new Claim("RoomName", roomName));
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
@@ -102,6 +107,30 @@ namespace SmartClinic.Services
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
             return Convert.ToBase64String(randomNumber);
+        }
+
+        private async Task<(int? RoomId, string? RoomName)> GetDoctorRoomContextAsync(User user)
+        {
+            var activeShift = await _context.DoctorShifts
+                .Include(s => s.Room)
+                .FirstOrDefaultAsync(s => s.DoctorId == user.Id && s.Status == "Active");
+
+            if (activeShift is not null)
+            {
+                return (activeShift.RoomId, activeShift.Room.Name);
+            }
+
+            if (user.RoomId.HasValue)
+            {
+                var roomName = await _context.Rooms
+                    .Where(r => r.Id == user.RoomId.Value)
+                    .Select(r => r.Name)
+                    .FirstOrDefaultAsync();
+
+                return (user.RoomId.Value, roomName);
+            }
+
+            return (null, null);
         }
     }
 }

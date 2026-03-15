@@ -1,10 +1,11 @@
 ﻿@using Blazored.Toast.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using SmartClinic.Services
 @inject IQueueService QueueService
 @inject IToastService ToastService
 
 <button @onclick="HandleClick"
-        disabled="@IsLoading"
+        disabled="@(IsLoading || !HasResolvedRoomId)"
         class="@GetButtonClasses()">
 
     @if (IsLoading)
@@ -25,14 +26,38 @@
 </button>
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
     // 1. Parameters cho phép ghi đè linh hoạt từ component cha
-    [Parameter] public int RoomId { get; set; } = 1;
-    [Parameter] public string RoomName { get; set; } = "Phòng Khám 1";
+    [Parameter] public int? RoomId { get; set; }
+    [Parameter] public string RoomName { get; set; } = "";
     [Parameter] public string ButtonText { get; set; } = "Gọi bệnh nhân";
     [Parameter] public string CssClass { get; set; } = ""; // Mở rộng CSS khi cần (VD: w-full trên mobile)
 
     // 2. Quản lý State
     private bool IsLoading { get; set; }
+    private int? ResolvedRoomId { get; set; }
+    private bool HasResolvedRoomId => ResolvedRoomId.HasValue;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (RoomId.HasValue && RoomId.Value > 0)
+        {
+            ResolvedRoomId = RoomId.Value;
+            return;
+        }
+
+        if (AuthenticationStateTask is null)
+        {
+            ResolvedRoomId = null;
+            return;
+        }
+
+        var authState = await AuthenticationStateTask;
+        var roomIdClaim = authState.User.FindFirst("RoomId")?.Value;
+
+        ResolvedRoomId = int.TryParse(roomIdClaim, out var roomId) ? roomId : null;
+    }
 
     // 3. Dynamic Class Binding
     private string GetButtonClasses()
@@ -49,20 +74,28 @@
     private async Task HandleClick()
     {
         if (IsLoading) return; // Ngăn chặn double-click
+        if (!HasResolvedRoomId)
+        {
+            ToastService.ShowError("Không tìm thấy phòng khám của bác sĩ trong JWT.");
+            return;
+        }
 
         IsLoading = true;
         StateHasChanged(); // Cập nhật UI hiển thị Spinner
 
         try
         {
-            bool success = await QueueService.CallNextPatientAsync(RoomId);
+            bool success = await QueueService.CallNextPatientAsync(ResolvedRoomId!.Value);
             if (!success)
             {
                 ToastService.ShowWarning("Đã hết bệnh nhân trong hàng đợi!");
             }
             else
             {
-                ToastService.ShowSuccess($"Đã gọi bệnh nhân vào {RoomName}");
+                var displayRoomName = string.IsNullOrWhiteSpace(RoomName)
+                    ? $"Phòng {ResolvedRoomId!.Value}"
+                    : RoomName;
+                ToastService.ShowSuccess($"Đã gọi bệnh nhân vào {displayRoomName}");
             }
         }
         finally
