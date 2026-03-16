@@ -70,11 +70,12 @@
   --sidebar-ring: oklch(0.467 0.206 273.274);
 }
 
-html, body {
+html,
+body {
   height: 100%;
   background-color: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -137,5 +138,3 @@ html, body {
     border: 1px solid var(--border);
   }
 }
-
-

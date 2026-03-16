@@ -1,4 +1,6 @@
-﻿@inherits LayoutComponentBase
+﻿@using Blazored.Toast
+@using Blazored.Toast.Configuration
+@inherits LayoutComponentBase
 
 <div class="page">
     <div class="sidebar">
@@ -15,6 +17,11 @@
         </article>
     </main>
 </div>
+
+<BlazoredToasts Position="ToastPosition.BottomRight"
+                Timeout="3"
+                IconType="IconType.Blazored"
+                @rendermode="InteractiveServer" />
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.

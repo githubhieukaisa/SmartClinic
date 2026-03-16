@@ -26,12 +26,21 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<QueueTicket> QueueTickets { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<Department> Departments { get; set; }
+    public virtual DbSet<Room> Rooms { get; set; }
+    public virtual DbSet<DoctorShift> DoctorShifts { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.HasSequence<int>("TicketNumberSeq")
+                .StartsAt(1)
+                .IncrementsBy(1);
+
         modelBuilder
             .HasPostgresEnum("auth", "aal_level", new[] { "aal1", "aal2", "aal3" })
             .HasPostgresEnum("auth", "code_challenge_method", new[] { "s256", "plain" })
@@ -150,7 +159,33 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.Username).HasMaxLength(50);
         });
 
+        foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+        {
+            relationship.DeleteBehavior = DeleteBehavior.Restrict;
+        }
+
         OnModelCreatingPartial(modelBuilder);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        // 1. Lấy tất cả các Entity kế thừa từ BaseEntity đang ở trạng thái "Chuẩn bị thêm mới"
+        var entries = ChangeTracker.Entries<BaseEntity>()
+            .Where(e => e.State == EntityState.Added);
+
+        // 2. Tính toán giờ Việt Nam chuẩn (Unspecified để PostgreSQL không chửi)
+        var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var vnTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone);
+        var unspecifiedVnTime = DateTime.SpecifyKind(vnTime, DateTimeKind.Unspecified);
+
+        // 3. Tự động gán giờ cho tất cả
+        foreach (var entry in entries)
+        {
+            entry.Entity.CreatedAt = unspecifiedVnTime;
+        }
+
+        // 4. Cho phép EF Core tiếp tục lưu vào Database
+        return base.SaveChangesAsync(cancellationToken);
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);

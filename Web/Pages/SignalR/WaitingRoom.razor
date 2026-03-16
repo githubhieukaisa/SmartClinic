@@ -1,0 +1,148 @@
+﻿@page "/waiting-room/{RoomId:int}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@using SmartClinic.Components.Common
+@using SmartClinic.DTOs
+@using SmartClinic.Services
+@implements IAsyncDisposable
+@inject NavigationManager Navigation
+@inject IQueueService QueueService
+
+<div class="flex flex-col items-center min-h-screen px-4 py-12 font-sans transition-colors duration-300 bg-slate-50 dark:bg-slate-900 sm:px-6 lg:px-8">
+	<div class="w-full max-w-5xl space-y-8">
+
+		<h1 class="text-3xl font-extrabold tracking-tight text-center md:text-5xl text-slate-800 dark:text-white">
+			SẢNH CHỜ KHÁM BỆNH
+		</h1>
+
+		<div class="mb-8 text-center">
+			<h1 class="text-4xl font-black text-slate-700 dark:text-slate-200">@DisplayData.RoomName</h1>
+			<h2 class="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">@DisplayData.DoctorName</h2>
+			<h4 class="mt-1 text-lg font-medium text-slate-500 dark:text-slate-400">@DisplayData.Specialty</h4>
+		</div>
+
+		@if (!IsConnected)
+		{
+			<ConnectionAlert Message="Đang kết nối đến hệ thống màn hình... Vui lòng đợi." />
+		}
+		else
+		{
+			<div class="flex flex-col gap-6 md:flex-row">
+				<div class="flex-1">
+					<CurrentCallCard TicketNumber="@DisplayData.CurrentTicketNumber"
+						RoomName="@DisplayData.RoomName" />
+				</div>
+
+				<div class="w-full md:w-1/3">
+					<NextCallsList Tickets="@DisplayData.NextTickets" />
+				</div>
+			</div>
+		}
+	</div>
+</div>
+
+@code {
+	private HubConnection? hubConnection;
+	private QueueDisplayDto DisplayData { get; set; } = new QueueDisplayDto();
+	[Parameter]
+	public int RoomId { get; set; }
+
+	public bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
+
+	private Timer? _watchdogTimer;
+
+	protected override async Task OnInitializedAsync()
+	{
+		DisplayData = await QueueService.GetDisplayDataAsync(RoomId);
+
+		hubConnection = new HubConnectionBuilder()
+			.WithUrl(Navigation.ToAbsoluteUri("/queueHub"))
+			.WithAutomaticReconnect()
+			.Build();
+
+		hubConnection.On<QueueDisplayDto>("ReceiveNewCall", (data) =>
+		{
+			DisplayData = data;
+			InvokeAsync(StateHasChanged);
+			ResetWatchdog();
+		});
+
+		hubConnection.Reconnecting += async (error) =>
+		{
+			// Cập nhật trạng thái UI để hiện thông báo Alert
+			Console.WriteLine($"Đang thử kết nối lại do lỗi: {error?.Message}");
+			await InvokeAsync(StateHasChanged);
+		};
+
+		hubConnection.Reconnected += async (connectionId) =>
+		{
+			Console.WriteLine("Đã kết nối lại. Đang join lại group và đồng bộ dữ liệu...");
+			if (hubConnection is not null)
+			{
+				await hubConnection.InvokeAsync("JoinRoomGroup", RoomId);
+			}
+
+			DisplayData = await QueueService.GetDisplayDataAsync(RoomId);
+			await InvokeAsync(StateHasChanged);
+		};
+
+		hubConnection.Closed += async (error) =>
+		{
+			Console.WriteLine($"Mất kết nối hoàn toàn. Vui lòng F5 tải lại trang.");
+			await InvokeAsync(StateHasChanged);
+		};
+
+		try
+		{
+			await hubConnection.StartAsync();
+			await hubConnection.InvokeAsync("JoinRoomGroup", RoomId);
+			StartWatchdog();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error starting SignalR: {ex.Message}");
+		}
+	}
+
+	private void StartWatchdog()
+    {
+        _watchdogTimer = new Timer(async _ => await FallbackSyncAsync(), null, 
+            TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+	private void ResetWatchdog()
+    {
+        _watchdogTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+	private async Task FallbackSyncAsync()
+    {
+        try
+        {
+            // Tivi chủ động gọi API lấy data mới nhất
+            var freshData = await QueueService.GetDisplayDataAsync(RoomId);
+            
+            // Cập nhật lại UI
+            DisplayData = freshData;
+            await InvokeAsync(StateHasChanged);
+            
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Watchdog Sync: Đã đồng bộ dữ liệu dự phòng.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Watchdog lỗi kết nối: {ex.Message}");
+        }
+    }
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_watchdogTimer is not null)
+        {
+            await _watchdogTimer.DisposeAsync();
+        }
+		if (hubConnection is not null)
+		{
+			await hubConnection.DisposeAsync();
+		}
+	}
+}
