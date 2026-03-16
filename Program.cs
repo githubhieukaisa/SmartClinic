@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
-using SmartClinic.Web;
 using SmartClinic.Models;
 using SmartClinic.Hubs;
 using Microsoft.IdentityModel.Tokens;

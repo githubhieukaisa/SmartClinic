@@ -1,0 +1,119 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using SmartClinic.Services
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavManager
+
+@if (IsDoctorMenu)
+{
+    <nav class="flex-1 px-4 py-6">
+        <ul class="space-y-2">
+            <li>
+                <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition">
+                    <i class="ph-bold ph-squares-four text-lg"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition">
+                    <i class="ph-bold ph-queue text-lg"></i>
+                    <span>Patient Queue</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition">
+                    <i class="ph-bold ph-users text-lg"></i>
+                    <span>Patients</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition">
+                    <i class="ph-bold ph-file-text text-lg"></i>
+                    <span>Medical Records</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition">
+                    <i class="ph-bold ph-pill text-lg"></i>
+                    <span>Prescriptions</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition">
+                    <i class="ph-bold ph-test-tube text-lg"></i>
+                    <span>Lab Tests</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="p-4 border-t border-border">
+        <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-red-50 transition font-medium">
+            <i class="ph-bold ph-sign-out text-lg"></i>
+            <span>Sign Out</span>
+        </button>
+    </div>
+}
+else
+{
+    <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+        <nav class="flex-column">
+            <AuthorizeView>
+                <NotAuthorized>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="login" Match="NavLinkMatch.All">
+                            <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Đăng Nhập
+                        </NavLink>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+
+            <AuthorizeView Policy="ReceptionPolicy">
+                <Authorized>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="checkin">
+                            <span class="bi bi-person-badge" aria-hidden="true"></span> Quầy Lễ Tân
+                        </NavLink>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView Policy="DoctorPolicy">
+                <Authorized>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="doctor/waiting-list-demo">
+                            <span class="bi bi-heart-pulse" aria-hidden="true"></span> Phòng Khám
+                        </NavLink>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView Policy="AdminPolicy">
+                <Authorized>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="hangfire">
+                            <span class="bi bi-heart-pulse" aria-hidden="true"></span> HangFire
+                        </NavLink>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <AuthorizeView>
+                <Authorized>
+                    <div class="nav-item px-3">
+                        <form action="/logout" method="post" style="display: inline;">
+                            <AntiforgeryToken />
+                            <button type="submit" class="nav-link btn btn-link text-white" style="border: none; background: none; width: 100%; text-align: left;">
+                                <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Đăng Xuất
+                            </button>
+                        </form>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </nav>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsDoctorMenu { get; set; }
+}
