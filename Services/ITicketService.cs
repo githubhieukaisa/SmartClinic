@@ -4,6 +4,7 @@ namespace SmartClinic.Services
 {
     public interface ITicketService
     {
-        Task<QueueTicket> GenerateTicketAsync(Patient newPatient, int departmentId);
+        Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId);
+        Task<Patient?> FindPatientByPhoneAsync(string phone);
     }
 }

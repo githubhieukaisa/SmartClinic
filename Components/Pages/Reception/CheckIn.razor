@@ -20,13 +20,27 @@
 
         @* Form nhập liệu *@
         <div class="space-y-5">
-            <TextInput Label="Tên bệnh nhân"
-                       Placeholder="VD: Nguyễn Văn A"
-                       @bind-Value="patientName" />
+            <div>
+                <label class="block mb-1 text-sm font-medium text-slate-700">Số điện thoại bệnh nhân</label>
+                <input type="text" 
+                       @bind="patientPhone" 
+                       @onblur="CheckExistingPatient" 
+                       placeholder="VD: 0901234567"
+                       class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
 
-            <TextInput Label="Số điện thoại"
-                       Placeholder="VD: 0901234567"
-                       @bind-Value="patientPhone" />
+            <div>
+                <label class="block mb-1 text-sm font-medium text-slate-700">Tên bệnh nhân</label>
+                <input type="text" 
+                       @bind="patientName" 
+                       placeholder="VD: Nguyễn Văn A"
+                       class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                
+                @if (isExistingPatient)
+                {
+                    <span class="text-xs text-green-600 mt-1 block">✓ Đã tìm thấy hồ sơ bệnh nhân cũ</span>
+                }
+            </div>
 
             @* Đưa phần chọn khoa vào chung form để UX logic hơn *@
             <div>
@@ -85,6 +99,7 @@
 @code {
     private string patientName = string.Empty;
     private string patientPhone = string.Empty;
+    private bool isExistingPatient = false;
     private bool isLoading = false;
     private QueueTicket? generatedTicket;
     private List<Department> departments = new();
@@ -114,8 +129,7 @@
 
         try
         {
-            var newPatient = new Patient { FullName = patientName, Phone = patientPhone };
-            generatedTicket = await TicketService.GenerateTicketAsync(newPatient, selectedDepartmentId);
+            generatedTicket = await TicketService.GenerateTicketAsync(patientName, patientPhone, selectedDepartmentId);
 
             ToastService.ShowSuccess($"Cấp số thành công cho bệnh nhân {patientName}!");
         }
@@ -129,6 +143,26 @@
         }
     }
 
+    private async Task CheckExistingPatient()
+    {
+        if (string.IsNullOrWhiteSpace(patientPhone)) return;
+
+        var existingPatient = await TicketService.FindPatientByPhoneAsync(patientPhone);
+        if (existingPatient != null)
+        {
+            // Tự động điền tên bệnh nhân
+            patientName = existingPatient.FullName;
+            isExistingPatient = true;
+            ToastService.ShowInfo($"Tìm thấy hồ sơ: {patientName}");
+        }
+        else
+        {
+            // Reset nếu nhập số khác
+            if (isExistingPatient) patientName = string.Empty;
+            isExistingPatient = false;
+        }
+    }
+
     // UX tiện ích bổ sung
     private void ResetForm()
     {
@@ -136,5 +170,6 @@
         patientPhone = string.Empty;
         selectedDepartmentId = 0;
         generatedTicket = null;
+        isExistingPatient = false;
     }
 }
