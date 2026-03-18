@@ -9,12 +9,105 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <script src="https://unpkg.com/@@phosphor-icons/web"></script>
     <link rel="stylesheet" href="css/app.css" asp-append-version="true" />
+    <link rel="stylesheet" href="css/waiting-room.css" asp-append-version="true" />
+
     <HeadOutlet/>
 </head>
 
 <body>
     <Routes/>
-    <script src="_framework/blazor.web.js"></script>
+
+    <div id="custom-reconnect-banner" class="hidden fixed top-5 right-5 bg-red-50 text-red-800 border border-red-400 rounded-lg px-6 py-3 shadow-lg z-[99999] font-bold">
+        ⚠️ Tín hiệu mạng đang chập chờn...
+    </div>
+
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+
+    <script>
+        (() => {
+            const maximumRetryCount = 3;
+            const retryIntervalMilliseconds = 3000;
+            let currentReconnectionProcess = null;
+            let reloadTimer = null;
+
+            const startReconnectionProcess = () => {
+                let isCanceled = false;
+
+                (async () => {
+                    for (let i = 0; i < maximumRetryCount; i++) {
+                        await new Promise(resolve => setTimeout(resolve, retryIntervalMilliseconds));
+
+                        if (isCanceled) return;
+
+                        try {
+                            const result = await Blazor.reconnect();
+
+                            if (!result) {
+                                location.reload();
+                                return;
+                            }
+
+                            return;
+                        } catch {
+                        }
+                    }
+
+                    document.getElementById('custom-reconnect-banner').innerText = "❌ Mất kết nối máy chủ. Đang chờ khôi phục...";
+
+                    if (reloadTimer) return;
+
+                    reloadTimer = setInterval(async () => {
+                    try {
+                        // Gõ cửa Server một cái thật nhẹ
+                        let response = await fetch('/favicon.png', {
+                            method: 'GET',
+                            cache: 'no-store'
+                        });
+
+                        // Cửa mở (Server trả lời OK) -> F5 NGAY VÀ LUÔN!
+                        if (response.ok) {
+                            console.log("Server đã hồi sinh! Đang tải lại...");
+                            location.reload();
+                        }
+                    } catch (error) {
+                        console.log("Ping thất bại, Server vẫn chưa online...");
+                    }
+                }, 3000);
+                })();
+
+                return {
+                    cancel: () => {
+                        isCanceled = true;
+                    }
+                };
+            };
+
+            Blazor.start({
+                circuit: {
+                    reconnectionHandler: {
+                        onConnectionDown: function (options, error) {
+                            console.log("Mất kết nối tới Server. Đang cố gắng nối lại...");
+                            console.error(error);
+                            document.getElementById('custom-reconnect-banner').classList.remove('hidden');
+                            document.getElementById('custom-reconnect-banner').innerText = "⚠️ Tín hiệu mạng đang chập chờn...";
+                            currentReconnectionProcess ??= startReconnectionProcess();
+                        },
+                        onConnectionUp: function () {
+                            console.log("Đã kết nối lại thành công.");
+                            document.getElementById('custom-reconnect-banner').classList.add('hidden');
+                            currentReconnectionProcess?.cancel();
+                            currentReconnectionProcess = null;
+
+                            if (reloadTimer) {
+                                clearInterval(reloadTimer);
+                                reloadTimer = null;
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
 </body>
 
 </html>

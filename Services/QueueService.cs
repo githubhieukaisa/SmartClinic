@@ -57,22 +57,48 @@ namespace SmartClinic.Services
         {
             var today = DateTime.Today;
 
+            bool isExamining = await _context.QueueTickets.AnyAsync(t => t.Status == "Examining" && t.CreatedAt.Date == today && t.RoomId == roomId);
+            if (isExamining) return false;
+
             var currentCalling = await _context.QueueTickets
                 .FirstOrDefaultAsync(t => t.Status == "Calling" && t.CreatedAt.Date == today && t.RoomId == roomId);
 
             if (currentCalling != null)
             {
-                currentCalling.Status = "Examining";
+                currentCalling.Status = "Waiting";
+                // Tìm 3 người tiếp theo đang chờ
+                var nextWaitings = await _context.QueueTickets
+                    .Where(t => t.Status == "Waiting" && t.CreatedAt.Date == today && t.RoomId == roomId)
+                    .OrderBy(t => t.CreatedAt)
+                    .Take(3) // Số N = 3
+                    .ToListAsync();
+
+                if (nextWaitings.Count == 0)
+                {
+                    // Nếu đằng sau không còn ai, thì cứ để ổng ở nguyên vị trí (không đổi CreatedAt)
+                }
+                else if (nextWaitings.Count < 3)
+                {
+                    // Nếu đằng sau chỉ có 1 hoặc 2 người (ít hơn 3), thì đẩy ổng xuống CUỐI CÙNG của nhóm ít ỏi đó
+                    var lastPerson = nextWaitings[^1];
+                    currentCalling.CreatedAt = lastPerson.CreatedAt.AddMilliseconds(1);
+                }
+                else
+                {
+                    // Nếu đằng sau đông người, lấy người thứ 3 làm mốc, nhét ổng vào ngay sau người thứ 3
+                    var thirdPerson = nextWaitings[2];
+                    currentCalling.CreatedAt = thirdPerson.CreatedAt.AddMilliseconds(1);
+                }
             }
 
             // 2. Tìm bệnh nhân tiếp theo đang chờ
             var nextPatient = await _context.QueueTickets
                 .Where(t => t.Status == "Waiting" && t.CreatedAt.Date == today && t.RoomId == roomId)
-                .OrderBy(t => t.TicketNumber)
+                .OrderBy(t => t.CreatedAt)
+                .ThenBy(t => t.TicketNumber)
                 .FirstOrDefaultAsync();
 
-            if (nextPatient == null)
-                return false; // Hết bệnh nhân chờ
+            if (nextPatient == null) return false; // Hết bệnh nhân chờ
 
             // 3. Cập nhật trạng thái người mới thành "Calling"
             nextPatient.Status = "Calling";

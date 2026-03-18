@@ -28,34 +28,39 @@ namespace SmartClinic.Services
 
         public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId)
         {
+            Patient patient = null;
+            patientPhone = patientPhone?.Trim();
+
+            if (!string.IsNullOrEmpty(patientPhone))
+            {
+                patient = await _context.Patients.FirstOrDefaultAsync(p => p.Phone == patientPhone);
+                if (patient != null && patient.FullName != patientName)
+                {
+                    patient.FullName = patientName;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            if (patient == null)
+            {
+                patient = new Patient
+                {
+                    FullName = patientName,
+                    Phone = string.IsNullOrEmpty(patientPhone) ? null : patientPhone
+                };
+                _context.Patients.Add(patient);
+                await _context.SaveChangesAsync(); // Lưu luôn để có patient.Id
+            }
+
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Phone == patientPhone);
-
-                if (patient == null)
-                {
-                    // Bệnh nhân mới -> Tạo mới
-                    patient = new Patient { FullName = patientName, Phone = patientPhone };
-                    _context.Patients.Add(patient);
-                    await _context.SaveChangesAsync(); // Lưu để lấy ID mới
-                }
-                else
-                {
-                    // Bệnh nhân cũ -> Cập nhật tên nếu Lễ tân có sửa đổi
-                    if (patient.FullName != patientName)
-                    {
-                        patient.FullName = patientName;
-                        await _context.SaveChangesAsync();
-                    }
-                }
-
-                // 2. Chạy Lock và Load Balancing như cũ
                 await _context.Database.ExecuteSqlRawAsync("SELECT \"Id\" FROM \"Departments\" WHERE \"Id\" = {0} FOR UPDATE", departmentId);
 
                 var today = DateTime.UtcNow.Date;
-                // 3. Lúc này đã an toàn 100%
+
+                // 2. Tìm phòng trống nhất (Lúc này an toàn tuyệt đối, không sợ đọc trùng)
                 var selectedRoomInfo = await _context.Rooms
                     .Where(r => r.DepartmentId == departmentId && r.IsActive)
                     .Select(r => new
@@ -74,12 +79,12 @@ namespace SmartClinic.Services
                     throw new Exception("Hiện tại không có phòng nào mở cửa cho khoa này!");
                 }
 
-                // 4. Lấy số Sequence
+                // 3. Lấy số tự tăng (Độc lập, siêu nhanh)
                 var nextTicketNumber = await _context.Database
                     .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
                     .SingleAsync();
 
-                // 5. Tạo Ticket
+                // 4. In vé
                 var ticket = new QueueTicket
                 {
                     PatientId = patient.Id,
@@ -92,9 +97,9 @@ namespace SmartClinic.Services
 
                 _context.QueueTickets.Add(ticket);
                 await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
 
-                //Call SignalR
                 try
                 {
                     var displayData = await _queueService.GetDisplayDataAsync(selectedRoomInfo.Room.Id);
@@ -114,5 +119,6 @@ namespace SmartClinic.Services
                 throw;
             }
         }
+
     }
 }
