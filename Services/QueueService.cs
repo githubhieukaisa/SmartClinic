@@ -22,8 +22,17 @@ namespace SmartClinic.Services
             Console.WriteLine($"Fetching display data for RoomId {roomId}...");
             // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
             var activeShift = await _context.DoctorShifts
-                .Include(s => s.Doctor) // Join sang bảng User để lấy tên
-                .Include(s => s.Room)   // Join sang bảng Room để lấy tên phòng
+                .Include(s => s.Doctor)
+                .Include(s => s.Room)
+                .ThenInclude(r => r.Department)
+                .Select(s => new
+                {
+                    s.RoomId,
+                    DoctorName = s.Doctor.FullName,
+                    RoomName = s.Room.Name,
+                    s.Status,
+                    DepartmentName = s.Room.Department.Name
+                })
                 .FirstOrDefaultAsync(s => s.RoomId == roomId && s.Status == "Active");
 
             var today = DateTime.Today;
@@ -37,7 +46,8 @@ namespace SmartClinic.Services
             // 3. TÌM DANH SÁCH CHỜ (Nhớ thêm điều kiện RoomId)
             var nextTickets = await _context.QueueTickets
                 .Where(t => t.RoomId == roomId && t.Status == "Waiting" && t.CreatedAt.Date == today)
-                .OrderBy(t => t.TicketNumber)
+                .OrderBy(t => t.CreatedAt)
+                .ThenBy(t => t.TicketNumber)
                 .Take(5)
                 .Select(t => t.TicketNumber.ToString())
                 .ToListAsync();
@@ -46,9 +56,9 @@ namespace SmartClinic.Services
             return new QueueDisplayDto
             {
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
-                RoomName = activeShift?.Room.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
-                DoctorName = activeShift != null ? $"BS. {activeShift.Doctor.FullName}" : "Phòng đang trống",
-                Specialty = "Chuyên khoa Ngoại", // Tạm fix, sau này có thể thêm vào bảng User
+                RoomName = activeShift?.RoomName ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
+                DoctorName = activeShift != null ? $"BS. {activeShift.DoctorName}" : "Phòng đang trống",
+                Specialty = activeShift?.DepartmentName ?? "",
                 NextTickets = nextTickets
             };
         }

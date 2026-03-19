@@ -1,0 +1,143 @@
+﻿using Blazored.Toast;
+using Hangfire;
+using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.EntityFrameworkCore;
+using SmartClinic.Models;
+
+namespace SmartClinic.Services
+{
+    public static class ServiceExtensions
+    {
+        /// <summary>
+        /// Đăng ký DbContext với PostgreSQL
+        /// </summary>
+        public static IServiceCollection AddSmartClinicDatabase(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddDbContext<SmartClinicDbContext>(options =>
+                options.UseNpgsql(configuration.GetConnectionString("MyCnn")));
+            return services;
+        }
+
+        /// <summary>
+        /// Đăng ký các business logic services (Ticket, Department, Auth, Queue)
+        /// </summary>
+        public static IServiceCollection AddSmartClinicServices(this IServiceCollection services)
+        {
+            services.AddScoped<ITicketService, TicketService>();
+            services.AddScoped<IDepartmentService, DepartmentService>();
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IQueueService, QueueService>();
+            services.AddBlazoredToast();
+            return services;
+        }
+
+        /// <summary>
+        /// Cấu hình Hangfire với PostgreSQL
+        /// </summary>
+        public static IServiceCollection AddSmartClinicHangfire(this IServiceCollection services, IConfiguration configuration)
+        {
+            // 1. ĐĂNG KÝ HANGFIRE VÀ KẾT NỐI DB POSTGRESQL
+            services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UsePostgreSqlStorage(options =>
+                    options.UseNpgsqlConnection(configuration.GetConnectionString("MyCnn"))));
+
+            // 2. KHỞI ĐỘNG External services
+            services.AddHangfireServer();
+            return services;
+        }
+
+        /// <summary>
+        /// Cấu hình Cookie Authentication với token renewal logic
+        /// </summary>
+        public static IServiceCollection AddCustomAuthentication(this IServiceCollection services)
+        {
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
+                {
+                    options.LoginPath = "/login";
+                    options.AccessDeniedPath = "/login";
+                    options.Cookie.HttpOnly = true;
+                    options.Cookie.SameSite = SameSiteMode.Strict;
+
+                    options.Events = new CookieAuthenticationEvents
+                    {
+                        OnValidatePrincipal = async context =>
+                        {
+                            var expiresUtc = context.Properties.ExpiresUtc;
+                            // Kiểm tra xem Access Token đã hết hạn 15 phút chưa?
+                            if (expiresUtc != null && expiresUtc.Value < DateTimeOffset.UtcNow)
+                            {
+                                var refreshToken = context.Properties.GetString("refresh_token");
+                                if (!string.IsNullOrEmpty(refreshToken))
+                                {
+                                    // Hết hạn -> Gọi AuthService đổi Token mới!
+                                    var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
+                                    var newTokens = await authService.RenewTokenAsync(refreshToken);
+
+                                    if (newTokens != null)
+                                    {
+                                        // Lưu Token mới vào Cookie nội bộ
+                                        context.Properties.StoreTokens(new[] {
+                                                new AuthenticationToken { Name = "access_token", Value = newTokens.AccessToken },
+                                                new AuthenticationToken { Name = "refresh_token", Value = newTokens.RefreshToken }
+                                            });
+
+                                        // Gia hạn thời gian sống thêm 15 phút nữa
+                                        context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15);
+
+                                        // Ra lệnh cho hệ thống tự động lưu Cookie mới xuống trình duyệt
+                                        context.ShouldRenew = true;
+                                    }
+                                    else
+                                    {
+                                        // Refresh token hỏng -> Hủy phiên, bắt đăng nhập lại
+                                        context.RejectPrincipal();
+                                        await context.HttpContext.SignOutAsync();
+                                    }
+                                }
+                            }
+                        }
+                    };
+                });
+
+            services.AddCascadingAuthenticationState();
+            return services;
+        }
+
+        /// <summary>
+        /// Cấu hình Authorization policies dựa trên Role Mask
+        /// </summary>
+        public static IServiceCollection AddCustomAuthorization(this IServiceCollection services)
+        {
+            services.AddAuthorizationCore(options =>
+            {
+                options.AddPolicy("ReceptionPolicy", policy => policy.RequireAssertion(context => HasRole(context, 1)));
+                options.AddPolicy("DoctorPolicy", policy => policy.RequireAssertion(context => HasRole(context, 2)));
+                options.AddPolicy("PharmacistPolicy", policy => policy.RequireAssertion(context => HasRole(context, 4)));
+                options.AddPolicy("CashierPolicy", policy => policy.RequireAssertion(context => HasRole(context, 8)));
+                options.AddPolicy("AdminPolicy", policy => policy.RequireAssertion(context => HasRole(context, 16)));
+            });
+            return services;
+        }
+
+        /// <summary>
+        /// Helper method để kiểm tra role dựa trên RoleMask claim
+        /// </summary>
+        private static bool HasRole(AuthorizationHandlerContext context, int targetRoleMask)
+        {
+            var roleMaskClaim = context.User.FindFirst("RoleMask")?.Value;
+            if (int.TryParse(roleMaskClaim, out int roleMask))
+            {
+                return (roleMask & targetRoleMask) == targetRoleMask;
+            }
+            return false;
+        }
+    }
+}

@@ -1,21 +1,9 @@
-﻿using Blazored.Toast;
-using Hangfire;
-using Hangfire.PostgreSql;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.EntityFrameworkCore;
-using SmartClinic.Models;
-using SmartClinic.Hubs;
-using Microsoft.IdentityModel.Tokens;
+﻿using Hangfire;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
 using SmartClinic.Security;
 using SmartClinic.Services;
-using System.Text;
 
 namespace SmartClinic
 {
@@ -30,89 +18,20 @@ namespace SmartClinic
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
-            builder.Services.AddDbContext<SmartClinicDbContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("MyCnn")));
             builder.Services.AddSignalR();
 
-            //Đăng ký service
-            builder.Services.AddScoped<ITicketService, TicketService>();
-            builder.Services.AddScoped<IDepartmentService, DepartmentService>();
-            builder.Services.AddScoped<IAuthService, AuthService>();
-            builder.Services.AddScoped<IQueueService, QueueService>();
-            builder.Services.AddBlazoredToast();
+            // Register database
+            builder.Services.AddSmartClinicDatabase(builder.Configuration);
 
-            //Đăng ký jwt authentication
-            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-            .AddCookie(options =>
-            {
-                options.LoginPath = "/login";
-                options.AccessDeniedPath = "/login";
-                options.Cookie.HttpOnly = true;
-                options.Cookie.SameSite = SameSiteMode.Strict;
+            // Register business logic services
+            builder.Services.AddSmartClinicServices();
 
-                options.Events = new CookieAuthenticationEvents
-                {
-                    OnValidatePrincipal = async context =>
-                    {
-                        var expiresUtc = context.Properties.ExpiresUtc;
-                        // Kiểm tra xem Access Token đã hết hạn 15 phút chưa?
-                        if (expiresUtc != null && expiresUtc.Value < DateTimeOffset.UtcNow)
-                        {
-                            var refreshToken = context.Properties.GetString("refresh_token");
-                            if (!string.IsNullOrEmpty(refreshToken))
-                            {
-                                // Hết hạn -> Gọi AuthService đổi Token mới!
-                                var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
-                                var newTokens = await authService.RenewTokenAsync(refreshToken);
+            // Register Hangfire
+            builder.Services.AddSmartClinicHangfire(builder.Configuration);
 
-                                if (newTokens != null)
-                                {
-                                    // Lưu Token mới vào Cookie nội bộ
-                                    context.Properties.StoreTokens(new[] {
-                                            new AuthenticationToken { Name = "access_token", Value = newTokens.AccessToken },
-                                            new AuthenticationToken { Name = "refresh_token", Value = newTokens.RefreshToken }
-                                        });
-
-                                    // Gia hạn thời gian sống thêm 15 phút nữa
-                                    context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15);
-
-                                    // Ra lệnh cho hệ thống tự động lưu Cookie mới xuống trình duyệt
-                                    context.ShouldRenew = true;
-                                }
-                                else
-                                {
-                                    // Refresh token hỏng -> Hủy phiên, bắt đăng nhập lại
-                                    context.RejectPrincipal();
-                                    await context.HttpContext.SignOutAsync();
-                                }
-                            }
-                        }
-                    }
-                };
-            });
-
-            builder.Services.AddCascadingAuthenticationState();
-
-
-            // 1. ĐĂNG KÝ HANGFIRE VÀ KẾT NỐI DB POSTGRESQL
-            builder.Services.AddHangfire(config => config
-                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-                .UseSimpleAssemblyNameTypeSerializer()
-                .UseRecommendedSerializerSettings()
-                .UsePostgreSqlStorage(options =>
-                    options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("MyCnn"))));
-
-            // 2. KHỞI ĐỘNG External services
-            builder.Services.AddHangfireServer();
-
-            builder.Services.AddAuthorizationCore(options =>
-            {
-                options.AddPolicy("ReceptionPolicy", policy => policy.RequireAssertion(context => HasRole(context, 1)));
-                options.AddPolicy("DoctorPolicy", policy => policy.RequireAssertion(context => HasRole(context, 2)));
-                options.AddPolicy("PharmacistPolicy", policy => policy.RequireAssertion(context => HasRole(context, 4)));
-                options.AddPolicy("CashierPolicy", policy => policy.RequireAssertion(context => HasRole(context, 8)));
-                options.AddPolicy("AdminPolicy", policy => policy.RequireAssertion(context => HasRole(context, 16)));
-            });
+            // Register Authentication and Authorization
+            builder.Services.AddCustomAuthentication();
+            builder.Services.AddCustomAuthorization();
 
             var app = builder.Build();
 
@@ -168,16 +87,6 @@ namespace SmartClinic
                 });
 
             app.Run();
-        }
-
-        private static bool HasRole(AuthorizationHandlerContext context, int targetRoleMask)
-        {
-            var roleMaskClaim = context.User.FindFirst("RoleMask")?.Value;
-            if (int.TryParse(roleMaskClaim, out int roleMask))
-            {
-                return (roleMask & targetRoleMask) == targetRoleMask;
-            }
-            return false;
         }
     }
 }
