@@ -1,0 +1,97 @@
+@* ToastHandler.razor - SignalR Event Handler for BlazoredToasts
+   
+   This component:
+   1. Subscribes to NotificationService SignalR events
+   2. Shows toasts using BlazoredToasts (IToastService)
+   3. Does NOT render any UI (BlazoredToasts is in DoctorLayout)
+   4. Handles global auto-notifications from backend
+   
+   Place this in DoctorLayout for global SignalR handling
+*@
+
+@using Blazored.Toast.Services
+@using SmartClinic.Services
+@inject IToastService Toaster
+@inject NotificationService SignalRService
+@implements IAsyncDisposable
+
+@code {
+    protected override void OnInitialized()
+    {
+        System.Diagnostics.Debug.WriteLine("[ToastHandler] Component initialized");
+
+        // Subscribe to SignalR events
+        SignalRService.OnPatientQueueUpdated += HandlePatientQueueUpdatedAsync;
+
+        System.Diagnostics.Debug.WriteLine("[ToastHandler] Subscribed to SignalR events");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            System.Diagnostics.Debug.WriteLine("[ToastHandler] Setting up SignalR connection");
+
+            // Ensure SignalR connection is established
+            if (!SignalRService.IsConnected)
+            {
+                System.Diagnostics.Debug.WriteLine("[ToastHandler] Waiting for SignalR connection...");
+                await SignalRService.EnsureStartedAsync();
+                System.Diagnostics.Debug.WriteLine("[ToastHandler] SignalR connection established");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[ToastHandler] SignalR already connected");
+            }
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    /// <summary>
+    /// Handle SignalR QueueTicketUpdated event
+    /// Shows toast automatically on ANY page using BlazoredToasts
+    /// </summary>
+    private async void HandlePatientQueueUpdatedAsync(string patientName)
+    {
+        System.Diagnostics.Debug.WriteLine(
+            $"[ToastHandler] SignalR Event: Patient added - {patientName}");
+
+        await InvokeAsync(async () =>
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ToastHandler] Showing toast for patient: {patientName}");
+
+                // ✅ Use BlazoredToasts directly (ShowInfo doesn't return Task)
+                Toaster.ShowInfo($"✓ {patientName} added to queue", settings =>
+                {
+                    settings.AdditionalClasses = "toast-centered";
+                });
+                
+                System.Diagnostics.Debug.WriteLine("[ToastHandler] Toast displayed successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ToastHandler] Error in HandlePatientQueueUpdated: {ex.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Cleanup when component is disposed
+    /// </summary>
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        System.Diagnostics.Debug.WriteLine("[ToastHandler] Component disposing");
+        
+        // Unsubscribe from events
+        SignalRService.OnPatientQueueUpdated -= HandlePatientQueueUpdatedAsync;
+        
+        System.Diagnostics.Debug.WriteLine("[ToastHandler] Unsubscribed from SignalR events");
+        
+        await ValueTask.CompletedTask;
+    }
+}
