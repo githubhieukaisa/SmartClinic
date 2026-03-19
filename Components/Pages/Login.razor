@@ -1,16 +1,15 @@
 ﻿@page "/login"
-@using Microsoft.AspNetCore.Components.Authorization
-@using SmartClinic.Components.Common
-@using SmartClinic.Models
-@using SmartClinic.Services
 @using Blazored.Toast.Services
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using SmartClinic.Components.Common
+@using SmartClinic.Services
 @using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using System.IdentityModel.Tokens.Jwt
 
 @inject IAuthService AuthService
-@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
-@inject IToastService ToastService
-@rendermode InteractiveServer
 
 <div class="flex items-center justify-center min-h-screen p-4 bg-slate-100">
     <div class="w-full max-w-md p-8 bg-white shadow-2xl rounded-2xl ring-1 ring-slate-900/5">
@@ -25,21 +24,30 @@
             <p class="mt-2 text-sm text-slate-500">Hệ thống quản lý phòng khám thông minh</p>
         </div>
 
-        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="space-y-5">
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm" class="space-y-5">
             <DataAnnotationsValidator />
 
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="p-3 text-sm text-red-600 bg-red-100 rounded">@errorMessage</div>
+            }
+
             <div>
-                <TextInput Label="Tên đăng nhập"
-                           Placeholder="Nhập username..."
-                           @bind-Value="loginModel.Username" />
+                <label for="username" class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập</label>
+                <InputText id="username"
+                           @bind-Value="loginModel.Username"
+                           class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
+                           placeholder="Nhập username..." />
                 <ValidationMessage For="@(() => loginModel.Username)" class="mt-1 text-xs text-red-500" />
             </div>
 
             <div>
-                <TextInput Label="Mật khẩu"
-                           Type="password"
-                           Placeholder="••••••••"
-                           @bind-Value="loginModel.Password" />
+                <label for="password" class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu</label>
+                <InputText id="password"
+                           type="password"
+                           @bind-Value="loginModel.Password"
+                           class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
+                           placeholder="••••••••" />
                 <ValidationMessage For="@(() => loginModel.Password)" class="mt-1 text-xs text-red-500" />
             </div>
 
@@ -56,37 +64,71 @@
 </div>
 
 @code {
-    private LoginModel loginModel = new();
+    [SupplyParameterFromForm]
+    private LoginModel loginModel { get; set; } = default!;
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
     private bool isLoading = false;
+    private string? errorMessage;
+
+    protected override void OnInitialized()
+    {
+        loginModel ??= new LoginModel();
+    }
 
     private async Task HandleLogin()
     {
         isLoading = true;
+        errorMessage = null;
 
         try
         {
             var response = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
 
-            if (response != null)
+            if (response != null && HttpContext != null)
             {
-                if (AuthStateProvider as CustomAuthStateProvider is var customProvider && customProvider != null)
+                var handler = new JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(response.AccessToken);
+
+                var claims = jwtToken.Claims.ToList();
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+                // 3. THIẾT LẬP COOKIE SIÊU BẢO MẬT & GIẤU TOKEN VÀO TRONG
+                var authProperties = new AuthenticationProperties
                 {
-                    await customProvider.MarkUserAsAuthenticated(response.AccessToken, response.RefreshToken);
-                    NavigationManager.NavigateTo("/");
-                }
-                else
+                    IsPersistent = true,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15) // Bằng đúng tuổi thọ JWT
+                };
+
+                authProperties.StoreTokens(new[]
                 {
-                    ToastService.ShowError("Lỗi cấu hình hệ thống xác thực!");
-                }
+                new AuthenticationToken { Name = "access_token", Value = response.AccessToken },
+                new AuthenticationToken { Name = "refresh_token", Value = response.RefreshToken }
+            });
+
+                // 4. NƯỚNG COOKIE VÀ ĐÁ VỀ TRANG CHỦ
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authProperties);
+                NavigationManager.NavigateTo("/", forceLoad: true);
+            }
+            else if (HttpContext == null)
+            {
+                errorMessage = "Lỗi hệ thống: HttpContext bị null. Vui lòng kiểm tra lại cấu hình RenderMode ở App.razor!";
             }
             else
             {
-                ToastService.ShowError("Sai tên đăng nhập hoặc mật khẩu! Vui lòng thử lại.");
+                errorMessage = "Sai tên đăng nhập hoặc mật khẩu! Vui lòng thử lại.";
             }
+        }
+        catch (NavigationException)
+        {
+            //Bắt được NavigationException thì KHÔNG LÀM GÌ CẢ (ném nó đi tiếp)
+            // Để cho Blazor thực hiện việc Redirect trang!
+            throw;
         }
         catch (Exception ex)
         {
-            ToastService.ShowError("Lỗi hệ thống: " + ex.Message);
+            errorMessage = "Lỗi hệ thống: " + ex.Message;
         }
         finally
         {

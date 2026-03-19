@@ -9,6 +9,8 @@ public partial class Patient : BaseEntity
 
     public DateOnly? DoB { get; set; }
 
+    public bool Gender { get; set; }
+
     public string? Phone { get; set; }
 
     public string? Address { get; set; }

@@ -1,0 +1,67 @@
+﻿@page "/doctor/waiting-list-demo"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SmartClinic.Components.Common
+@using SmartClinic.Services
+@attribute [Authorize(Policy = "DoctorPolicy")]
+@inject IQueueService QueueService
+
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
+    <div class="max-w-5xl mx-auto space-y-6">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <div>
+                <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Danh sách chờ khám</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Phòng hiện tại: <span class="font-semibold text-blue-600 dark:text-blue-400">@CurrentRoomName</span>
+                </p>
+            </div>
+
+            <CallNextPatientButton 
+                RoomId="@CurrentRoomId"
+                RoomName="@CurrentRoomName"
+                ButtonText="Gọi người tiếp theo"
+                CssClass="w-full sm:w-auto" />
+        </div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private int? CurrentRoomId { get; set; }
+    private string CurrentRoomName { get; set; } = "Chưa xác định";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask is null)
+            return;
+
+        var authState = await AuthenticationStateTask;
+        var roomIdClaim = authState.User.FindFirst("RoomId")?.Value;
+
+        if (!int.TryParse(roomIdClaim, out var roomId))
+            return;
+
+        CurrentRoomId = roomId;
+        var displayData = await QueueService.GetDisplayDataAsync(roomId);
+        CurrentRoomName = displayData.RoomName;
+    }
+}
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Bệnh nhân đang chờ (12)</h2>
+            </div>
+            
+            <div class="p-12 flex flex-col items-center justify-center text-center">
+                <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-full mb-4">
+                    <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400">Bảng danh sách bệnh nhân sẽ được render tại đây.</p>
+            </div>
+        </div>
+        
+    </div>
+</div>

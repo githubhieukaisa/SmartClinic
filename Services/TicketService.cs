@@ -18,26 +18,58 @@ namespace SmartClinic.Services
             _hubContext = hubContext;
         }
 
-        public async Task<QueueTicket> GenerateTicketAsync(Patient newPatient, int departmentId)
+        public async Task<Patient?> FindPatientByPhoneAsync(string phone)
         {
+            if (string.IsNullOrWhiteSpace(phone)) return null;
+
+            return await _context.Patients
+                .FirstOrDefaultAsync(p => p.Phone == phone.Trim());
+        }
+
+        public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId)
+        {
+            Patient patient = null;
+            patientPhone = patientPhone?.Trim();
+
+            if (!string.IsNullOrEmpty(patientPhone))
+            {
+                patient = await _context.Patients.FirstOrDefaultAsync(p => p.Phone == patientPhone);
+                if (patient != null && patient.FullName != patientName)
+                {
+                    patient.FullName = patientName;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            if (patient == null)
+            {
+                patient = new Patient
+                {
+                    FullName = patientName,
+                    Phone = string.IsNullOrEmpty(patientPhone) ? null : patientPhone
+                };
+                _context.Patients.Add(patient);
+                await _context.SaveChangesAsync(); // Lưu luôn để có patient.Id
+            }
+
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                _context.Patients.Add(newPatient);
-                await _context.SaveChangesAsync();
+                await _context.Database.ExecuteSqlRawAsync("SELECT \"Id\" FROM \"Departments\" WHERE \"Id\" = {0} FOR UPDATE", departmentId);
 
-                // Lệnh FOR UPDATE của PostgreSQL sẽ bắt các request khác cùng gọi vào Khoa này phải chờ
-                await _context.Database.ExecuteSqlRawAsync(
-                    "SELECT \"Id\" FROM \"Departments\" WHERE \"Id\" = {0} FOR UPDATE", departmentId);
+                var today = DateTime.UtcNow.Date;
 
-                // 3. Lúc này đã an toàn 100%
+                // 2. Tìm phòng trống nhất (Lúc này an toàn tuyệt đối, không sợ đọc trùng)
                 var selectedRoomInfo = await _context.Rooms
                     .Where(r => r.DepartmentId == departmentId && r.IsActive)
                     .Select(r => new
                     {
                         Room = r,
-                        WaitingCount = _context.QueueTickets.Count(t => t.RoomId == r.Id && t.Status == "Waiting")
+                        WaitingCount = _context.QueueTickets.Count(t =>
+                            t.RoomId == r.Id &&
+                            t.Status == "Waiting" &&
+                            t.CreatedAt >= today)
                     })
                     .OrderBy(x => x.WaitingCount)
                     .FirstOrDefaultAsync();
@@ -47,33 +79,32 @@ namespace SmartClinic.Services
                     throw new Exception("Hiện tại không có phòng nào mở cửa cho khoa này!");
                 }
 
-                // 4. Lấy số Sequence
+                // 3. Lấy số tự tăng (Độc lập, siêu nhanh)
                 var nextTicketNumber = await _context.Database
                     .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
                     .SingleAsync();
 
-                // 5. Tạo Ticket
+                // 4. In vé
                 var ticket = new QueueTicket
                 {
-                    PatientId = newPatient.Id,
+                    PatientId = patient.Id,
                     TicketNumber = nextTicketNumber,
                     Status = "Waiting",
                     RoomId = selectedRoomInfo.Room.Id,
-                    CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                    CreatedAt = DateTime.UtcNow,
                     Room = selectedRoomInfo.Room
                 };
 
                 _context.QueueTickets.Add(ticket);
                 await _context.SaveChangesAsync();
 
-                // Unlock commit
                 await transaction.CommitAsync();
 
-                //Call SignalR
                 try
                 {
-                    var displayData = await _queueService.GetDisplayDataAsync();
-                    await _hubContext.Clients.All.SendAsync("ReceiveNewCall", displayData);
+                    var displayData = await _queueService.GetDisplayDataAsync(selectedRoomInfo.Room.Id);
+                    string groupName = $"Room_{selectedRoomInfo.Room.Id}";
+                    await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
                 }
                 catch (Exception ex)
                 {
@@ -88,5 +119,6 @@ namespace SmartClinic.Services
                 throw;
             }
         }
+
     }
 }

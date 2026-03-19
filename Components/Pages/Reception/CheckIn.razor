@@ -1,4 +1,6 @@
 @page "/checkin"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "ReceptionPolicy")]
 @using Blazored.Toast.Services
 @using SmartClinic.Components.Common
 @using SmartClinic.Models
@@ -9,130 +11,176 @@
 @rendermode InteractiveServer
 
 <div class="flex items-center justify-center min-h-screen p-4 bg-slate-50">
-    <div class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl ring-1 ring-slate-900/5 sm:p-8">
+	<div class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl ring-1 ring-slate-900/5 sm:p-8">
 
-        <div class="mb-8 text-center">
-            <h3 class="text-2xl font-bold tracking-tight text-slate-900">Quầy Lễ Tân</h3>
-            <p class="mt-2 text-sm text-slate-500">Vui lòng nhập thông tin để cấp số đợi</p>
-        </div>
+		<div class="mb-8 text-center">
+			<h3 class="text-2xl font-bold tracking-tight text-slate-900">Quầy Lễ Tân</h3>
+			<p class="mt-2 text-sm text-slate-500">Vui lòng nhập thông tin để cấp số đợi</p>
+		</div>
 
-        @* Form nhập liệu *@
-        <div class="space-y-5">
-            <TextInput Label="Tên bệnh nhân"
-                       Placeholder="VD: Nguyễn Văn A"
-                       @bind-Value="patientName" />
+		@* Form nhập liệu *@
+		<div class="space-y-5">
+			<div>
+				<label class="block mb-1 text-sm font-medium text-slate-700">Số điện thoại bệnh nhân</label>
+				<input type="text"
+					   @bind="patientPhone"
+					   @onblur="CheckExistingPatient"
+					   placeholder="VD: 0901234567"
+					   class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+			</div>
 
-            <TextInput Label="Số điện thoại"
-                       Placeholder="VD: 0901234567"
-                       @bind-Value="patientPhone" />
+			<div>
+				<label class="block mb-1 text-sm font-medium text-slate-700">Tên bệnh nhân</label>
+				<input type="text"
+					   @bind="patientName"
+					   placeholder="VD: Nguyễn Văn A"
+					   class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
 
-            @* Đưa phần chọn khoa vào chung form để UX logic hơn *@
-            <div>
-                <label class="block mb-1 text-sm font-medium text-slate-700">Chọn Chuyên Khoa</label>
-                <select @bind="selectedDepartmentId" class="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-700">
-                    <option value="0">-- Vui lòng chọn khoa --</option>
-                    @foreach (var dept in departments)
-                    {
-                        <option value="@dept.Id">@dept.Name</option>
-                    }
-                </select>
-            </div>
+				@if (isExistingPatient)
+				{
+					<span class="text-xs text-green-600 mt-1 block">✓ Đã tìm thấy hồ sơ bệnh nhân cũ</span>
+				}
+			</div>
 
-            <div class="pt-4">
-                <Button IsLoading="isLoading"
-                        OnClick="HandleGetTicket"
-                        Disabled="@(string.IsNullOrWhiteSpace(patientName) || selectedDepartmentId == 0)"
-                        class="w-full disabled:opacity-50 disabled:cursor-not-allowed">
-                    Cấp Số Nhé
-                </Button>
-            </div>
-        </div>
+			@* Đưa phần chọn khoa vào chung form để UX logic hơn *@
+			<div>
+				<label class="block mb-1 text-sm font-medium text-slate-700">Chọn Chuyên Khoa</label>
 
-        @* Kết quả sau khi cấp số - Gom gọn vào một block duy nhất *@
-        @if (generatedTicket != null)
-        {
-            <div class="flex flex-col items-center justify-center p-6 mt-8 border-2 border-green-100 bg-green-50 rounded-xl animate-fade-in-up">
-                <div class="flex items-center justify-center w-12 h-12 mb-3 bg-green-100 rounded-full">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                </div>
+				@if (isLoadingDepts)
+				{
+					<p>Đang tải danh sách chuyên khoa...</p>
+				}
+				else
+				{
+					<select @bind="selectedDepartmentId" class="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-700">
+						<option value="0">-- Vui lòng chọn khoa --</option>
+						@foreach (var dept in departments)
+						{
+							<option value="@dept.Id">@dept.Name</option>
+						}
+					</select>
+				}
+			</div>
 
-                <h4 class="text-lg font-semibold text-green-800">Cấp số thành công!</h4>
-                <p class="mt-1 text-sm text-green-600">Bệnh nhân: <span class="font-medium text-green-900">@patientName</span></p>
+			<div class="pt-4">
+				<Button IsLoading="isLoading"
+						OnClick="HandleGetTicket"
+						Disabled="@(string.IsNullOrWhiteSpace(patientName) || selectedDepartmentId == 0)"
+						class="w-full disabled:opacity-50 disabled:cursor-not-allowed">
+					Cấp Số Nhé
+				</Button>
+			</div>
+		</div>
 
-                <div class="w-full mt-5 text-center">
-                    <span class="block text-xs font-semibold tracking-wider text-green-600 uppercase">Số thứ tự của bạn</span>
-                    <span class="text-6xl font-black text-green-700 drop-shadow-sm">@generatedTicket.TicketNumber</span>
+		@* Kết quả sau khi cấp số - Gom gọn vào một block duy nhất *@
+		@if (generatedTicket != null)
+		{
+			<div class="flex flex-col items-center justify-center p-6 mt-8 border-2 border-green-100 bg-green-50 rounded-xl animate-fade-in-up">
+				<div class="flex items-center justify-center w-12 h-12 mb-3 bg-green-100 rounded-full">
+					<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+					</svg>
+				</div>
 
-                    <div class="p-3 mt-4 bg-white border border-green-200 shadow-sm rounded-lg">
-                        <span class="block text-sm text-slate-500">Xin mời đến:</span>
-                        <span class="block text-xl font-bold text-blue-700">@generatedTicket.Room?.Name</span>
-                        <span class="block text-xs text-slate-400">(@generatedTicket.Room?.Location)</span>
-                    </div>
-                </div>
+				<h4 class="text-lg font-semibold text-green-800">Cấp số thành công!</h4>
+				<p class="mt-1 text-sm text-green-600">Bệnh nhân: <span class="font-medium text-green-900">@patientName</span></p>
 
-                <button @onclick="ResetForm" class="mt-5 text-sm font-medium text-slate-500 hover:text-slate-800 underline transition-colors">
-                    Cấp số bệnh nhân tiếp theo
-                </button>
-            </div>
-        }
-    </div>
+				<div class="w-full mt-5 text-center">
+					<span class="block text-xs font-semibold tracking-wider text-green-600 uppercase">Số thứ tự của bạn</span>
+					<span class="text-6xl font-black text-green-700 drop-shadow-sm">@generatedTicket.TicketNumber</span>
+
+					<div class="p-3 mt-4 bg-white border border-green-200 shadow-sm rounded-lg">
+						<span class="block text-sm text-slate-500">Xin mời đến:</span>
+						<span class="block text-xl font-bold text-blue-700">@generatedTicket.Room?.Name</span>
+						<span class="block text-xs text-slate-400">(@generatedTicket.Room?.Location)</span>
+					</div>
+				</div>
+
+				<button @onclick="ResetForm" class="mt-5 text-sm font-medium text-slate-500 hover:text-slate-800 underline transition-colors">
+					Cấp số bệnh nhân tiếp theo
+				</button>
+			</div>
+		}
+	</div>
 </div>
 
 @code {
-    private string patientName = string.Empty;
-    private string patientPhone = string.Empty;
-    private bool isLoading = false;
-    private QueueTicket? generatedTicket;
-    private List<Department> departments = new();
-    private int selectedDepartmentId;
+	private string patientName = string.Empty;
+	private string patientPhone = string.Empty;
+	private bool isExistingPatient = false;
+	private bool isLoading = false;
+	private QueueTicket? generatedTicket;
+	private List<Department> departments = new();
+	private int selectedDepartmentId;
+	private bool isLoadingDepts = false;
 
-    protected override async Task OnInitializedAsync()
-    {
-        departments = await DepartmentService.GetAllDepartmentsAsync();
-    }
+	protected override async Task OnInitializedAsync()
+	{
+		isLoadingDepts = true;
+		departments = await DepartmentService.GetAllDepartmentsAsync();
+		isLoadingDepts = false;
+	}
 
-    private async Task HandleGetTicket()
-    {
-        if (string.IsNullOrWhiteSpace(patientName))
-        {
-            ToastService.ShowWarning("Vui lòng nhập tên bệnh nhân!");
-            return;
-        }
+	private async Task HandleGetTicket()
+	{
+		if (string.IsNullOrWhiteSpace(patientName))
+		{
+			ToastService.ShowWarning("Vui lòng nhập tên bệnh nhân!");
+			return;
+		}
 
-        if (selectedDepartmentId == 0)
-        {
-            ToastService.ShowWarning("Vui lòng chọn chuyên khoa!");
-            return;
-        }
+		if (selectedDepartmentId == 0)
+		{
+			ToastService.ShowWarning("Vui lòng chọn chuyên khoa!");
+			return;
+		}
 
-        isLoading = true;
-        generatedTicket = null;
+		isLoading = true;
+		generatedTicket = null;
 
-        try
-        {
-            var newPatient = new Patient { FullName = patientName, Phone = patientPhone };
-            generatedTicket = await TicketService.GenerateTicketAsync(newPatient, selectedDepartmentId);
+		try
+		{
+			generatedTicket = await TicketService.GenerateTicketAsync(patientName, patientPhone, selectedDepartmentId);
 
-            ToastService.ShowSuccess($"Cấp số thành công cho bệnh nhân {patientName}!");
-        }
-        catch (Exception ex)
-        {
-            ToastService.ShowError(ex.Message);
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
+			ToastService.ShowSuccess($"Cấp số thành công cho bệnh nhân {patientName}!");
+		}
+		catch (Exception ex)
+		{
+			ToastService.ShowError(ex.Message);
+		}
+		finally
+		{
+			isLoading = false;
+		}
+	}
 
-    // UX tiện ích bổ sung
-    private void ResetForm()
-    {
-        patientName = string.Empty;
-        patientPhone = string.Empty;
-        selectedDepartmentId = 0;
-        generatedTicket = null;
-    }
+	private async Task CheckExistingPatient()
+	{
+		if (string.IsNullOrWhiteSpace(patientPhone)) return;
+
+		var existingPatient = await TicketService.FindPatientByPhoneAsync(patientPhone);
+		if (existingPatient != null)
+		{
+			// Tự động điền tên bệnh nhân
+			patientName = existingPatient.FullName;
+			isExistingPatient = true;
+			ToastService.ShowInfo($"Tìm thấy hồ sơ: {patientName}");
+		}
+		else
+		{
+			// Reset nếu nhập số khác
+			if (isExistingPatient) patientName = string.Empty;
+			isExistingPatient = false;
+		}
+	}
+
+	// UX tiện ích bổ sung
+	private void ResetForm()
+	{
+		patientName = string.Empty;
+		patientPhone = string.Empty;
+		selectedDepartmentId = 0;
+		generatedTicket = null;
+		isExistingPatient = false;
+	}
 }

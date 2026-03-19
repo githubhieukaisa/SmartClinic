@@ -9,7 +9,6 @@
         public int DepartmentId { get; set; }
         public virtual Department Department { get; set; } = null!;
 
-        public virtual ICollection<User> Doctors { get; set; } = new List<User>();
         public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
     }
 }
