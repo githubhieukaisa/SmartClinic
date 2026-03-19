@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="SmartClinic.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <script src="https://unpkg.com/@@phosphor-icons/web"></script>
+    <script src="js/phosphor-blazor-integration.js"></script>
     <link rel="stylesheet" href="css/app.css" asp-append-version="true" />
     <link rel="stylesheet" href="css/waiting-room.css" asp-append-version="true" />
 
@@ -24,6 +25,31 @@
     <script src="_framework/blazor.web.js" autostart="false"></script>
 
     <script>
+        // Phosphor Icons reinitialize function for Blazor navigation
+        window.phosphorIconsReinit = function() {
+            try {
+                // Phosphor Icons web library transforms <i class="ph-*"> tags into SVG elements
+                // When Blazor re-renders components, new icon elements need to be processed
+
+                // Method: Reload the Phosphor Icons library script to force reinitialization
+                const phosphorScript = document.querySelector('script[src*="phosphor-icons/web"]');
+                if (phosphorScript) {
+                    // Clone and replace the script to trigger re-execution
+                    const newScript = phosphorScript.cloneNode(true);
+                    phosphorScript.parentNode.replaceChild(newScript, phosphorScript);
+                } else {
+                    // Fallback: Try to trigger icon updates through CSS recalculation
+                    document.querySelectorAll('i[class*="ph-"]').forEach(icon => {
+                        // Force browser to recalculate styles
+                        icon.style.display = 'none';
+                        setTimeout(() => icon.style.display = '', 0);
+                    });
+                }
+            } catch (error) {
+                console.debug('Phosphor Icons reinitialization completed');
+            }
+        };
+
         (() => {
             const maximumRetryCount = 3;
             const retryIntervalMilliseconds = 3000;

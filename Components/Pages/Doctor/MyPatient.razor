@@ -1,7 +1,11 @@
 ﻿@page "/doctor/my-patients"
+@using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
+@using SmartClinic.Components.Common
+@using Microsoft.AspNetCore.Components.Authorization
+@using Blazored.Toast.Services
 @rendermode InteractiveServer
 @layout DoctorLayout
 @implements IAsyncDisposable
@@ -9,6 +13,9 @@
 @inject NavigationManager NavigationManager
 @inject NotificationService Notification
 @inject SmartClinicDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IToastService ToastService
+@attribute [Authorize(Policy = "DoctorPolicy")]
 
 <div class="p-8">
 
@@ -16,7 +23,10 @@
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-foreground">Patient Queue</h1>
-            <p class="text-muted-foreground mt-1">Real-time updates from the system</p>
+            @if (!string.IsNullOrEmpty(_roomName))
+            {
+                <p class="text-muted-foreground mt-1">📍 <span class="font-medium">@_roomName</span></p>
+            }
         </div>
         <div class="flex items-center gap-4">
             <div class="text-right">
@@ -113,6 +123,11 @@
                 <h2 class="text-xl font-bold text-foreground">Today's Queue</h2>
             </div>
             <div class="flex items-center gap-2">
+                <CallNextPatientButton 
+                    RoomId="@_currentRoomId"
+                    RoomName="@_roomName"
+                    ButtonText="Gọi BN Tiếp Theo"
+                    CssClass="" />
                 <button @onclick="RefreshQueueAsync"
                         class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
                     <i class="ph-bold ph-arrows-clockwise"></i>
@@ -197,12 +212,14 @@
                                     </span>
                                 </td>
                                 <td class="py-3 px-5 flex items-center justify-center">
-                                    <button @onclick="() => OnSeePatientAsync(ticket.Id, ticket.PatientId)"
-                                            disabled="@(ticket.Status == "Completed")"
-                                            class="flex items-center gap-1 px-4 py-2 @GetButtonClass(ticket.Status) text-primary-foreground rounded-lg text-xs font-medium hover:@GetButtonHoverClass(ticket.Status) transition">
-                                        <i class="ph-bold @GetButtonIcon(ticket.Status)"></i>
-                                        @GetButtonText(ticket.Status)
-                                    </button>
+                                    @if (ticket.Status == "Examining")
+                                    {
+                                        <button @onclick="() => OnExaminePatientAsync(ticket.Id, ticket.PatientId)"
+                                                class="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition">
+                                            <i class="ph-bold ph-stethoscope"></i>
+                                            Examine
+                                        </button>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -217,7 +234,9 @@
     private List<QueueTicket>? _queueTickets;
     private bool _showNotification = false;
     private bool _isUpdating = false;
-    private int _currentDoctorId = 1;
+    private int _currentDoctorId = 0;  // Will be set from authentication claims
+    private string? _roomName;  // Room name from claims
+    private int? _currentRoomId;  // Room ID from claims
 
     private int TotalCount => _queueTickets?.Count ?? 0;
     private int WaitingCount => _queueTickets?.Count(t => t.Status == "Waiting") ?? 0;
@@ -226,17 +245,70 @@
     private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
 
     /// <summary>
-    /// INITIALIZATION: Load queue data FIRST
-    /// Then subscribe to events in OnAfterRenderAsync to avoid race conditions
+    /// INITIALIZATION: Load doctor ID and room info from authentication claims and then load queue data
+    /// The doctor ID comes from the JWT token's NameIdentifier claim (set during login)
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Page initializing - loading queue data");
+        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Page initializing");
+
+        // STEP 1: Get authentication state and extract doctor ID from claims
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            // Extract UserId from ClaimTypes.NameIdentifier (set in AuthService.cs line 84)
+            var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int doctorId))
+            {
+                _currentDoctorId = doctorId;
+                System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ Authenticated as DoctorId={_currentDoctorId}");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Could not extract DoctorId from claims");
+            }
+
+            // Extract RoomName from claims
+            var roomNameClaim = user.FindFirst("RoomName");
+            _roomName = roomNameClaim?.Value ?? "Unassigned";
+
+            // Extract RoomId from claims
+            var roomIdClaim = user.FindFirst("RoomId");
+            if (roomIdClaim != null && int.TryParse(roomIdClaim.Value, out int roomId))
+            {
+                _currentRoomId = roomId;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ Room: {_roomName}, RoomId: {_currentRoomId}");
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ User not authenticated");
+        }
+
+        // STEP 2: Load queue data
+        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Loading queue data for DoctorId={_currentDoctorId}");
         System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ SignalR IsConnected: {Notification.IsConnected}");
-        
-        // STEP 1: Load queue data immediately
+
         await LoadDataAsync();
-        
+
+        // STEP 3: Join the room group for receiving room-specific notifications
+        if (_currentRoomId.HasValue && _currentRoomId.Value > 0)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Joining room group for RoomId={_currentRoomId}");
+                await Notification.JoinRoomAsync(_currentRoomId.Value);
+                System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ Joined room group successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MyPatient] ⚠️ Error joining room group: {ex.Message}");
+            }
+        }
+
         System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Queue data loaded");
     }
 
@@ -415,6 +487,8 @@
     {
         "Done" => "bg-green-100 text-green-700",
         "In Progress" => "bg-blue-100 text-blue-700",
+        "Examining" => "bg-cyan-100 text-cyan-700",
+        "Calling" => "bg-orange-100 text-orange-700",
         "Waiting" => "bg-amber-100 text-amber-700",
         _ => "bg-gray-100 text-gray-700"
     };
@@ -423,6 +497,8 @@
     {
         "Done" => "bg-green-50",
         "In Progress" => "bg-blue-50",
+        "Examining" => "bg-cyan-50",
+        "Calling" => "bg-orange-50",
         "Waiting" => "bg-amber-50",
         _ => ""
     };
@@ -431,6 +507,12 @@
     {
         try
         {
+            if (_currentDoctorId == 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [AddTestQueueTicket] DoctorId not loaded yet");
+                return;
+            }
+
             // First, create a test patient
             var testPatient = new Patient
             {
@@ -444,10 +526,10 @@
             DbContext.Patients.Add(testPatient);
             await DbContext.SaveChangesAsync();
 
-            // Now create a QueueTicket for Doctor ID 1
-            // ✅ This will trigger SignalR notification for DoctorId = 1
+            // Now create a QueueTicket for the current logged-in doctor
+            // ✅ Uses _currentDoctorId from authentication claims
             await PatientService.AddQueueTicketAsync(
-                doctorId: 1,  // Current doctor
+                doctorId: _currentDoctorId,  // Current doctor from claims
                 patientId: testPatient.Id,
                 diagnosis: "Test Diagnosis"
             );
@@ -455,7 +537,7 @@
             // Show feedback
             _showNotification = true;
             StateHasChanged();
-            
+
             await Task.Delay(3000);
             _showNotification = false;
             StateHasChanged();
@@ -467,113 +549,29 @@
     }
 
     /// <summary>
-    /// Called when doctor clicks "See Patient" or "Examine" button
-    /// If status is "Waiting", updates to "Examining"
-    /// If status is "Examining", just navigates to examination page
+    /// Navigate to examination page when doctor clicks "Examine" button
     /// </summary>
-    private async Task OnSeePatientAsync(int ticketId, int? patientId)
+    private Task OnExaminePatientAsync(int ticketId, int? patientId)
     {
         if (!patientId.HasValue)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] PatientId is null");
-            return;
+            System.Diagnostics.Debug.WriteLine($"❌ [OnExamine] PatientId is null");
+            return Task.CompletedTask;
         }
 
-        System.Diagnostics.Debug.WriteLine($"🔵 [OnSeePatient] Doctor clicked button for TicketId={ticketId}, PatientId={patientId}");
-        
+        System.Diagnostics.Debug.WriteLine($"🔵 [OnExamine] Doctor clicked examine button for TicketId={ticketId}, PatientId={patientId}");
+
         try
         {
-            var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
-            if (ticketToUpdate == null)
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] Ticket not found");
-                return;
-            }
-
-            // Only update status if currently Waiting
-            if (ticketToUpdate.Status == "Waiting")
-            {
-                _isUpdating = true;
-                StateHasChanged();
-                System.Diagnostics.Debug.WriteLine("🔵 [OnSeePatient] Set _isUpdating=true");
-
-                // Update ticket status in database to "Examining"
-                System.Diagnostics.Debug.WriteLine($"🔵 [OnSeePatient] Updating ticket status to 'Examining'...");
-                await PatientService.UpdateQueueTicketStatusAsync(ticketId, "Examining", _currentDoctorId);
-                System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Ticket status updated to 'Examining'");
-
-                // Update local ticket status
-                ticketToUpdate.Status = "Examining";
-                System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Updated local ticket status to 'Examining'");
-
-                _isUpdating = false;
-                StateHasChanged();  // Update UI to show new status
-                System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Updated UI");
-
-                await Task.Delay(300);  // Small delay for visual feedback
-            }
-
-            // Navigate to examination page (whether it was Waiting or already Examining)
-            System.Diagnostics.Debug.WriteLine($"🔵 [OnSeePatient] Navigating to examination page...");
+            // Navigate directly to examination page
             NavigationManager.NavigateTo($"/doctor/examination/{ticketId}/{patientId.Value}");
-            System.Diagnostics.Debug.WriteLine($"✅ [OnSeePatient] Navigation complete");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] ERROR: {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"❌ [OnSeePatient] Stack: {ex.StackTrace}");
-            _isUpdating = false;
-            
-            // Show error to user
-            _showNotification = true;
-            StateHasChanged();
-            await Task.Delay(3000);
-            _showNotification = false;
-            StateHasChanged();
+            System.Diagnostics.Debug.WriteLine($"❌ [OnExamine] ERROR: {ex.Message}");
+            ToastService.ShowError($"Error: {ex.Message}");
         }
+
+        return Task.CompletedTask;
     }
-
-    /// <summary>
-    /// Get button text based on ticket status
-    /// </summary>
-    private static string GetButtonText(string status) => status switch
-    {
-        "Waiting" => "See Patient",
-        "Examining" => "Examining",
-        "Completed" => "Completed",
-        _ => "View"
-    };
-
-    /// <summary>
-    /// Get button icon based on ticket status
-    /// </summary>
-    private static string GetButtonIcon(string status) => status switch
-    {
-        "Waiting" => "ph-stethoscope",
-        "Examining" => "ph-stethoscope",
-        "Completed" => "ph-check-circle",
-        _ => "ph-eye"
-    };
-
-    /// <summary>
-    /// Get button background color based on status
-    /// </summary>
-    private static string GetButtonClass(string status) => status switch
-    {
-        "Waiting" => "bg-primary hover:bg-primary/90",
-        "Examining" => "bg-blue-600 hover:bg-blue-700",  // ✅ Still clickable!
-        "Completed" => "bg-green-600 opacity-50 cursor-not-allowed",  // Only this is disabled
-        _ => "bg-gray-500 hover:bg-gray-600"
-    };
-
-    /// <summary>
-    /// Get button hover class baesed on status
-    /// </summary>
-    private static string GetButtonHoverClass(string status) => status switch
-    {
-        "Waiting" => "bg-primary/90",
-        "Examining" => "bg-blue-700",
-        "Completed" => "bg-green-700",
-        _ => "bg-gray-600"
-    };
 }

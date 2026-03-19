@@ -57,6 +57,31 @@ public class NotificationService : IAsyncDisposable
     public HubConnectionState? ConnectionState => _hubConnection?.State;
 
     /// <summary>
+    /// Join a specific room group for receiving room-targeted notifications
+    /// Call this after doctor logs in with their RoomId
+    /// </summary>
+    public async Task JoinRoomAsync(int roomId)
+    {
+        if (_hubConnection == null || !IsConnected)
+        {
+            System.Diagnostics.Debug.WriteLine($"⚠️ [NotificationService.JoinRoomAsync] Connection not ready, connecting first");
+            await EnsureStartedAsync();
+        }
+
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService.JoinRoomAsync] Joining Room_{roomId}");
+            await _hubConnection!.InvokeAsync("JoinRoomAsync", roomId);
+            System.Diagnostics.Debug.WriteLine($"✅ [NotificationService.JoinRoomAsync] Successfully joined Room_{roomId}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [NotificationService.JoinRoomAsync] Error: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Ensure SignalR connection is started
     /// 
     /// Safe to call from multiple pages simultaneously.
@@ -208,16 +233,13 @@ public class NotificationService : IAsyncDisposable
 
                 System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService] Event: DoctorId={doctorId}, TicketId={ticketId}, PatientName={patientName}");
 
-                // Only notify if for current doctor (doctorId = 1 in this case)
-                if (doctorId == 1)
-                {
-                    System.Diagnostics.Debug.WriteLine("[SignalR] QueueTicketUpdated received");
-                    System.Diagnostics.Debug.WriteLine($"✅ [NotificationService] Invoking OnPatientQueueUpdated with patientName: {patientName}");
-                    
-                    // Pass patient name to subscribers so they can show it in toast
-                    OnPatientQueueUpdated?.Invoke(patientName);
-                    System.Diagnostics.Debug.WriteLine("[NotificationService] Toast notification will be shown by the page with patient name");
-                }
+                // Broadcast to all connected clients (each page decides if it's relevant)
+                System.Diagnostics.Debug.WriteLine("[SignalR] QueueTicketUpdated received");
+                System.Diagnostics.Debug.WriteLine($"✅ [NotificationService] Invoking OnPatientQueueUpdated with patientName: {patientName}");
+
+                // Pass patient name to subscribers so they can show it in toast
+                OnPatientQueueUpdated?.Invoke(patientName);
+                System.Diagnostics.Debug.WriteLine("[NotificationService] Toast notification will be shown by the page with patient name");
             }
             catch (Exception ex)
             {

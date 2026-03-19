@@ -2,9 +2,12 @@
 @using SmartClinic.Components.Common
 @using SmartClinic.Services
 @using Blazored.Toast
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
 @inject NotificationService NotificationService
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <!-- ✅ BlazoredToasts - Global Toast UI for all pages -->
 <BlazoredToasts Position="ToastPosition.TopCenter"
@@ -13,7 +16,7 @@
                 @rendermode="InteractiveServer" />
 
 <!-- ✅ Toast Handler - SignalR event listener (no UI rendering) -->
-<ToastHandler />
+<ToastHandler @rendermode="InteractiveServer" />
 
 <div class="flex h-screen bg-background">
     <aside class="w-64 bg-sidebar border-r border-border flex flex-col fixed h-full">
@@ -22,18 +25,18 @@
                 <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                     <i class="ph-bold ph-stethoscope text-white text-sm"></i>
                 </div>
-                <h1 class="text-xl font-bold text-foreground">DocLink</h1>
+                <h1 class="text-xl font-bold text-foreground">Smart Clinic</h1>
             </div>
         </div>
 
         <div class="p-6 border-b border-border">
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center text-white font-bold">
-                    JM
+                    @GetInitials(_doctorFullName)
                 </div>
                 <div>
-                    <p class="font-semibold text-foreground text-sm">Dr. James Miller</p>
-                    <p class="text-xs text-muted-foreground">General Practitioner</p>
+                    <p class="font-semibold text-foreground text-sm">@(_doctorFullName ?? "Loading...")</p>
+                    <p class="text-xs text-muted-foreground">Doctor</p>
                 </div>
             </div>
             <div class="bg-primary/10 rounded-lg p-2 text-center">
@@ -92,6 +95,28 @@
 </div>
 
 @code {
+    private string? _doctorFullName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load doctor information from authentication claims
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            // Extract doctor full name from claims
+            var fullNameClaim = user.FindFirst("FullName");
+            _doctorFullName = fullNameClaim?.Value ?? "Doctor";
+
+            System.Diagnostics.Debug.WriteLine($"[DoctorLayout] ✅ Loaded doctor: {_doctorFullName}");
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[DoctorLayout] ⚠️ User not authenticated");
+        }
+    }
+
     private string NavClass(string href, bool exact = false)
     {
         var currentPath = new Uri(Nav.Uri).AbsolutePath;
@@ -104,6 +129,28 @@
             : "flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition";
     }
 
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            // Reinitialize Phosphor Icons after Blazor navigation/render
+            // Triggers the library to scan and process all icon elements
+            await JS.InvokeVoidAsync("phosphorIconsReinit");
+        }
+        catch (Exception)
+        {
+            // Silently fail if JS interop is unavailable
+        }
+    }
 }
 
 

@@ -1,4 +1,5 @@
 ﻿using Blazored.Toast;
+using Blazored.Toast.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication;
@@ -14,11 +15,20 @@ namespace SmartClinic.Services
     {
         /// <summary>
         /// Đăng ký DbContext với PostgreSQL
+        /// Dùng AddDbContextFactory để cho phép tạo fresh DbContext instance mỗi lần
+        /// Perfect cho SignalR callbacks và async operations
         /// </summary>
         public static IServiceCollection AddSmartClinicDatabase(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<SmartClinicDbContext>(options =>
+            // ✅ Đăng ký CÁCH 1: DbContextFactory (cho services)
+            services.AddDbContextFactory<SmartClinicDbContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("MyCnn")));
+            
+            // ✅ Đăng ký CÁCH 2: DbContext bằng Pool (cho pages)
+            // Tạo pool từ factory để pages có thể inject DbContext trực tiếp
+            services.AddPooledDbContextFactory<SmartClinicDbContext>(options =>
+                options.UseNpgsql(configuration.GetConnectionString("MyCnn")));
+
             return services;
         }
 
@@ -31,6 +41,8 @@ namespace SmartClinic.Services
             services.AddScoped<IDepartmentService, DepartmentService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IQueueService, QueueService>();
+            services.AddScoped<PatientService>();
+            services.AddSingleton<NotificationService>();
             services.AddBlazoredToast();
             return services;
         }

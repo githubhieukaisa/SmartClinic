@@ -102,7 +102,8 @@ namespace SmartClinic.Services
         }
 
         /// <summary>
-        /// Get doctor's queue with status "Waiting" or "Examining"
+        /// Get doctor's queue based on DoctorShift room assignment
+        /// Queries QueueTickets where RoomId matches the doctor's current shift room
         /// Creates its own DbContext instance
         /// Safe to call from SignalR callbacks
         /// </summary>
@@ -111,16 +112,35 @@ namespace SmartClinic.Services
             // Create a fresh context for this operation
             // This prevents ObjectDisposedException when called from SignalR
             await using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             try
             {
+                // STEP 1: Get doctor's current active shift and its room id
+                var doctorShift = await context.DoctorShifts
+                    .AsNoTracking()
+                    .Where(ds => ds.DoctorId == doctorId && ds.Status == "Active")
+                    .OrderByDescending(ds => ds.StartTime)
+                    .FirstOrDefaultAsync();
+
+                // If no active shift found, return empty list
+                if (doctorShift == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [PatientService] No active DoctorShift found for DoctorId={doctorId}");
+                    return new List<QueueTicket>();
+                }
+
+                System.Diagnostics.Debug.WriteLine($"🔵 [PatientService] Found active DoctorShift: RoomId={doctorShift.RoomId}");
+
+                // STEP 2: Get all queue tickets for this room (not just this doctor)
+                // This ensures all patients in the room are visible to the doctor
                 var tickets = await context.QueueTickets
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
-                    .Where(t => t.DoctorId == doctorId && (t.Status == "Waiting" || t.Status == "Examining"))
+                    .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling"))
                     .OrderBy(t => t.CreatedAt)
                     .ToListAsync();
 
+                System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {tickets.Count} queue tickets for RoomId={doctorShift.RoomId}");
                 return tickets;
             }
             catch (Exception ex)
@@ -132,19 +152,34 @@ namespace SmartClinic.Services
 
         /// <summary>
         /// Create a QueueTicket for a patient and notify via SignalR
+        /// Automatically assigns the ticket to the doctor's current shift room
         /// Creates its own DbContext instance
         /// Safe to call from SignalR callbacks
         /// </summary>
         public async Task AddQueueTicketAsync(int doctorId, int patientId, string? diagnosis = null)
         {
             System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddQueueTicketAsync] Creating ticket for DoctorId={doctorId}, PatientId={patientId}");
-            
+
             // ✅ Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             try
             {
-                // Get the next ticket number for this doctor
+                // STEP 1: Get doctor's current active shift to find the room
+                var doctorShift = await context.DoctorShifts
+                    .AsNoTracking()
+                    .Where(ds => ds.DoctorId == doctorId && ds.Status == "Active")
+                    .OrderByDescending(ds => ds.StartTime)
+                    .FirstOrDefaultAsync();
+
+                if (doctorShift == null)
+                {
+                    throw new InvalidOperationException($"No active DoctorShift found for DoctorId={doctorId}. Cannot assign room.");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddQueueTicketAsync] Found active shift with RoomId={doctorShift.RoomId}");
+
+                // STEP 2: Get the next ticket number for this doctor
                 var lastTicket = await context.QueueTickets
                     .AsNoTracking()
                     .Where(t => t.DoctorId == doctorId)
@@ -154,6 +189,7 @@ namespace SmartClinic.Services
                 var nextTicketNumber = (lastTicket?.TicketNumber ?? 0) + 1;
                 System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddQueueTicketAsync] Next ticket number: {nextTicketNumber}");
 
+                // STEP 3: Create queue ticket with room from doctor's shift
                 var queueTicket = new QueueTicket
                 {
                     DoctorId = doctorId,
@@ -162,27 +198,28 @@ namespace SmartClinic.Services
                     Status = "Waiting",
                     ClinicalDiagnosis = diagnosis,
                     CreatedAt = DateTime.Now,
-                    RoomId = 1// Default room, can be updated later
+                    RoomId = doctorShift.RoomId  // ✅ Get room from active doctor shift
                 };
 
                 context.QueueTickets.Add(queueTicket);
                 await context.SaveChangesAsync();
-                System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddQueueTicketAsync] Ticket #{nextTicketNumber} created with ID={queueTicket.Id}");
+                System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddQueueTicketAsync] Ticket #{nextTicketNumber} created with ID={queueTicket.Id}, RoomId={doctorShift.RoomId}");
 
                 var patient = await context.Patients
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == patientId);
 
                 string patientName = patient?.FullName ?? "Unknown";   
-                // Broadcast SignalR notification
-                System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddQueueTicketAsync] Broadcasting QueueTicketUpdated event");
-                await _hubContext.Clients.All.SendAsync("QueueTicketUpdated", new 
+                // Broadcast SignalR notification to the specific room group only
+                System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddQueueTicketAsync] Broadcasting QueueTicketUpdated event to Room_{doctorShift.RoomId}");
+                await _hubContext.Clients.Group($"Room_{doctorShift.RoomId}").SendAsync("QueueTicketUpdated", new 
                 { 
                     doctorId, 
                     ticketId = queueTicket.Id,
-                    patientName  
+                    patientName,
+                    roomId = doctorShift.RoomId
                 });
-                System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddQueueTicketAsync] SignalR event sent");
+                System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddQueueTicketAsync] SignalR event sent to Room_{doctorShift.RoomId}");
             }
             catch (Exception ex)
             {
