@@ -10,6 +10,7 @@ namespace SmartClinic.Services
     {
         private readonly SmartClinicDbContext _context;
         private readonly IHubContext<QueueHub> _hubContext;
+        private const int _displayCount = 5;
 
         public QueueService(SmartClinicDbContext context, IHubContext<QueueHub> hubContext)
         {
@@ -22,18 +23,14 @@ namespace SmartClinic.Services
             Console.WriteLine($"Fetching display data for RoomId {roomId}...");
             // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
             var activeShift = await _context.DoctorShifts
-                .Include(s => s.Doctor)
-                .Include(s => s.Room)
-                .ThenInclude(r => r.Department)
+                .Where(s => s.RoomId == roomId && s.Status == "Active")
                 .Select(s => new
                 {
-                    s.RoomId,
                     DoctorName = s.Doctor.FullName,
                     RoomName = s.Room.Name,
-                    s.Status,
                     DepartmentName = s.Room.Department.Name
                 })
-                .FirstOrDefaultAsync(s => s.RoomId == roomId && s.Status == "Active");
+                .FirstOrDefaultAsync();
 
             var today = DateTime.Today;
 
@@ -48,7 +45,7 @@ namespace SmartClinic.Services
                 .Where(t => t.RoomId == roomId && t.Status == "Waiting" && t.CreatedAt.Date == today)
                 .OrderBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
-                .Take(5)
+                .Take(_displayCount)
                 .Select(t => t.TicketNumber.ToString())
                 .ToListAsync();
 
