@@ -98,7 +98,7 @@
                 var authProperties = new AuthenticationProperties
                 {
                     IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15) // Bằng đúng tuổi thọ JWT
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7) // Bằng đúng tuổi thọ refresh token
                 };
 
                 authProperties.StoreTokens(new[]

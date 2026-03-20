@@ -38,6 +38,11 @@ namespace SmartClinic.Services
             var currentCall = await _context.QueueTickets
                 .Where(t => t.RoomId == roomId && t.Status == "Calling" && t.CreatedAt.Date == today)
                 .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    t.TicketNumber,
+                    PatientName = t.Patient.FullName
+                })
                 .FirstOrDefaultAsync();
 
             // 3. TÌM DANH SÁCH CHỜ (Nhớ thêm điều kiện RoomId)
@@ -55,6 +60,7 @@ namespace SmartClinic.Services
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
                 RoomName = activeShift?.RoomName ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
                 DoctorName = activeShift != null ? $"BS. {activeShift.DoctorName}" : "Phòng đang trống",
+                PatientName = currentCall != null ? currentCall.PatientName : "Không có bệnh nhân",
                 Specialty = activeShift?.DepartmentName ?? "",
                 NextTickets = nextTickets
             };

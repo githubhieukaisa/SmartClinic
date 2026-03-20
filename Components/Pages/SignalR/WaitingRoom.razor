@@ -1,4 +1,4 @@
-@page "/waiting-room/{RoomId:int}"
+﻿@page "/waiting-room/{RoomId:int}"
 @layout SmartClinic.Components.Layout.KioskLayout
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
@@ -8,6 +8,7 @@
 @implements IAsyncDisposable
 @inject NavigationManager Navigation
 @inject IQueueService QueueService
+@inject IJSRuntime JS
 
 <div class="flex flex-col items-center min-h-screen px-4 py-12 font-sans transition-colors duration-300 bg-slate-50 dark:bg-slate-900 sm:px-6 lg:px-8">
 	<div class="w-full max-w-5xl space-y-8">
@@ -31,7 +32,7 @@
 			<div class="flex flex-col gap-6 md:flex-row">
 				<div class="flex-1">
 					<CurrentCallCard TicketNumber="@DisplayData.CurrentTicketNumber"
-						RoomName="@DisplayData.RoomName" />
+									 RoomName="@DisplayData.RoomName" />
 				</div>
 
 				<div class="w-full md:w-1/3">
@@ -61,11 +62,30 @@
 			.WithAutomaticReconnect()
 			.Build();
 
-		hubConnection.On<QueueDisplayDto>("ReceiveNewCall", (data) =>
+		hubConnection.On<QueueDisplayDto>("ReceiveNewCall", async (data) =>
 		{
+			bool isNewTicket = data.CurrentTicketNumber != DisplayData.CurrentTicketNumber;
+
 			DisplayData = data;
-			InvokeAsync(StateHasChanged);
+			await InvokeAsync(StateHasChanged);
 			ResetWatchdog();
+
+			if (isNewTicket && data.CurrentTicketNumber != "---")
+			{
+				// Tạo câu đọc. Tùy em muốn đọc dài hay ngắn.
+				// Ví dụ: "Xin mời bệnh nhân số 1 0 0 5 vào phòng Nội 1 0 1"
+				string textToSpeak = $"Xin mời bệnh nhân số, {data.CurrentTicketNumber}, tên, {data.PatientName}, vào {data.RoomName}";
+
+				try
+				{
+					// Gọi hàm Javascript
+					await JS.InvokeVoidAsync("playQueueAudio", textToSpeak);
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($"Lỗi phát âm thanh: {ex.Message}");
+				}
+			}
 		});
 
 		hubConnection.Reconnecting += async (error) =>
@@ -106,41 +126,41 @@
 	}
 
 	private void StartWatchdog()
-    {
-        _watchdogTimer = new Timer(async _ => await FallbackSyncAsync(), null, 
-            TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-    }
+	{
+		_watchdogTimer = new Timer(async _ => await FallbackSyncAsync(), null,
+			TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+	}
 
 	private void ResetWatchdog()
-    {
-        _watchdogTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-    }
+	{
+		_watchdogTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+	}
 
 	private async Task FallbackSyncAsync()
-    {
-        try
-        {
-            // Tivi chủ động gọi API lấy data mới nhất
-            var freshData = await QueueService.GetDisplayDataAsync(RoomId);
-            
-            // Cập nhật lại UI
-            DisplayData = freshData;
-            await InvokeAsync(StateHasChanged);
-            
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Watchdog Sync: Đã đồng bộ dữ liệu dự phòng.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Watchdog lỗi kết nối: {ex.Message}");
-        }
-    }
+	{
+		try
+		{
+			// Tivi chủ động gọi API lấy data mới nhất
+			var freshData = await QueueService.GetDisplayDataAsync(RoomId);
+
+			// Cập nhật lại UI
+			DisplayData = freshData;
+			await InvokeAsync(StateHasChanged);
+
+			Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Watchdog Sync: Đã đồng bộ dữ liệu dự phòng.");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Watchdog lỗi kết nối: {ex.Message}");
+		}
+	}
 
 	public async ValueTask DisposeAsync()
 	{
 		if (_watchdogTimer is not null)
-        {
-            await _watchdogTimer.DisposeAsync();
-        }
+		{
+			await _watchdogTimer.DisposeAsync();
+		}
 		if (hubConnection is not null)
 		{
 			await hubConnection.DisposeAsync();
