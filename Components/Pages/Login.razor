@@ -107,9 +107,31 @@
 					new AuthenticationToken { Name = "refresh_token", Value = response.RefreshToken }
 				});
 
-				// 4. NƯỚNG COOKIE VÀ ĐÁ VỀ TRANG CHỦ
+				// 4. NƯỚNG COOKIE VÀ REDIRECT THEO ROLE
 				await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authProperties);
-				NavigationManager.NavigateTo("/", forceLoad: true);
+
+				// Đọc RoleMask từ claims để redirect đúng trang
+				var roleMaskClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "RoleMask")?.Value;
+				string redirectUrl = "/";
+
+				if (int.TryParse(roleMaskClaim, out int roleMask))
+				{
+					// Kiểm tra role theo thứ tự (Doctor > Reception > Admin)
+					if ((roleMask & 2) == 2) // Doctor (RoleMask: 2)
+					{
+						redirectUrl = "/doctor/dashboard";
+					}
+					else if ((roleMask & 1) == 1) // Reception (RoleMask: 1)
+					{
+						redirectUrl = "/checkin";
+					}
+					else if ((roleMask & 16) == 16) // Admin (RoleMask: 16)
+					{
+						redirectUrl = "/hangfire";
+					}
+				}
+
+				NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
 			}
 			else if (HttpContext == null)
 			{

@@ -137,12 +137,16 @@ namespace SmartClinic.Services
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
                     .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling"))
-                    .OrderBy(t => t.Status == "Calling")
-                    .ThenBy(t => t.CreatedAt)
-                    .ToListAsync();
+                    .ToListAsync();  // Load to memory first, then sort
 
-                System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {tickets.Count} queue tickets for RoomId={doctorShift.RoomId}");
-                return tickets;
+                // Sort by priority: Examining → Calling → Waiting
+                var sortedTickets = tickets
+                    .OrderBy(t => t.Status == "Examining" ? 0 : t.Status == "Calling" ? 1 : 2)
+                    .ThenBy(t => t.CreatedAt)
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {sortedTickets.Count} queue tickets for RoomId={doctorShift.RoomId}");
+                return sortedTickets;
             }
             catch (Exception ex)
             {

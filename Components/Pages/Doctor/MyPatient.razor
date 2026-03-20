@@ -211,12 +211,20 @@
                                         @ticket.Status
                                     </span>
                                 </td>
-                                <td class="py-3 px-5 flex items-center justify-center">
-                                    @if (ticket.Status == "Examining")
+                                <td class="py-3 px-5 flex items-center justify-center gap-2">
+                                    @if (ticket.Status == "Calling")
+                                    {
+                                        <button @onclick="() => StartExaminationAsync(ticket.Id)"
+                                                class="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium shadow-md hover:shadow-lg transition">
+                                            <i class="ph ph-door-open"></i>
+                                            Start Exam
+                                        </button>
+                                    }
+                                    else if (ticket.Status == "Examining")
                                     {
                                         <button @onclick="() => OnExaminePatientAsync(ticket.Id, ticket.PatientId)"
                                                 class="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition">
-                                            <i class="ph-bold ph-stethoscope"></i>
+                                            <i class="ph ph-stethoscope"></i>
                                             Examine
                                         </button>
                                     }
@@ -573,5 +581,44 @@
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Start examination: Update ticket status from "Calling" to "Examining"
+    /// This confirms the patient has entered the room
+    /// </summary>
+    private async Task StartExaminationAsync(int ticketId)
+    {
+        System.Diagnostics.Debug.WriteLine($"🔵 [StartExamination] Doctor confirmed patient entry for TicketId={ticketId}");
+
+        try
+        {
+            // Update ticket status from "Calling" to "Examining"
+            var ticket = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
+            if (ticket == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [StartExamination] Ticket {ticketId} not found");
+                ToastService.ShowError("Ticket not found");
+                return;
+            }
+
+            // Update status in database
+            ticket.Status = "Examining";
+            DbContext.QueueTickets.Update(ticket);
+            await DbContext.SaveChangesAsync();
+
+            System.Diagnostics.Debug.WriteLine($"✅ [StartExamination] Ticket {ticketId} status updated to 'Examining'");
+
+            // Trigger UI update
+            StateHasChanged();
+
+            // Show success notification
+            ToastService.ShowSuccess($"Patient {ticket.Patient?.FullName} is now being examined");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [StartExamination] ERROR: {ex.Message}");
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
     }
 }

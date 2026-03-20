@@ -2,16 +2,20 @@
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
+@using Blazored.Toast.Services
 @rendermode InteractiveServer
 @layout MainLayout
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
+@inject SmartClinicDbContext DbContext
+@inject IToastService ToastService
 
 <div class="p-8">
     <!-- Back Button -->
     <div class="mb-6">
-        <button @onclick="GoBack" class="flex items-center gap-2 px-4 py-2 text-primary hover:bg-muted rounded-lg transition">
-            <i class="ph-bold ph-arrow-left"></i>
+        <button @onclick="GoBack"
+                class="flex items-center gap-2 px-4 py-2 text-primary hover:bg-muted rounded-lg transition">
+            <i class="ph ph-arrow-left"></i>
             Back to Queue
         </button>
     </div>
@@ -19,7 +23,7 @@
     @if (_isLoading)
     {
         <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
-            <i class="ph-bold ph-spinner-gap text-2xl animate-spin"></i>
+            <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
             <span class="text-sm">Loading patient information...</span>
         </div>
     }
@@ -98,35 +102,32 @@
                 <!-- Diagnosis -->
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-2">Diagnosis</label>
-                    <textarea @bind="_diagnosis" 
+                    <textarea @bind="_diagnosis"
                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                              rows="4"
-                              placeholder="Enter patient diagnosis and findings..."></textarea>
+                              rows="4" placeholder="Enter patient diagnosis and findings..."></textarea>
                 </div>
 
                 <!-- Treatment Plan -->
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-2">Treatment Plan</label>
-                    <textarea @bind="_treatmentPlan" 
+                    <textarea @bind="_treatmentPlan"
                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                              rows="4"
-                              placeholder="Enter treatment plan and recommendations..."></textarea>
+                              rows="4" placeholder="Enter treatment plan and recommendations..."></textarea>
                 </div>
 
                 <!-- Additional Notes -->
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-2">Additional Notes</label>
-                    <textarea @bind="_notes" 
+                    <textarea @bind="_notes"
                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                              rows="3"
-                              placeholder="Any additional clinical notes..."></textarea>
+                              rows="3" placeholder="Any additional clinical notes..."></textarea>
                 </div>
 
                 <!-- Save Medical Record Button -->
-                <button @onclick="SaveMedicalRecordAsync" 
+                <button @onclick="SaveMedicalRecordAsync"
                         disabled="@(_isSubmitting || string.IsNullOrWhiteSpace(_diagnosis))"
                         class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i class="ph-bold ph-floppy-disk"></i>
+                    <i class="ph ph-floppy-disk"></i>
                     Save Medical Record
                 </button>
             </div>
@@ -135,7 +136,7 @@
         <!-- Prescription Section -->
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
             <div class="flex items-center gap-3 mb-6">
-                <i class="ph-bold ph-pill text-2xl text-primary"></i>
+                <i class="ph ph-pill text-2xl text-primary"></i>
                 <h2 class="text-xl font-bold text-foreground">Prescription</h2>
             </div>
 
@@ -144,7 +145,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-2">Select Medicine</label>
-                        <select @bind="_selectedMedicineId" 
+                        <select @bind="_selectedMedicineId"
                                 class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="0">Choose a medicine...</option>
                             <option value="1">Paracetamol 500mg</option>
@@ -157,25 +158,23 @@
 
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-2">Quantity</label>
-                        <input type="number" @bind="_medicineQuantity" 
+                        <input type="number" @bind="_medicineQuantity"
                                class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                               min="1" 
-                               placeholder="Qty" />
+                               min="1" placeholder="Qty" />
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-foreground mb-2">Dosage</label>
-                        <input type="text" @bind="_medicineDosage" 
+                        <input type="text" @bind="_medicineDosage"
                                class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                placeholder="e.g., 2x daily" />
                     </div>
                 </div>
 
                 <!-- Add Medicine Button -->
-                <button @onclick="AddMedicineAsync" 
-                        disabled="@(_selectedMedicineId == 0 || _medicineQuantity < 1)"
+                <button @onclick="AddMedicineAsync" disabled="@(_selectedMedicineId == 0 || _medicineQuantity < 1)"
                         class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i class="ph-bold ph-plus"></i>
+                    <i class="ph ph-plus"></i>
                     Add Medicine
                 </button>
 
@@ -204,7 +203,7 @@
                                             <td class="py-3 px-4 text-center">
                                                 <button @onclick="() => RemoveMedicine(medicine.MedicineId)"
                                                         class="text-red-600 hover:text-red-700 transition text-xs font-medium">
-                                                    <i class="ph-bold ph-trash"></i>
+                                                    <i class="ph ph-trash"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -217,7 +216,7 @@
                 else
                 {
                     <div class="text-center py-8 text-muted-foreground">
-                        <i class="ph-bold ph-pill text-3xl mb-2 opacity-50"></i>
+                        <i class="ph ph-pill text-3xl mb-2 opacity-50"></i>
                         <p class="text-sm">No medicines prescribed yet</p>
                     </div>
                 }
@@ -227,7 +226,7 @@
         <!-- Lab Tests Section -->
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
             <div class="flex items-center gap-3 mb-6">
-                <i class="ph-bold ph-flask text-2xl text-primary"></i>
+                <i class="ph ph-flask text-2xl text-primary"></i>
                 <h2 class="text-xl font-bold text-foreground">Lab Tests</h2>
             </div>
 
@@ -236,33 +235,45 @@
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-3">Select Lab Tests</label>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox" @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Blood Test", (bool)e.Value!))"
+                        <label
+                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
+                            <input type="checkbox"
+                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Blood Test", (bool)e.Value!))"
                                    class="w-4 h-4 rounded border-border" />
                             <span class="text-sm text-foreground font-medium">Blood Test (CBC)</span>
                         </label>
-                        <label class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox" @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Urinalysis", (bool)e.Value!))"
+                        <label
+                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
+                            <input type="checkbox"
+                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Urinalysis", (bool)e.Value!))"
                                    class="w-4 h-4 rounded border-border" />
                             <span class="text-sm text-foreground font-medium">Urinalysis</span>
                         </label>
-                        <label class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox" @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Chest X-Ray", (bool)e.Value!))"
+                        <label
+                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
+                            <input type="checkbox"
+                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Chest X-Ray", (bool)e.Value!))"
                                    class="w-4 h-4 rounded border-border" />
                             <span class="text-sm text-foreground font-medium">Chest X-Ray</span>
                         </label>
-                        <label class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox" @onchange="@((ChangeEventArgs e) => HandleLabTestChange("ECG", (bool)e.Value!))"
+                        <label
+                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
+                            <input type="checkbox"
+                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("ECG", (bool)e.Value!))"
                                    class="w-4 h-4 rounded border-border" />
                             <span class="text-sm text-foreground font-medium">ECG</span>
                         </label>
-                        <label class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox" @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Blood Glucose", (bool)e.Value!))"
+                        <label
+                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
+                            <input type="checkbox"
+                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Blood Glucose", (bool)e.Value!))"
                                    class="w-4 h-4 rounded border-border" />
                             <span class="text-sm text-foreground font-medium">Blood Glucose</span>
                         </label>
-                        <label class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox" @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Thyroid Panel", (bool)e.Value!))"
+                        <label
+                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
+                            <input type="checkbox"
+                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Thyroid Panel", (bool)e.Value!))"
                                    class="w-4 h-4 rounded border-border" />
                             <span class="text-sm text-foreground font-medium">Thyroid Panel</span>
                         </label>
@@ -277,12 +288,13 @@
                         <div class="flex flex-wrap gap-2">
                             @foreach (var test in _selectedLabTests)
                             {
-                                <div class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium">
-                                    <i class="ph-bold ph-check"></i>
+                                <div
+                                    class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium">
+                                    <i class="ph ph-check"></i>
                                     <span>@test</span>
                                     <button @onclick="() => _selectedLabTests.Remove(test)"
                                             class="ml-1 hover:opacity-70 transition">
-                                        <i class="ph-bold ph-x text-sm"></i>
+                                        <i class="ph ph-x text-sm"></i>
                                     </button>
                                 </div>
                             }
@@ -294,16 +306,14 @@
 
         <!-- Action Buttons -->
         <div class="flex gap-3 justify-end">
-            <button @onclick="GoBack" 
-                    disabled="@_isSubmitting"
+            <button @onclick="GoBack" disabled="@_isSubmitting"
                     class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <i class="ph-bold ph-arrow-left"></i>
+                <i class="ph ph-arrow-left"></i>
                 Cancel
             </button>
-            <button @onclick="CompleteExaminationAsync" 
-                    disabled="@_isSubmitting"
+            <button @onclick="CompleteExaminationAsync" disabled="@_isSubmitting"
                     class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <i class="ph-bold ph-check"></i>
+                <i class="ph ph-check"></i>
                 @if (_isSubmitting)
                 {
                     <span>Completing...</span>
@@ -328,16 +338,16 @@
     private string _diagnosis = "";
     private string _treatmentPlan = "";
     private string _notes = "";
-    
+
     // Medicine prescription
     private int _selectedMedicineId = 0;
     private int _medicineQuantity = 1;
     private string _medicineDosage = "";
     private List<PrescribedMedicine> _prescribedMedicines = new();
-    
+
     // Lab tests
     private List<string> _selectedLabTests = new();
-    
+
     private bool _isLoading = true;
     private bool _isSubmitting = false;
     private string? _errorMessage;
@@ -355,11 +365,11 @@
     protected override async Task OnInitializedAsync()
     {
         System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Loading data for TicketId={TicketId}, PatientId={PatientId}");
-        
+
         try
         {
             _patient = await PatientService.GetPatientByIdAsync(PatientId);
-            
+
             if (_patient == null)
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ [Examination] Patient not found with ID={PatientId}");
@@ -368,6 +378,16 @@
             else
             {
                 System.Diagnostics.Debug.WriteLine($"✅ [Examination] Loaded patient: {_patient.FullName}");
+            }
+
+            // Load existing medical record data from DB (nếu đã từng save trước đó)
+            var existingTicket = await DbContext.QueueTickets.FindAsync(TicketId);
+            if (existingTicket != null)
+            {
+                _diagnosis = existingTicket.Diagnosis ?? "";
+                _treatmentPlan = existingTicket.TreatmentPlan ?? "";
+                _notes = existingTicket.AdditionalNotes ?? "";
+                System.Diagnostics.Debug.WriteLine($"✅ [Examination] Pre-filled medical record fields from DB");
             }
         }
         catch (Exception ex)
@@ -383,25 +403,56 @@
 
     private async Task SaveMedicalRecordAsync()
     {
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving medical record...");
-        
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving medical record for TicketId={TicketId}...");
+
         try
         {
             _isSubmitting = true;
-            
-            // TODO: Save examination/medical record to database
-            // await ExaminationService.SaveMedicalRecordAsync(new { ... });
-            
-            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Medical record saved");
-            
-            // Show success feedback
-            await Task.Delay(500);
+
+            // STEP 1: Get the QueueTicket from database
+            var queueTicket = await DbContext.QueueTickets.FindAsync(TicketId);
+            if (queueTicket == null)
+            {
+                _errorMessage = $"Queue ticket {TicketId} not found";
+                System.Diagnostics.Debug.WriteLine($"❌ [Examination] Queue ticket not found");
+                _isSubmitting = false;
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Found QueueTicket: {queueTicket.Id}");
+
+            // STEP 2: Update the medical record fields
+            queueTicket.Diagnosis = _diagnosis;
+            queueTicket.TreatmentPlan = _treatmentPlan;
+            queueTicket.AdditionalNotes = _notes;
+
+            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Updating ticket fields...");
+
+            // STEP 3: Save to database
+            DbContext.QueueTickets.Update(queueTicket);
+            await DbContext.SaveChangesAsync();
+
+            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Medical record saved successfully");
+
+            // Bind lại từ object đã lưu → đảm bảo UI đồng bộ đúng với DB
+            _diagnosis = queueTicket.Diagnosis ?? "";
+            _treatmentPlan = queueTicket.TreatmentPlan ?? "";
+            _notes = queueTicket.AdditionalNotes ?? "";
+
             _isSubmitting = false;
+
+            // Show success toast
+            ToastService.ShowSuccess("Medical record saved successfully!");
+
+            // Re-render UI ngay lập tức, không cần reload trang
+            StateHasChanged();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR saving record: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"❌ [Examination] Stack: {ex.StackTrace}");
             _errorMessage = $"Error saving medical record: {ex.Message}";
+            ToastService.ShowError($"Error: {ex.Message}");
             _isSubmitting = false;
         }
     }
@@ -412,7 +463,7 @@
             return;
 
         System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Adding medicine {_selectedMedicineId}");
-        
+
         if (_medicineMap.TryGetValue(_selectedMedicineId.ToString(), out var medicineName))
         {
             var medicine = new PrescribedMedicine
@@ -422,17 +473,17 @@
                 Quantity = _medicineQuantity,
                 Dosage = _medicineDosage
             };
-            
+
             _prescribedMedicines.Add(medicine);
-            
+
             // Reset inputs
             _selectedMedicineId = 0;
             _medicineQuantity = 1;
             _medicineDosage = "";
-            
+
             System.Diagnostics.Debug.WriteLine($"✅ [Examination] Added {medicineName}");
         }
-        
+
         StateHasChanged();
     }
 
@@ -457,24 +508,24 @@
     private async Task CompleteExaminationAsync()
     {
         System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Completing examination for TicketId={TicketId}");
-        
+
         try
         {
             _isSubmitting = true;
-            
+
             // Save medical record if any
             if (!string.IsNullOrWhiteSpace(_diagnosis))
             {
                 // TODO: Save examination/medical record
             }
-            
+
             // Save prescriptions if any
             if (_prescribedMedicines.Any())
             {
                 // TODO: Save prescriptions to database
                 System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_prescribedMedicines.Count} medicines");
             }
-            
+
             // Order lab tests if any
             if (_selectedLabTests.Any())
             {
@@ -487,9 +538,9 @@
                 // TODO: Mark QueueTicket as "Completed" if no lab tests
                 System.Diagnostics.Debug.WriteLine($"🔵 [Examination] No lab tests, marking ticket as completed");
             }
-            
+
             System.Diagnostics.Debug.WriteLine($"✅ [Examination] Examination completed");
-            
+
             // Navigate back to queue
             NavigationManager.NavigateTo("/doctor/my-patients");
         }
