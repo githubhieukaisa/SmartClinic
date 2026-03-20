@@ -100,10 +100,14 @@ namespace SmartClinic.Services
 
                 await transaction.CommitAsync();
 
+                //Call SignalR
                 try
                 {
                     var displayData = await _queueService.GetDisplayDataAsync(selectedRoomInfo.Room.Id);
                     string groupName = $"Room_{selectedRoomInfo.Room.Id}";
+
+                    // throw new Exception("BÙM! Đứt cáp quang biển, SignalR không gửi được tin nhắn!");
+
                     await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
                 }
                 catch (Exception ex)
