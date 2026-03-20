@@ -42,6 +42,8 @@ namespace SmartClinic.Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IQueueService, QueueService>();
             services.AddScoped<PatientService>();
+            services.AddScoped<IPharmacyService, PharmacyService>();
+            services.AddScoped<ICashierService, CashierService>();
             services.AddSingleton<NotificationService>();
             services.AddBlazoredToast();
             return services;

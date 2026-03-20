@@ -1,0 +1,47 @@
+﻿@* CashierToastHandler.razor
+   Lắng nghe SignalR "PrescriptionDispensed" và hiển thị toast cho Thu ngân.
+   Đặt component này trong CashierLayout.
+*@
+@using Blazored.Toast.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@using SmartClinic.DTOs
+
+@inject IToastService Toaster
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+@code {
+    private HubConnection? _hub;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/prescription"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        // Lắng nghe đơn đã xuất thuốc, chờ thanh toán
+        _hub.On<PrescriptionDispensedNotificationDto>("PrescriptionDispensed", async (data) =>
+        {
+            await InvokeAsync(() =>
+            {
+                Toaster.ShowInfo(
+                    $"💰 Chờ thanh toán: #{data.TicketNumber} - {data.PatientName} " +
+                    $"· {data.TotalAmount:N0}đ");
+            });
+        });
+
+        await _hub.StartAsync();
+        await _hub.InvokeAsync("JoinCashierGroup");
+
+        System.Diagnostics.Debug.WriteLine("[CashierToastHandler] Connected & joined Cashiers group");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub != null)
+            await _hub.DisposeAsync();
+    }
+}
