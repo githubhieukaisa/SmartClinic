@@ -7,255 +7,176 @@ using SmartClinic.Models;
 namespace SmartClinic.Services
 {
     /// <summary>
-    /// Handles the full pharmacy workflow:
-    ///   Doctor saves prescription  →  pharmacist dispenses  →  cashier collects payment.
+    /// Service xử lý nghiệp vụ Dược sĩ:
+    /// - Lấy danh sách đơn thuốc chờ
+    /// - Xuất thuốc (trừ tồn kho)
+    /// - Gửi thông báo real-time cho Thu ngân
     ///
-    /// Uses IDbContextFactory so every method gets its own fresh DbContext —
-    /// safe to call from SignalR callbacks and background services.
+    /// Registered as Scoped (inject SmartClinicDbContext trực tiếp được)
     /// </summary>
     public class PharmacyService : IPharmacyService
     {
-        private readonly IDbContextFactory<SmartClinicDbContext> _contextFactory;
-        private readonly IHubContext<PrescriptionHub> _prescriptionHub;
+        private readonly SmartClinicDbContext _context;
+        private readonly IHubContext<PrescriptionHub> _hubContext;
 
-        public PharmacyService(
-            IDbContextFactory<SmartClinicDbContext> contextFactory,
-            IHubContext<PrescriptionHub> prescriptionHub)
+        public PharmacyService(SmartClinicDbContext context, IHubContext<PrescriptionHub> hubContext)
         {
-            _contextFactory = contextFactory;
-            _prescriptionHub = prescriptionHub;
+            _context = context;
+            _hubContext = hubContext;
         }
 
-        // ──────────────────────────────────────────────────────────────────────
-        //  DOCTOR: Save Prescription
-        // ──────────────────────────────────────────────────────────────────────
+        // ─── QUERY ───────────────────────────────────────────────────────────────
 
-        public async Task<Prescription> SavePrescriptionAsync(
-            int ticketId,
-            int doctorId,
-            string? doctorNote,
-            List<PrescriptionItemRequest> items)
+        public async Task<List<PrescriptionQueueDto>> GetPendingPrescriptionsAsync()
         {
-            await using var ctx = await _contextFactory.CreateDbContextAsync();
-
-            // Upsert: one prescription per ticket (unique index in DB)
-            var prescription = await ctx.Prescriptions
+            var prescriptions = await _context.Prescriptions
+                .AsNoTracking()
+                .Include(p => p.Ticket)
+                    .ThenInclude(t => t!.Patient)
+                .Include(p => p.Ticket)
+                    .ThenInclude(t => t!.Doctor)
                 .Include(p => p.PrescriptionDetails)
-                .FirstOrDefaultAsync(p => p.TicketId == ticketId);
+                    .ThenInclude(d => d.Medicine)
+                .Where(p => p.Status == "Pending")
+                .OrderBy(p => p.CreatedAt)
+                .ToListAsync();
 
-            if (prescription == null)
-            {
-                prescription = new Prescription { TicketId = ticketId };
-                ctx.Prescriptions.Add(prescription);
-            }
-            else
-            {
-                // Remove existing details to replace them
-                ctx.PrescriptionDetails.RemoveRange(prescription.PrescriptionDetails);
-            }
+            return prescriptions.Select(MapToDto).ToList();
+        }
 
-            prescription.DoctorNote = doctorNote;
-            prescription.Status = "Pending"; // awaiting pharmacist
+        public async Task<PrescriptionQueueDto?> GetPrescriptionDetailAsync(int prescriptionId)
+        {
+            var prescription = await _context.Prescriptions
+                .AsNoTracking()
+                .Include(p => p.Ticket)
+                    .ThenInclude(t => t!.Patient)
+                .Include(p => p.Ticket)
+                    .ThenInclude(t => t!.Doctor)
+                .Include(p => p.PrescriptionDetails)
+                    .ThenInclude(d => d.Medicine)
+                .FirstOrDefaultAsync(p => p.Id == prescriptionId);
 
-            // Re-add details and calculate total
-            decimal total = 0;
-            var newDetails = new List<PrescriptionDetail>();
-            foreach (var item in items)
+            return prescription == null ? null : MapToDto(prescription);
+        }
+
+        // ─── COMMAND ─────────────────────────────────────────────────────────────
+
+        public async Task<(bool Success, string ErrorMessage)> DispenseMedicinesAsync(int prescriptionId)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PharmacyService] Dispensing prescription {prescriptionId}");
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
             {
-                var detail = new PrescriptionDetail
+                var prescription = await _context.Prescriptions
+                    .Include(p => p.Ticket)
+                        .ThenInclude(t => t!.Patient)
+                    .Include(p => p.Ticket)
+                        .ThenInclude(t => t!.Doctor)
+                    .Include(p => p.PrescriptionDetails)
+                        .ThenInclude(d => d.Medicine)
+                    .FirstOrDefaultAsync(p => p.Id == prescriptionId);
+
+                if (prescription == null)
+                    return (false, "Không tìm thấy đơn thuốc.");
+
+                if (prescription.Status != "Pending")
+                    return (false, $"Đơn thuốc đang ở trạng thái '{prescription.Status}', không thể xuất.");
+
+                // 1. Trừ tồn kho từng thuốc
+                foreach (var detail in prescription.PrescriptionDetails)
                 {
-                    MedicineId = item.MedicineId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    UsageInstruction = item.UsageInstruction
+                    if (detail.Medicine == null) continue;
+
+                    if (detail.Medicine.StockQuantity < detail.Quantity)
+                    {
+                        await transaction.RollbackAsync();
+                        return (false, $"Thuốc '{detail.Medicine.Name}' không đủ tồn kho (còn {detail.Medicine.StockQuantity}, cần {detail.Quantity}).");
+                    }
+
+                    detail.Medicine.StockQuantity -= detail.Quantity;
+                }
+
+                // 2. Cập nhật trạng thái đơn
+                prescription.Status = "Dispensed";
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // 3. Thông báo real-time cho Thu ngân
+                var notification = new PrescriptionDispensedNotificationDto
+                {
+                    PrescriptionId = prescription.Id,
+                    TicketNumber = prescription.Ticket?.TicketNumber ?? 0,
+                    PatientName = prescription.Ticket?.Patient?.FullName ?? "Unknown",
+                    TotalAmount = prescription.TotalAmount ?? 0
                 };
-                total += item.Quantity * item.UnitPrice;
-                newDetails.Add(detail);
+
+                await _hubContext.Clients.Group("Cashiers")
+                    .SendAsync("PrescriptionDispensed", notification);
+
+                System.Diagnostics.Debug.WriteLine($"[PharmacyService] Dispensed OK, notified Cashiers");
+                return (true, "");
             }
-            prescription.TotalAmount = total;
-            prescription.PrescriptionDetails = newDetails;
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                System.Diagnostics.Debug.WriteLine($"[PharmacyService] ERROR: {ex.Message}");
+                return (false, "Lỗi hệ thống khi xuất thuốc.");
+            }
+        }
 
-            await ctx.SaveChangesAsync();
+        /// <summary>
+        /// Gọi sau khi bác sĩ lưu đơn thuốc thành công.
+        /// Broadcast SignalR "NewPrescriptionReady" cho Dược sĩ.
+        /// </summary>
+        public async Task NotifyNewPrescriptionAsync(int prescriptionId)
+        {
+            var prescription = await _context.Prescriptions
+                .AsNoTracking()
+                .Include(p => p.Ticket)
+                    .ThenInclude(t => t!.Patient)
+                .Include(p => p.Ticket)
+                    .ThenInclude(t => t!.Doctor)
+                .Include(p => p.PrescriptionDetails)
+                .FirstOrDefaultAsync(p => p.Id == prescriptionId);
 
-            // Broadcast to pharmacists
-            var ticket = await ctx.QueueTickets
-                .Include(t => t.Patient)
-                .FirstOrDefaultAsync(t => t.Id == ticketId);
-
-            var doctor = await ctx.Users.FindAsync(doctorId);
+            if (prescription == null) return;
 
             var notification = new NewPrescriptionNotificationDto
             {
                 PrescriptionId = prescription.Id,
-                TicketId = ticketId,
-                PatientName = ticket?.Patient?.FullName ?? "Unknown",
-                DoctorName = doctor?.FullName ?? "Unknown Doctor",
-                MedicineCount = items.Count,
-                TotalAmount = total,
-                CreatedAt = DateTime.Now
-            };
-
-            await _prescriptionHub.Clients.Group("Pharmacists")
-                .SendAsync("NewPrescriptionReady", notification);
-
-            return prescription;
-        }
-
-        // ──────────────────────────────────────────────────────────────────────
-        //  PHARMACIST: Dispense Prescription
-        // ──────────────────────────────────────────────────────────────────────
-
-        public async Task DispensePrescriptionAsync(int prescriptionId, int pharmacistId)
-        {
-            await using var ctx = await _contextFactory.CreateDbContextAsync();
-
-            var prescription = await ctx.Prescriptions
-                .Include(p => p.PrescriptionDetails)
-                    .ThenInclude(d => d.Medicine)
-                .Include(p => p.Ticket)
-                    .ThenInclude(t => t!.Patient)
-                .FirstOrDefaultAsync(p => p.Id == prescriptionId)
-                ?? throw new InvalidOperationException($"Prescription {prescriptionId} not found.");
-
-            if (prescription.Status != "Pending")
-                throw new InvalidOperationException("Prescription is not in Pending state.");
-
-            // Decrement stock for each medicine
-            foreach (var detail in prescription.PrescriptionDetails)
-            {
-                if (detail.Medicine == null) continue;
-
-                if (detail.Medicine.StockQuantity < detail.Quantity)
-                    throw new InvalidOperationException(
-                        $"Insufficient stock for {detail.Medicine.Name}. " +
-                        $"Available: {detail.Medicine.StockQuantity}, Required: {detail.Quantity}.");
-
-                detail.Medicine.StockQuantity -= detail.Quantity;
-            }
-
-            prescription.Status = "Dispensed";
-            await ctx.SaveChangesAsync();
-
-            // Notify cashiers
-            var notification = new PrescriptionDispensedNotificationDto
-            {
-                PrescriptionId = prescriptionId,
-                TicketId = prescription.TicketId ?? 0,
+                TicketNumber = prescription.Ticket?.TicketNumber ?? 0,
                 PatientName = prescription.Ticket?.Patient?.FullName ?? "Unknown",
+                DoctorName = prescription.Ticket?.Doctor?.FullName ?? "Unknown",
+                MedicineCount = prescription.PrescriptionDetails.Count,
                 TotalAmount = prescription.TotalAmount ?? 0
             };
 
-            await _prescriptionHub.Clients.Group("Cashiers")
-                .SendAsync("PrescriptionDispensed", notification);
+            await _hubContext.Clients.Group("Pharmacists")
+                .SendAsync("NewPrescriptionReady", notification);
+
+            System.Diagnostics.Debug.WriteLine($"[PharmacyService] Notified Pharmacists: prescription {prescriptionId}");
         }
 
-        // ──────────────────────────────────────────────────────────────────────
-        //  CASHIER: Pay Prescription
-        // ──────────────────────────────────────────────────────────────────────
+        // ─── HELPER ──────────────────────────────────────────────────────────────
 
-        public async Task PayPrescriptionAsync(int prescriptionId, int cashierId)
-        {
-            await using var ctx = await _contextFactory.CreateDbContextAsync();
-
-            var prescription = await ctx.Prescriptions
-                .Include(p => p.Ticket)
-                .FirstOrDefaultAsync(p => p.Id == prescriptionId)
-                ?? throw new InvalidOperationException($"Prescription {prescriptionId} not found.");
-
-            if (prescription.Status != "Dispensed")
-                throw new InvalidOperationException("Prescription must be Dispensed before payment.");
-
-            prescription.Status = "Paid";
-
-            // Mark QueueTicket as Done
-            if (prescription.Ticket != null)
-                prescription.Ticket.Status = "Done";
-
-            await ctx.SaveChangesAsync();
-        }
-
-        // ──────────────────────────────────────────────────────────────────────
-        //  Queries
-        // ──────────────────────────────────────────────────────────────────────
-
-        public async Task<List<PrescriptionSummaryDto>> GetPendingPrescriptionsAsync()
-            => await QueryPrescriptionsAsync("Pending");
-
-        public async Task<List<PrescriptionSummaryDto>> GetDispensedPrescriptionsAsync()
-            => await QueryPrescriptionsAsync("Dispensed");
-
-        public async Task<PrescriptionSummaryDto?> GetPrescriptionDetailAsync(int prescriptionId)
-        {
-            await using var ctx = await _contextFactory.CreateDbContextAsync();
-
-            var p = await ctx.Prescriptions
-                .AsNoTracking()
-                .Include(x => x.Ticket).ThenInclude(t => t!.Patient)
-                .Include(x => x.Ticket).ThenInclude(t => t!.Doctor)
-                .Include(x => x.PrescriptionDetails).ThenInclude(d => d.Medicine)
-                .FirstOrDefaultAsync(x => x.Id == prescriptionId);
-
-            return p == null ? null : MapToSummary(p);
-        }
-
-        public async Task<List<PaymentSummaryDto>> GetPrescriptionsForCashierAsync()
-        {
-            await using var ctx = await _contextFactory.CreateDbContextAsync();
-
-            return await ctx.Prescriptions
-                .AsNoTracking()
-                .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
-                .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
-                .Where(p => p.Status == "Dispensed" || p.Status == "Paid")
-                .OrderByDescending(p => p.CreatedAt)
-                .Select(p => new PaymentSummaryDto
-                {
-                    PrescriptionId = p.Id,
-                    TicketId = p.TicketId ?? 0,
-                    PatientName = p.Ticket != null && p.Ticket.Patient != null
-                        ? p.Ticket.Patient.FullName : "Unknown",
-                    DoctorName = p.Ticket != null && p.Ticket.Doctor != null
-                        ? p.Ticket.Doctor.FullName ?? "Unknown" : "Unknown",
-                    TotalAmount = p.TotalAmount ?? 0,
-                    Status = p.Status ?? "Unknown",
-                    CreatedAt = p.CreatedAt
-                })
-                .ToListAsync();
-        }
-
-        // ──────────────────────────────────────────────────────────────────────
-        //  Helpers
-        // ──────────────────────────────────────────────────────────────────────
-
-        private async Task<List<PrescriptionSummaryDto>> QueryPrescriptionsAsync(string status)
-        {
-            await using var ctx = await _contextFactory.CreateDbContextAsync();
-
-            var list = await ctx.Prescriptions
-                .AsNoTracking()
-                .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
-                .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
-                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
-                .Where(p => p.Status == status)
-                .OrderByDescending(p => p.CreatedAt)
-                .ToListAsync();
-
-            return list.Select(MapToSummary).ToList();
-        }
-
-        private static PrescriptionSummaryDto MapToSummary(Prescription p) => new()
+        private static PrescriptionQueueDto MapToDto(Prescription p) => new()
         {
             PrescriptionId = p.Id,
             TicketId = p.TicketId ?? 0,
-            PatientName = p.Ticket?.Patient?.FullName ?? "Unknown",
-            DoctorName = p.Ticket?.Doctor?.FullName ?? "Unknown",
-            Status = p.Status ?? "",
+            TicketNumber = p.Ticket?.TicketNumber ?? 0,
+            PatientName = p.Ticket?.Patient?.FullName ?? "—",
+            DoctorName = p.Ticket?.Doctor?.FullName ?? "—",
+            DoctorNote = p.DoctorNote,
+            Status = p.Status ?? "Pending",
             TotalAmount = p.TotalAmount ?? 0,
             CreatedAt = p.CreatedAt,
             Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto
             {
+                DetailId = d.Id,
                 MedicineId = d.MedicineId ?? 0,
-                MedicineName = d.Medicine?.Name ?? "Unknown",
+                MedicineName = d.Medicine?.Name ?? "—",
                 Unit = d.Medicine?.Unit,
                 Quantity = d.Quantity,
                 UnitPrice = d.UnitPrice,

@@ -6,6 +6,7 @@
 @layout MainLayout
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
+@inject IPharmacyService PharmacyService
 
 <div class="p-8">
     <!-- Back Button -->
@@ -392,6 +393,8 @@
             // TODO: Save examination/medical record to database
             // await ExaminationService.SaveMedicalRecordAsync(new { ... });
             
+            // Sau khi lưu prescription vào DB
+            // await PharmacyService.NotifyNewPrescriptionAsync(savedPrescription.Id);
             System.Diagnostics.Debug.WriteLine($"✅ [Examination] Medical record saved");
             
             // Show success feedback

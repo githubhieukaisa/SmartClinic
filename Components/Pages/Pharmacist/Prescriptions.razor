@@ -1,13 +1,13 @@
-﻿@page "/cashier/payments"
+﻿@page "/pharmacist/prescriptions"
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.DTOs
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
 @using Blazored.Toast.Services
 @rendermode InteractiveServer
-@layout CashierLayout
-@attribute [Authorize(Policy = "CashierPolicy")]
-@inject ICashierService CashierService
+@layout PharmacistLayout
+@attribute [Authorize(Policy = "PharmacistPolicy")]
+@inject IPharmacyService PharmacyService
 @inject IToastService ToastService
 
 <div class="p-8">
@@ -15,8 +15,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-foreground">Thanh Toán Viện Phí</h1>
-            <p class="text-muted-foreground mt-1">Danh sách bệnh nhân chờ thanh toán</p>
+            <h1 class="text-3xl font-bold text-foreground">Đơn Thuốc Chờ Xuất</h1>
+            <p class="text-muted-foreground mt-1">Danh sách đơn thuốc cần chuẩn bị</p>
         </div>
         <button @onclick="LoadDataAsync"
                 class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
@@ -29,18 +29,18 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
             <div class="flex items-center justify-between mb-2">
-                <h4 class="font-semibold text-foreground text-sm">Chờ thanh toán</h4>
-                <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-clock text-xl text-indigo-600"></i>
+                <h4 class="font-semibold text-foreground text-sm">Đơn chờ xử lý</h4>
+                <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-hourglass text-xl text-amber-600"></i>
                 </div>
             </div>
-            <p class="text-3xl font-bold text-indigo-600">@(_prescriptions?.Count ?? 0)</p>
+            <p class="text-3xl font-bold text-amber-600">@(_prescriptions?.Count ?? 0)</p>
         </div>
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
             <div class="flex items-center justify-between mb-2">
-                <h4 class="font-semibold text-foreground text-sm">Tổng thu chờ</h4>
+                <h4 class="font-semibold text-foreground text-sm">Tổng tiền chờ</h4>
                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-money text-xl text-green-600"></i>
+                    <i class="ph ph-currency-circle-dollar text-xl text-green-600"></i>
                 </div>
             </div>
             <p class="text-3xl font-bold text-green-600">
@@ -49,7 +49,7 @@
         </div>
     </div>
 
-    <!-- Payment List -->
+    <!-- Prescription List -->
     @if (_prescriptions == null)
     {
         <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
@@ -60,8 +60,8 @@
     else if (!_prescriptions.Any())
     {
         <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground bg-card rounded-xl border border-border">
-            <i class="ph ph-money text-4xl"></i>
-            <p class="font-medium">Không có bệnh nhân nào đang chờ thanh toán</p>
+            <i class="ph ph-prescription text-4xl"></i>
+            <p class="font-medium">Không có đơn thuốc nào đang chờ</p>
         </div>
     }
     else
@@ -70,10 +70,10 @@
             @foreach (var p in _prescriptions)
             {
                 <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                    <!-- Header -->
-                    <div class="flex items-center justify-between p-5 border-b border-border bg-indigo-50">
+                    <!-- Prescription Header -->
+                    <div class="flex items-center justify-between p-5 border-b border-border bg-amber-50">
                         <div class="flex items-center gap-4">
-                            <span class="inline-flex items-center justify-center w-10 h-10 bg-indigo-200 text-indigo-800 rounded-lg text-sm font-bold">
+                            <span class="inline-flex items-center justify-center w-10 h-10 bg-amber-200 text-amber-800 rounded-lg text-sm font-bold">
                                 #@p.TicketNumber
                             </span>
                             <div>
@@ -82,31 +82,33 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
-                            <p class="text-2xl font-black text-green-700">@p.TotalAmount.ToString("N0")đ</p>
-                            <button @onclick="() => PayAsync(p.PrescriptionId)"
+                            <p class="text-lg font-bold text-green-700">@p.TotalAmount.ToString("N0")đ</p>
+                            <button @onclick="() => DispenseAsync(p.PrescriptionId)"
                                     disabled="@_processing.Contains(p.PrescriptionId)"
-                                    class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                    class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed">
                                 @if (_processing.Contains(p.PrescriptionId))
                                 {
                                     <i class="ph ph-spinner-gap animate-spin"></i>
-                                    <span>Đang xử lý...</span>
+                                    <span>Đang xuất...</span>
                                 }
                                 else
                                 {
-                                    <i class="ph ph-check-square"></i>
-                                    <span>Xác nhận thanh toán</span>
+                                    <i class="ph ph-check-circle"></i>
+                                    <span>Xuất thuốc</span>
                                 }
                             </button>
                         </div>
                     </div>
 
-                    <!-- Medicine Summary -->
+                    <!-- Medicine Details -->
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b border-border bg-muted/30">
                                     <th class="text-left py-2 px-5 font-semibold text-muted-foreground">Thuốc</th>
                                     <th class="text-center py-2 px-5 font-semibold text-muted-foreground">SL</th>
+                                    <th class="text-center py-2 px-5 font-semibold text-muted-foreground">Đơn vị</th>
+                                    <th class="text-left py-2 px-5 font-semibold text-muted-foreground">Hướng dẫn</th>
                                     <th class="text-right py-2 px-5 font-semibold text-muted-foreground">Thành tiền</th>
                                 </tr>
                             </thead>
@@ -114,18 +116,24 @@
                                 @foreach (var d in p.Details)
                                 {
                                     <tr class="border-b border-border last:border-0">
-                                        <td class="py-3 px-5 text-foreground">@d.MedicineName</td>
-                                        <td class="py-3 px-5 text-center text-foreground">@d.Quantity @d.Unit</td>
+                                        <td class="py-3 px-5 font-medium text-foreground">@d.MedicineName</td>
+                                        <td class="py-3 px-5 text-center text-foreground">@d.Quantity</td>
+                                        <td class="py-3 px-5 text-center text-muted-foreground">@(d.Unit ?? "—")</td>
+                                        <td class="py-3 px-5 text-muted-foreground">@(d.UsageInstruction ?? "—")</td>
                                         <td class="py-3 px-5 text-right font-medium text-foreground">@d.SubTotal.ToString("N0")đ</td>
                                     </tr>
                                 }
-                                <tr class="bg-green-50 font-bold">
-                                    <td class="py-3 px-5 text-foreground" colspan="2">Tổng cộng</td>
-                                    <td class="py-3 px-5 text-right text-green-700 text-base">@p.TotalAmount.ToString("N0")đ</td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
+
+                    @if (!string.IsNullOrWhiteSpace(p.DoctorNote))
+                    {
+                        <div class="px-5 py-3 bg-blue-50 text-sm text-blue-700">
+                            <i class="ph ph-note mr-1"></i>
+                            <span class="font-medium">Ghi chú BS:</span> @p.DoctorNote
+                        </div>
+                    }
                 </div>
             }
         </div>
@@ -145,21 +153,21 @@
     {
         _prescriptions = null;
         StateHasChanged();
-        _prescriptions = await CashierService.GetDispensedPrescriptionsAsync();
+        _prescriptions = await PharmacyService.GetPendingPrescriptionsAsync();
     }
 
-    private async Task PayAsync(int prescriptionId)
+    private async Task DispenseAsync(int prescriptionId)
     {
         _processing.Add(prescriptionId);
         StateHasChanged();
 
-        var (success, error) = await CashierService.ProcessPaymentAsync(prescriptionId);
+        var (success, error) = await PharmacyService.DispenseMedicinesAsync(prescriptionId);
 
         _processing.Remove(prescriptionId);
 
         if (success)
         {
-            ToastService.ShowSuccess("Thanh toán thành công! Bệnh nhân đã hoàn tất quy trình.");
+            ToastService.ShowSuccess("Xuất thuốc thành công! Thu ngân đã được thông báo.");
             _prescriptions?.RemoveAll(p => p.PrescriptionId == prescriptionId);
         }
         else

@@ -43,6 +43,8 @@ namespace SmartClinic
                 app.UseHsts();
             }
             app.MapHub<PatientHub>("/hubs/patient");
+            app.MapHub<PrescriptionHub>("/hubs/prescription");
+
 
             app.MapHub<QueueHub>("/queueHub");
 
