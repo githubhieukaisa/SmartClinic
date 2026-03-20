@@ -1,0 +1,74 @@
+@* SaveActionButton.razor
+   Reusable async save button với spinner, giống CallNextPatientButton.
+   Parameters:
+     - OnClick      : async callback gọi từ component cha (required)
+     - Label        : text khi bình thường           (default: "Save")
+     - LoadingLabel : text khi đang xử lý            (default: "Saving...")
+     - Icon         : phosphor icon class             (default: "ph-floppy-disk")
+     - Disabled     : thêm điều kiện disabled từ cha (default: false)
+     - Variant      : "ghost" (mặc định, bg-primary/10) | "solid" (bg-primary)
+*@
+
+<button @onclick="HandleClickAsync" disabled="@(IsLoading || Disabled)" class="@GetButtonClasses()">
+
+    @if (IsLoading)
+    {
+        <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+        <span>@LoadingLabel</span>
+    }
+    else
+    {
+        <i class="@($"ph {Icon}") text-base"></i>
+        <span>@Label</span>
+    }
+</button>
+
+@code {
+    // ── Parameters ──────────────────────────────────────────────────────────
+    [Parameter, EditorRequired] public Func<Task> OnClick { get; set; } = default!;
+    [Parameter] public string Label { get; set; } = "Save";
+    [Parameter] public string LoadingLabel { get; set; } = "Saving...";
+    [Parameter] public string Icon { get; set; } = "ph-floppy-disk";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string Variant { get; set; } = "ghost"; // "ghost" | "solid"
+    [Parameter] public string ExtraCssClass { get; set; } = "";
+
+    // ── State ────────────────────────────────────────────────────────────────
+    private bool IsLoading { get; set; }
+
+    // ── Logic ────────────────────────────────────────────────────────────────
+    private async Task HandleClickAsync()
+    {
+        if (IsLoading || Disabled) return;
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnClick();
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetButtonClasses()
+    {
+        var baseLayout = "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition";
+        var disabledState = "disabled:opacity-50 disabled:cursor-not-allowed";
+        var loadingState = IsLoading ? "cursor-wait" : "active:scale-95";
+
+        var colorClasses = Variant == "solid"
+            ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+            : "bg-primary/10 text-primary hover:bg-primary/20";
+
+        return $"{baseLayout} {colorClasses} {disabledState} {loadingState} {ExtraCssClass}".Trim();
+    }
+}

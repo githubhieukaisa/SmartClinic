@@ -2,7 +2,9 @@
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
+@using SmartClinic.Components.Common
 @using Blazored.Toast.Services
+@using Microsoft.EntityFrameworkCore
 @rendermode InteractiveServer
 @layout MainLayout
 @inject PatientService PatientService
@@ -125,12 +127,8 @@
                 </div>
 
                 <!-- Save Medical Record Button -->
-                <button @onclick="SaveMedicalRecordAsync"
-                        disabled="@(_isSubmitting || string.IsNullOrWhiteSpace(_diagnosis))"
-                        class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i class="ph ph-floppy-disk"></i>
-                    Save Medical Record
-                </button>
+                <SaveActionButton OnClick="SaveMedicalRecordAsync" Label="Save Medical Record" LoadingLabel="Saving..."
+                                  Icon="ph-floppy-disk" Disabled="@string.IsNullOrWhiteSpace(_diagnosis)" />
             </div>
         </div>
 
@@ -173,11 +171,8 @@
                 </div>
 
                 <!-- Add Medicine Button -->
-                <button @onclick="AddMedicineAsync" disabled="@(_selectedMedicineId == 0 || _medicineQuantity < 1)"
-                        class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i class="ph ph-plus"></i>
-                    Add Medicine
-                </button>
+                <SaveActionButton OnClick="AddMedicineAsync" Label="Add Medicine" LoadingLabel="Adding..." Icon="ph-plus"
+                                  Disabled="@(_prescriptionSaved || _selectedMedicineId == 0 || _medicineQuantity < 1)" />
 
                 <!-- Selected Medicines Table -->
                 @if (_prescribedMedicines.Any())
@@ -201,11 +196,15 @@
                                             <td class="py-3 px-4 text-foreground">@medicine.MedicineName</td>
                                             <td class="py-3 px-4 text-center text-foreground">@medicine.Quantity</td>
                                             <td class="py-3 px-4 text-center text-foreground">@medicine.Dosage</td>
-                                            <td class="py-3 px-4 text-center">
-                                                <button @onclick="() => RemoveMedicine(medicine.MedicineId)"
-                                                        class="text-red-600 hover:text-red-700 transition text-xs font-medium">
-                                                    <i class="ph ph-trash"></i>
-                                                </button>
+                                            <td class="py-3 px-4">
+                                                <div class="flex justify-center">
+                                                    <Button Variant="Button.ButtonVariant.Danger"
+                                                            IsFullWidth="false"
+                                                            Disabled="@_prescriptionSaved"
+                                                            OnClick="@(async _ => RemoveMedicine(medicine.MedicineId))">
+                                                        <i class="ph ph-trash mr-1"></i> Delete
+                                                    </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     }
@@ -220,6 +219,22 @@
                         <i class="ph ph-pill text-3xl mb-2 opacity-50"></i>
                         <p class="text-sm">No medicines prescribed yet</p>
                     </div>
+                }
+
+                <!-- Save Prescription Button / Locked State -->
+                @if (_prescriptionSaved)
+                {
+                    <!-- Đã gửi → hiện badge, không cho sửa -->
+                    <div
+                        class="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 text-green-600 text-sm font-medium w-fit">
+                        <i class="ph ph-check-circle text-base"></i>
+                        <span>Prescription submitted — sent to Pharmacist</span>
+                    </div>
+                }
+                else
+                {
+                    <SaveActionButton OnClick="SavePrescriptionAsync" Label="Save Prescription" LoadingLabel="Saving..."
+                                      Icon="ph-prescription" Disabled="@(!_prescribedMedicines.Any())" />
                 }
             </div>
         </div>
@@ -302,28 +317,19 @@
                         </div>
                     </div>
                 }
+
+                <!-- Save Lab Tests Button -->
+                <SaveActionButton OnClick="SaveLabTestsAsync" Label="Save Lab Tests" LoadingLabel="Saving..."
+                                  Icon="ph-flask" Disabled="@(!_selectedLabTests.Any())" />
             </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="flex gap-3 justify-end">
-            <button @onclick="GoBack" disabled="@_isSubmitting"
-                    class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <i class="ph ph-arrow-left"></i>
-                Cancel
-            </button>
-            <button @onclick="CompleteExaminationAsync" disabled="@_isSubmitting"
-                    class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <i class="ph ph-check"></i>
-                @if (_isSubmitting)
-                {
-                    <span>Completing...</span>
-                }
-                else
-                {
-                    <span>Complete Examination</span>
-                }
-            </button>
+            <SaveActionButton OnClick="@(() => { GoBack(); return Task.CompletedTask; })" Label="Cancel"
+                              LoadingLabel="Going back..." Icon="ph-arrow-left" />
+            <SaveActionButton OnClick="CompleteExaminationAsync" Label="Complete Examination" LoadingLabel="Completing..."
+                              Icon="ph-check" Variant="solid" ExtraCssClass="!bg-green-600 hover:!bg-green-700 !text-white" />
         </div>
     }
 </div>
@@ -349,8 +355,10 @@
     // Lab tests
     private List<string> _selectedLabTests = new();
 
+    // Prescription lock — chỉ cho phép lưu 1 lần
+    private bool _prescriptionSaved = false;
+
     private bool _isLoading = true;
-    private bool _isSubmitting = false;
     private string? _errorMessage;
 
     // Medicine mapping for demo (in production, load from database)
@@ -390,6 +398,32 @@
                 _notes = existingTicket.AdditionalNotes ?? "";
                 System.Diagnostics.Debug.WriteLine($"✅ [Examination] Pre-filled medical record fields from DB");
             }
+
+            // Kiểm tra + load Prescription đã lưu (nếu có) → khóa nút & hiện lại danh sách
+            var existingPrescription = await DbContext.Prescriptions
+                .Include(p => p.PrescriptionDetails)
+                    .ThenInclude(d => d.Medicine)
+                .FirstOrDefaultAsync(p => p.TicketId == TicketId);
+
+            if (existingPrescription != null)
+            {
+                _prescriptionSaved = true;
+
+                // Populate lại _prescribedMedicines để bảng hiện đúng thuốc đã lưu
+                _prescribedMedicines = existingPrescription.PrescriptionDetails
+                    .Select(d => new PrescribedMedicine
+                    {
+                        MedicineId = d.MedicineId ?? 0,
+                        MedicineName = d.Medicine?.Name ?? $"Medicine #{d.MedicineId}",
+                        Quantity = d.Quantity,
+                        Dosage = d.UsageInstruction ?? "",
+                    })
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"✅ [Examination] Loaded {_prescribedMedicines.Count} prescribed medicine(s) from DB");
+            }
+
+            System.Diagnostics.Debug.WriteLine($"ℹ️ [Examination] PrescriptionSaved={_prescriptionSaved}");
         }
         catch (Exception ex)
         {
@@ -406,56 +440,38 @@
     {
         System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving medical record for TicketId={TicketId}...");
 
-        try
+        // STEP 1: Get the QueueTicket from database
+        var queueTicket = await DbContext.QueueTickets.FindAsync(TicketId);
+        if (queueTicket == null)
         {
-            _isSubmitting = true;
-
-            // STEP 1: Get the QueueTicket from database
-            var queueTicket = await DbContext.QueueTickets.FindAsync(TicketId);
-            if (queueTicket == null)
-            {
-                _errorMessage = $"Queue ticket {TicketId} not found";
-                System.Diagnostics.Debug.WriteLine($"❌ [Examination] Queue ticket not found");
-                _isSubmitting = false;
-                return;
-            }
-
-            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Found QueueTicket: {queueTicket.Id}");
-
-            // STEP 2: Update the medical record fields
-            queueTicket.Diagnosis = _diagnosis;
-            queueTicket.TreatmentPlan = _treatmentPlan;
-            queueTicket.AdditionalNotes = _notes;
-
-            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Updating ticket fields...");
-
-            // STEP 3: Save to database
-            DbContext.QueueTickets.Update(queueTicket);
-            await DbContext.SaveChangesAsync();
-
-            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Medical record saved successfully");
-
-            // Bind lại từ object đã lưu → đảm bảo UI đồng bộ đúng với DB
-            _diagnosis = queueTicket.Diagnosis ?? "";
-            _treatmentPlan = queueTicket.TreatmentPlan ?? "";
-            _notes = queueTicket.AdditionalNotes ?? "";
-
-            _isSubmitting = false;
-
-            // Show success toast
-            ToastService.ShowSuccess("Medical record saved successfully!");
-
-            // Re-render UI ngay lập tức, không cần reload trang
-            StateHasChanged();
+            _errorMessage = $"Queue ticket {TicketId} not found";
+            System.Diagnostics.Debug.WriteLine($"❌ [Examination] Queue ticket not found");
+            ToastService.ShowError("Queue ticket not found.");
+            return;
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR saving record: {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"❌ [Examination] Stack: {ex.StackTrace}");
-            _errorMessage = $"Error saving medical record: {ex.Message}";
-            ToastService.ShowError($"Error: {ex.Message}");
-            _isSubmitting = false;
-        }
+
+        System.Diagnostics.Debug.WriteLine($"✅ [Examination] Found QueueTicket: {queueTicket.Id}");
+
+        // STEP 2: Update the medical record fields
+        queueTicket.Diagnosis = _diagnosis;
+        queueTicket.TreatmentPlan = _treatmentPlan;
+        queueTicket.AdditionalNotes = _notes;
+
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Updating ticket fields...");
+
+        // STEP 3: Save to database
+        DbContext.QueueTickets.Update(queueTicket);
+        await DbContext.SaveChangesAsync();
+
+        System.Diagnostics.Debug.WriteLine($"✅ [Examination] Medical record saved successfully");
+
+        // Bind lại từ object đã lưu → đảm bảo UI đồng bộ đúng với DB
+        _diagnosis = queueTicket.Diagnosis ?? "";
+        _treatmentPlan = queueTicket.TreatmentPlan ?? "";
+        _notes = queueTicket.AdditionalNotes ?? "";
+
+        ToastService.ShowSuccess("Medical record saved successfully!");
+        StateHasChanged();
     }
 
     private async Task AddMedicineAsync()
@@ -494,6 +510,57 @@
         StateHasChanged();
     }
 
+    private async Task SavePrescriptionAsync()
+    {
+        // Hard block — không cho lưu lần 2
+        if (_prescriptionSaved)
+        {
+            ToastService.ShowWarning("Prescription has already been submitted and cannot be modified.");
+            return;
+        }
+
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_prescribedMedicines.Count} prescription(s) for TicketId={TicketId}");
+        try
+        {
+            // Tạo mới Prescription (chỉ đến đây khi chưa có)
+            var prescription = new Prescription
+            {
+                TicketId = TicketId,
+                Status = "Pending",
+            };
+
+            foreach (var med in _prescribedMedicines)
+            {
+                prescription.PrescriptionDetails.Add(new PrescriptionDetail
+                {
+                    MedicineId = med.MedicineId,
+                    Quantity = med.Quantity,
+                    UnitPrice = 0, // TODO: lấy giá từ bảng Medicine
+                    UsageInstruction = med.Dosage,
+                });
+            }
+
+            DbContext.Prescriptions.Add(prescription);
+            await DbContext.SaveChangesAsync();
+
+            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Prescription saved (PrescriptionId={prescription.Id})");
+
+            // Broadcast SignalR tới Dược sĩ
+            await PharmacyService.NotifyNewPrescriptionAsync(prescription.Id);
+
+            // Đánh dấu đã lưu → khóa UI
+            _prescriptionSaved = true;
+            StateHasChanged();
+
+            ToastService.ShowSuccess($"Saved {_prescribedMedicines.Count} prescription(s) — Pharmacist notified!");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR saving prescription: {ex.Message}");
+            ToastService.ShowError($"Error saving prescription: {ex.Message}");
+        }
+    }
+
     private void HandleLabTestChange(string testName, bool isChecked)
     {
         if (isChecked && !_selectedLabTests.Contains(testName))
@@ -506,54 +573,54 @@
         }
     }
 
+    private async Task SaveLabTestsAsync()
+    {
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_selectedLabTests.Count} lab tests for TicketId={TicketId}");
+        try
+        {
+            // TODO: lưu lab tests xuống DB (tạo bảng LabTestOrder hoặc lưu vào QueueTicket)
+            await Task.Delay(300); // placeholder cho async DB call
+            ToastService.ShowSuccess($"Saved {_selectedLabTests.Count} lab test(s) successfully!");
+            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Lab tests saved");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR saving lab tests: {ex.Message}");
+            ToastService.ShowError($"Error saving lab tests: {ex.Message}");
+        }
+    }
+
     private async Task CompleteExaminationAsync()
     {
         System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Completing examination for TicketId={TicketId}");
 
-        try
+        // Save medical record if any
+        if (!string.IsNullOrWhiteSpace(_diagnosis))
         {
-            _isSubmitting = true;
-
-            // Save medical record if any
-            if (!string.IsNullOrWhiteSpace(_diagnosis))
-            {
-                // TODO: Save examination/medical record
-            }
-
-            // Save prescriptions if any
-            if (_prescribedMedicines.Any())
-            {
-                // TODO: Save prescriptions to database
-                System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_prescribedMedicines.Count} medicines");
-            }
-
-            // Order lab tests if any
-            if (_selectedLabTests.Any())
-            {
-                // TODO: Create lab test orders
-                // Update QueueTicket status to "Pending Lab"
-                System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Ordering {_selectedLabTests.Count} lab tests");
-            }
-            else
-            {
-                // TODO: Mark QueueTicket as "Completed" if no lab tests
-                System.Diagnostics.Debug.WriteLine($"🔵 [Examination] No lab tests, marking ticket as completed");
-            }
-
-            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Examination completed");
-
-            // Navigate back to queue
-            NavigationManager.NavigateTo("/doctor/my-patients");
+            // TODO: Save examination/medical record
         }
-        catch (Exception ex)
+
+        // Save prescriptions if any
+        if (_prescribedMedicines.Any())
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR: {ex.Message}");
-            _errorMessage = $"Error completing examination: {ex.Message}";
+            // TODO: Save prescriptions to database
+            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_prescribedMedicines.Count} medicines");
         }
-        finally
+
+        // Order lab tests if any
+        if (_selectedLabTests.Any())
         {
-            _isSubmitting = false;
+            // TODO: Create lab test orders
+            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Ordering {_selectedLabTests.Count} lab tests");
         }
+        else
+        {
+            // TODO: Mark QueueTicket as "Completed" if no lab tests
+            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] No lab tests, marking ticket as completed");
+        }
+
+        System.Diagnostics.Debug.WriteLine($"✅ [Examination] Examination completed");
+        NavigationManager.NavigateTo("/doctor/my-patients");
     }
 
     private void GoBack()

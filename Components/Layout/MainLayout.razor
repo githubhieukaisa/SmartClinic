@@ -1,8 +1,13 @@
-﻿@using Blazored.Toast
+@using Blazored.Toast
 @using Blazored.Toast.Configuration
 @using SmartClinic.Components.Common
+@using SmartClinic.Services
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject NotificationService Notification
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="page">
     <div class="sidebar">
@@ -16,9 +21,7 @@
     </main>
 </div>
 
-<BlazoredToasts Position="ToastPosition.BottomRight"
-                Timeout="3"
-                IconType="IconType.Blazored"
+<BlazoredToasts Position="ToastPosition.BottomRight" Timeout="3" IconType="IconType.Blazored"
                 @rendermode="InteractiveServer" />
 
 <ToastHandler @rendermode="InteractiveServer" />
@@ -29,4 +32,51 @@
     <a class="dismiss">🗙</a>
 </div>
 
+@code {
+    private bool _roomJoined = false;
 
+    protected override async Task OnInitializedAsync()
+    {
+        if (_roomJoined) return;
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated != true) return;
+
+            // Chỉ Doctor (RoleMask & 2 == 2) mới cần join Room group
+            var roleMaskClaim = user.FindFirst("RoleMask")?.Value;
+            if (!int.TryParse(roleMaskClaim, out int roleMask) || (roleMask & 2) != 2)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainLayout] ℹ️ Not a Doctor (RoleMask={roleMaskClaim}) — skipping JoinRoom");
+                return;
+            }
+
+            // Lấy RoomId từ claims (set lúc login)
+            var roomIdClaim = user.FindFirst("RoomId");
+            if (roomIdClaim == null || !int.TryParse(roomIdClaim.Value, out int roomId) || roomId <= 0)
+            {
+                System.Diagnostics.Debug.WriteLine("[MainLayout] ⚠️ Doctor has no RoomId claim — skipping JoinRoom");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[MainLayout] 🔵 Doctor joining Room_{roomId} for all pages...");
+            await Notification.JoinRoomAsync(roomId);
+            _roomJoined = true;
+            System.Diagnostics.Debug.WriteLine($"[MainLayout] ✅ Joined Room_{roomId} — SignalR active on all pages");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainLayout] ❌ Error joining room: {ex.Message}");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Layout bị dispose khi user logout/close
+        // NotificationService là Singleton nên không dispose ở đây
+        await ValueTask.CompletedTask;
+    }
+}

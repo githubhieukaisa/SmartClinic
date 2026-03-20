@@ -1,6 +1,17 @@
-﻿@page "/doctor/dashboard"
+@page "/doctor/dashboard"
 @using SmartClinic.Components.Layout
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using Blazored.Toast.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@rendermode InteractiveServer
 @layout MainLayout
+@inject SmartClinicDbContext DbContext
+@inject PatientService PatientService
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 <div class="p-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
@@ -9,6 +20,15 @@
             <p class="text-muted-foreground mt-1">Welcome back, Dr. Miller</p>
         </div>
         <div class="flex items-center gap-4">
+
+            @* ── TEST ONLY — xóa khi production ───────────────────── *@
+            <button @onclick="AddTestQueueTicketAsync"
+                    class="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-500/20 transition border border-amber-500/30">
+                <i class="ph ph-test-tube"></i>
+                Add Test Ticket
+            </button>
+            @* ─────────────────────────────────────────────────────────── *@
+
             <div class="text-right">
                 <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
                 <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
@@ -101,12 +121,14 @@
                                 <td class="py-3 px-4 text-foreground">@patient.Age</td>
                                 <td class="py-3 px-4 text-foreground">@patient.Time</td>
                                 <td class="py-3 px-4">
-                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(patient.Status)">
+                                    <span
+                                        class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(patient.Status)">
                                         @patient.Status
                                     </span>
                                 </td>
                                 <td class="py-3 px-4">
-                                    <button class="flex items-center gap-1 text-primary hover:text-primary/80 font-medium text-xs">
+                                    <button
+                                        class="flex items-center gap-1 text-primary hover:text-primary/80 font-medium text-xs">
                                         View <i class="ph ph-arrow-right"></i>
                                     </button>
                                 </td>
@@ -126,13 +148,16 @@
                     <h3 class="text-lg font-bold text-foreground">Quick Actions</h3>
                 </div>
                 <div class="space-y-3">
-                    <button class="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90 transition">
+                    <button
+                        class="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90 transition">
                         <i class="ph ph-note-pencil"></i> Create Medical Record
                     </button>
-                    <button class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
+                    <button
+                        class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
                         <i class="ph ph-pill"></i> Prescribe Medicine
                     </button>
-                    <button class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
+                    <button
+                        class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
                         <i class="ph ph-test-tube"></i> Request Lab Test
                     </button>
                 </div>
@@ -162,9 +187,20 @@
 @code {
     private List<PatientQueueItem> patients = new();
     private List<UpcomingAppointment> upcomingAppointments = new();
+    private int _currentDoctorId = 0;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // Lấy DoctorId từ claims (giống MyPatient.razor)
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            var claim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (claim != null && int.TryParse(claim.Value, out int id))
+                _currentDoctorId = id;
+        }
+
         patients = new List<PatientQueueItem>
         {
             new("Christopher T.", 29, "08:30 AM", "In Progress", "Chest Pain"),
@@ -199,6 +235,52 @@
         "Waiting" => "bg-amber-50",
         _ => ""
     };
+
+    // ── TEST ONLY — xóa khi production ─────────────────────────────────────
+    private bool _isAddingTestTicket = false;
+
+    private async Task AddTestQueueTicketAsync()
+    {
+        if (_isAddingTestTicket) return;
+        _isAddingTestTicket = true;
+
+        try
+        {
+            if (_currentDoctorId == 0)
+            {
+                ToastService.ShowError("Cannot determine current doctor. Please re-login.");
+                return;
+            }
+
+            // 1. Tạo Patient giả
+            var testPatient = new Patient
+            {
+                FullName = $"Test Patient {DateTime.Now:HHmmss}",
+                Phone = "0900000000",
+                Address = "123 Test Street",
+                DoB = new DateOnly(1990, 1, 1),
+                CreatedAt = DateTime.Now,
+            };
+            DbContext.Patients.Add(testPatient);
+            await DbContext.SaveChangesAsync();
+
+            // 2. Gọi PatientService.AddQueueTicketAsync → tự tìm Room theo DoctorShift & broadcast SignalR
+            await PatientService.AddQueueTicketAsync(
+                doctorId: _currentDoctorId,
+                patientId: testPatient.Id,
+                diagnosis: "Test Diagnosis"
+            );
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error creating test ticket: {ex.Message}");
+        }
+        finally
+        {
+            _isAddingTestTicket = false;
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     private record PatientQueueItem(string Name, int Age, string Time, string Status, string Condition);
     private record UpcomingAppointment(string PatientName, string Time, string Reason);
