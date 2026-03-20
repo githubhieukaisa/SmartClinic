@@ -10,6 +10,7 @@ namespace SmartClinic.Services
     {
         private readonly SmartClinicDbContext _context;
         private readonly IHubContext<QueueHub> _hubContext;
+        private const int _displayCount = 5;
 
         public QueueService(SmartClinicDbContext context, IHubContext<QueueHub> hubContext)
         {
@@ -22,18 +23,14 @@ namespace SmartClinic.Services
             Console.WriteLine($"Fetching display data for RoomId {roomId}...");
             // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
             var activeShift = await _context.DoctorShifts
-                .Include(s => s.Doctor)
-                .Include(s => s.Room)
-                .ThenInclude(r => r.Department)
+                .Where(s => s.RoomId == roomId && s.Status == "Active")
                 .Select(s => new
                 {
-                    s.RoomId,
                     DoctorName = s.Doctor.FullName,
                     RoomName = s.Room.Name,
-                    s.Status,
                     DepartmentName = s.Room.Department.Name
                 })
-                .FirstOrDefaultAsync(s => s.RoomId == roomId && s.Status == "Active");
+                .FirstOrDefaultAsync();
 
             var today = DateTime.Today;
 
@@ -41,6 +38,11 @@ namespace SmartClinic.Services
             var currentCall = await _context.QueueTickets
                 .Where(t => t.RoomId == roomId && t.Status == "Calling" && t.CreatedAt.Date == today)
                 .OrderByDescending(t => t.CreatedAt)
+                .Select(t => new
+                {
+                    t.TicketNumber,
+                    PatientName = t.Patient.FullName
+                })
                 .FirstOrDefaultAsync();
 
             // 3. TÌM DANH SÁCH CHỜ (Nhớ thêm điều kiện RoomId)
@@ -48,7 +50,7 @@ namespace SmartClinic.Services
                 .Where(t => t.RoomId == roomId && t.Status == "Waiting" && t.CreatedAt.Date == today)
                 .OrderBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
-                .Take(5)
+                .Take(_displayCount)
                 .Select(t => t.TicketNumber.ToString())
                 .ToListAsync();
 
@@ -58,6 +60,7 @@ namespace SmartClinic.Services
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
                 RoomName = activeShift?.RoomName ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
                 DoctorName = activeShift != null ? $"BS. {activeShift.DoctorName}" : "Phòng đang trống",
+                PatientName = currentCall != null ? currentCall.PatientName : "Không có bệnh nhân",
                 Specialty = activeShift?.DepartmentName ?? "",
                 NextTickets = nextTickets
             };

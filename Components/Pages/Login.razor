@@ -12,136 +12,136 @@
 @inject NavigationManager NavigationManager
 
 <div class="flex items-center justify-center min-h-screen p-4 bg-slate-100">
-    <div class="w-full max-w-md p-8 bg-white shadow-2xl rounded-2xl ring-1 ring-slate-900/5">
+	<div class="w-full max-w-md p-8 bg-white shadow-2xl rounded-2xl ring-1 ring-slate-900/5">
 
-        <div class="mb-8 text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-blue-50">
-                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                </svg>
-            </div>
-            <h3 class="text-2xl font-bold tracking-tight text-slate-900">Đăng Nhập SmartClinic</h3>
-            <p class="mt-2 text-sm text-slate-500">Hệ thống quản lý phòng khám thông minh</p>
-        </div>
+		<div class="mb-8 text-center">
+			<div class="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-blue-50">
+				<svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+				</svg>
+			</div>
+			<h3 class="text-2xl font-bold tracking-tight text-slate-900">Đăng Nhập SmartClinic</h3>
+			<p class="mt-2 text-sm text-slate-500">Hệ thống quản lý phòng khám thông minh</p>
+		</div>
 
-        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm" class="space-y-5">
-            <DataAnnotationsValidator />
+		<EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm" class="space-y-5">
+			<DataAnnotationsValidator />
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="p-3 text-sm text-red-600 bg-red-100 rounded">@errorMessage</div>
-            }
+			@if (!string.IsNullOrEmpty(errorMessage))
+			{
+				<div class="p-3 text-sm text-red-600 bg-red-100 rounded">@errorMessage</div>
+			}
 
-            <div>
-                <label for="username" class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập</label>
-                <InputText id="username"
-                           @bind-Value="loginModel.Username"
-                           class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
-                           placeholder="Nhập username..." />
-                <ValidationMessage For="@(() => loginModel.Username)" class="mt-1 text-xs text-red-500" />
-            </div>
+			<div>
+				<label for="username" class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập</label>
+				<InputText id="username"
+						   @bind-Value="loginModel.Username"
+						   class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
+						   placeholder="Nhập username..." />
+				<ValidationMessage For="@(() => loginModel.Username)" class="mt-1 text-xs text-red-500" />
+			</div>
 
-            <div>
-                <label for="password" class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu</label>
-                <InputText id="password"
-                           type="password"
-                           @bind-Value="loginModel.Password"
-                           class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
-                           placeholder="••••••••" />
-                <ValidationMessage For="@(() => loginModel.Password)" class="mt-1 text-xs text-red-500" />
-            </div>
+			<div>
+				<label for="password" class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu</label>
+				<InputText id="password"
+						   type="password"
+						   @bind-Value="loginModel.Password"
+						   class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
+						   placeholder="••••••••" />
+				<ValidationMessage For="@(() => loginModel.Password)" class="mt-1 text-xs text-red-500" />
+			</div>
 
-            <div class="pt-2">
-                @* Do EditForm quản lý việc submit, ta chỉ cần truyền Type="submit".
+			<div class="pt-2">
+				@* Do EditForm quản lý việc submit, ta chỉ cần truyền Type="submit".
                    Component Button đã tự mặc định Variant là Primary và IsFullWidth là true.
                 *@
-                <Button Type="submit" IsLoading="isLoading">
-                    Đăng Nhập Vào Hệ Thống
-                </Button>
-            </div>
-        </EditForm>
-    </div>
+				<Button Type="submit" IsLoading="isLoading">
+					Đăng Nhập Vào Hệ Thống
+				</Button>
+			</div>
+		</EditForm>
+	</div>
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private LoginModel loginModel { get; set; } = default!;
-    [CascadingParameter]
-    public HttpContext? HttpContext { get; set; }
+	[SupplyParameterFromForm]
+	private LoginModel loginModel { get; set; } = default!;
+	[CascadingParameter]
+	public HttpContext? HttpContext { get; set; }
 
-    private bool isLoading = false;
-    private string? errorMessage;
+	private bool isLoading = false;
+	private string? errorMessage;
 
-    protected override void OnInitialized()
-    {
-        loginModel ??= new LoginModel();
-    }
+	protected override void OnInitialized()
+	{
+		loginModel ??= new LoginModel();
+	}
 
-    private async Task HandleLogin()
-    {
-        isLoading = true;
-        errorMessage = null;
+	private async Task HandleLogin()
+	{
+		isLoading = true;
+		errorMessage = null;
 
-        try
-        {
-            var response = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+		try
+		{
+			var response = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
 
-            if (response != null && HttpContext != null)
-            {
-                var handler = new JwtSecurityTokenHandler();
-                var jwtToken = handler.ReadJwtToken(response.AccessToken);
+			if (response != null && HttpContext != null)
+			{
+				var handler = new JwtSecurityTokenHandler();
+				var jwtToken = handler.ReadJwtToken(response.AccessToken);
 
-                var claims = jwtToken.Claims.ToList();
-                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+				var claims = jwtToken.Claims.ToList();
+				var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                // 3. THIẾT LẬP COOKIE SIÊU BẢO MẬT & GIẤU TOKEN VÀO TRONG
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15) // Bằng đúng tuổi thọ JWT
-                };
+				// 3. THIẾT LẬP COOKIE SIÊU BẢO MẬT & GIẤU TOKEN VÀO TRONG
+				var authProperties = new AuthenticationProperties
+				{
+					IsPersistent = true,
+					ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7) // Bằng đúng tuổi thọ refresh token
+				};
 
-                authProperties.StoreTokens(new[]
-                {
-                new AuthenticationToken { Name = "access_token", Value = response.AccessToken },
-                new AuthenticationToken { Name = "refresh_token", Value = response.RefreshToken }
-            });
+				authProperties.StoreTokens(new[]
+				{
+					new AuthenticationToken { Name = "access_token", Value = response.AccessToken },
+					new AuthenticationToken { Name = "refresh_token", Value = response.RefreshToken }
+				});
 
-                // 4. NƯỚNG COOKIE VÀ ĐÁ VỀ TRANG DOCTOR QUEUE
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authProperties);
-                NavigationManager.NavigateTo("/home", forceLoad: true);
-            }
-            else if (HttpContext == null)
-            {
-                errorMessage = "Lỗi hệ thống: HttpContext bị null. Vui lòng kiểm tra lại cấu hình RenderMode ở App.razor!";
-            }
-            else
-            {
-                errorMessage = "Sai tên đăng nhập hoặc mật khẩu! Vui lòng thử lại.";
-            }
-        }
-        catch (NavigationException)
-        {
-            //Bắt được NavigationException thì KHÔNG LÀM GÌ CẢ (ném nó đi tiếp)
-            // Để cho Blazor thực hiện việc Redirect trang!
-            throw;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = "Lỗi hệ thống: " + ex.Message;
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
+				// 4. NƯỚNG COOKIE VÀ ĐÁ VỀ TRANG CHỦ
+				await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authProperties);
+				NavigationManager.NavigateTo("/", forceLoad: true);
+			}
+			else if (HttpContext == null)
+			{
+				errorMessage = "Lỗi hệ thống: HttpContext bị null. Vui lòng kiểm tra lại cấu hình RenderMode ở App.razor!";
+			}
+			else
+			{
+				errorMessage = "Sai tên đăng nhập hoặc mật khẩu! Vui lòng thử lại.";
+			}
+		}
+		catch (NavigationException)
+		{
+			//Bắt được NavigationException thì KHÔNG LÀM GÌ CẢ (ném nó đi tiếp)
+			// Để cho Blazor thực hiện việc Redirect trang!
+			throw;
+		}
+		catch (Exception ex)
+		{
+			errorMessage = "Lỗi hệ thống: " + ex.Message;
+		}
+		finally
+		{
+			isLoading = false;
+		}
+	}
 
-    public class LoginModel
-    {
-        [Required(ErrorMessage = "Vui lòng nhập tên đăng nhập!")]
-        public string Username { get; set; } = "";
+	public class LoginModel
+	{
+		[Required(ErrorMessage = "Vui lòng nhập tên đăng nhập!")]
+		public string Username { get; set; } = "";
 
-        [Required(ErrorMessage = "Vui lòng nhập mật khẩu!")]
-        public string Password { get; set; } = "";
-    }
+		[Required(ErrorMessage = "Vui lòng nhập mật khẩu!")]
+		public string Password { get; set; } = "";
+	}
 }
