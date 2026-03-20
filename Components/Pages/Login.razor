@@ -107,9 +107,9 @@
                 new AuthenticationToken { Name = "refresh_token", Value = response.RefreshToken }
             });
 
-                // 4. NƯỚNG COOKIE VÀ ĐÁ VỀ TRANG CHỦ
+                // 4. NƯỚNG COOKIE VÀ ĐÁ VỀ TRANG DOCTOR QUEUE
                 await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), authProperties);
-                NavigationManager.NavigateTo("/", forceLoad: true);
+                NavigationManager.NavigateTo("/home", forceLoad: true);
             }
             else if (HttpContext == null)
             {

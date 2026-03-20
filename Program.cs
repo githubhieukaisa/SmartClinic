@@ -76,15 +76,15 @@ namespace SmartClinic
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
-            RecurringJob.AddOrUpdate<SequenceResetJob>(
-                "daily-sequence-reset", // ID của Job (đặt tên tùy ý)
-                job => job.ExecuteAsync(), // Hàm sẽ được gọi
-                "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
-                new RecurringJobOptions
-                {
-                    // Fix triệt để lỗi sai múi giờ trên Server
-                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
-                });
+            //RecurringJob.AddOrUpdate<SequenceResetJob>(
+            //    "daily-sequence-reset", // ID của Job (đặt tên tùy ý)
+            //    job => job.ExecuteAsync(), // Hàm sẽ được gọi
+            //    "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
+            //    new RecurringJobOptions
+            //    {
+            //        // Fix triệt để lỗi sai múi giờ trên Server
+            //        TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
+            //    });
 
             app.Run();
         }

@@ -23,7 +23,7 @@
         <div class="p-6 border-b border-border">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                    <i class="ph-bold ph-stethoscope text-white text-sm"></i>
+                    <i class="ph ph-stethoscope text-white text-sm"></i>
                 </div>
                 <h1 class="text-xl font-bold text-foreground">Smart Clinic</h1>
             </div>
@@ -47,32 +47,32 @@
         <nav class="flex-1 px-4 py-6">
             <ul class="space-y-2">
                 <li>
-                    <NavLink href="/" Match="NavLinkMatch.All" class="@NavClass("/", exact: true)">
-                        <i class="ph-bold ph-squares-four text-lg"></i>
-                        <span>Dashboard</span>
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink href="/doctor/my-patients" class="@NavClass("/doctor/my-patients")">
-                        <i class="ph-bold ph-queue text-lg"></i>
-                        <span>Patient Queue</span>
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink href="/doctor/patients" class="@NavClass("/doctor/patients")">
-                        <i class="ph-bold ph-users text-lg"></i>
-                        <span>Patients</span>
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink href="/doctor/medical-records" class="@NavClass("/doctor/medical-records")">
-                        <i class="ph-bold ph-file-text text-lg"></i>
-                        <span>Medical Records</span>
-                    </NavLink>
-                </li>
-                <li>
-                    <NavLink href="/doctor/prescriptions" class="@NavClass("/doctor/prescriptions")">
-                        <i class="ph-bold ph-pill text-lg"></i>
+                    <NavLink href="/doctor/dashboard" Match="NavLinkMatch.All" class="@NavClass("/doctor/dashboard", exact: true)">
+                        <i class="ph ph-squares-four text-lg"></i>
+                                <span>Dashboard</span>
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink href="/doctor/my-patients" class="@NavClass("/doctor/my-patients")">
+                                <i class="ph ph-queue text-lg"></i>
+                                <span>Patient Queue</span>
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink href="/doctor/patients" class="@NavClass("/doctor/patients")">
+                                <i class="ph ph-users text-lg"></i>
+                                <span>Patients</span>
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink href="/doctor/medical-records" class="@NavClass("/doctor/medical-records")">
+                                <i class="ph ph-file-text text-lg"></i>
+                                <span>Medical Records</span>
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink href="/doctor/prescriptions" class="@NavClass("/doctor/prescriptions")">
+                                <i class="ph ph-pill text-lg"></i>
                         <span>Prescriptions</span>
                     </NavLink>
                 </li>
@@ -140,16 +140,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        try
-        {
-            // Reinitialize Phosphor Icons after Blazor navigation/render
-            // Triggers the library to scan and process all icon elements
-            await JS.InvokeVoidAsync("phosphorIconsReinit");
-        }
-        catch (Exception)
-        {
-            // Silently fail if JS interop is unavailable
-        }
+        // Note: No need for Phosphor reinit anymore
+        // Using CSS links instead of script CDN - icons render via CSS
+        await Task.CompletedTask;
     }
 }
 
