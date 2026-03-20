@@ -38,7 +38,7 @@ namespace SmartClinic.Services
         {
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             try
             {
                 context.Patients.Add(patient);
@@ -59,14 +59,14 @@ namespace SmartClinic.Services
         {
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             try
             {
                 var patients = await context.Patients
                     .AsNoTracking()
                     .OrderByDescending(p => p.CreatedAt)
                     .ToListAsync();
-                
+
                 return patients;
             }
             catch (Exception ex)
@@ -85,13 +85,13 @@ namespace SmartClinic.Services
         {
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             try
             {
                 var patient = await context.Patients
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == patientId);
-                
+
                 return patient;
             }
             catch (Exception ex)
@@ -137,7 +137,8 @@ namespace SmartClinic.Services
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
                     .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling"))
-                    .OrderBy(t => t.CreatedAt)
+                    .OrderBy(t => t.Status == "Calling")
+                    .ThenBy(t => t.CreatedAt)
                     .ToListAsync();
 
                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {tickets.Count} queue tickets for RoomId={doctorShift.RoomId}");
@@ -209,12 +210,12 @@ namespace SmartClinic.Services
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == patientId);
 
-                string patientName = patient?.FullName ?? "Unknown";   
+                string patientName = patient?.FullName ?? "Unknown";
                 // Broadcast SignalR notification to the specific room group only
                 System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.AddQueueTicketAsync] Broadcasting QueueTicketUpdated event to Room_{doctorShift.RoomId}");
-                await _hubContext.Clients.Group($"Room_{doctorShift.RoomId}").SendAsync("QueueTicketUpdated", new 
-                { 
-                    doctorId, 
+                await _hubContext.Clients.Group($"Room_{doctorShift.RoomId}").SendAsync("QueueTicketUpdated", new
+                {
+                    doctorId,
                     ticketId = queueTicket.Id,
                     patientName,
                     roomId = doctorShift.RoomId
@@ -241,7 +242,7 @@ namespace SmartClinic.Services
             // ✅ Create a fresh context for this operation
             // Critical for SignalR callbacks - prevents disposed context errors
             await using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             try
             {
                 // Find the ticket

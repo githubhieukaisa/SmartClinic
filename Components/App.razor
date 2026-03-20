@@ -7,138 +7,165 @@
     <base href="/" />
     <link rel="stylesheet" href="SmartClinic.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <script src="https://unpkg.com/@@phosphor-icons/web"></script>
-    <script src="js/phosphor-blazor-integration.js"></script>
+
+    <!-- ✅ Phosphor Icons CSS (Better than script CDN) -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@@phosphor-icons/web@@2.1.1/src/regular/style.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@@phosphor-icons/web@@2.1.1/src/fill/style.css" />
+
     <link rel="stylesheet" href="css/app.css" asp-append-version="true" />
     <link rel="stylesheet" href="css/waiting-room.css" asp-append-version="true" />
 
-    <HeadOutlet/>
+	<HeadOutlet />
 </head>
 
 <body>
-    <Routes/>
+	<Routes />
 
-    <div id="custom-reconnect-banner" class="hidden fixed top-5 right-5 bg-red-50 text-red-800 border border-red-400 rounded-lg px-6 py-3 shadow-lg z-[99999] font-bold">
-        ⚠️ Tín hiệu mạng đang chập chờn...
-    </div>
+	<div id="custom-reconnect-banner" class="hidden fixed top-5 right-5 bg-red-50 text-red-800 border border-red-400 rounded-lg px-6 py-3 shadow-lg z-[99999] font-bold">
+		⚠️ Tín hiệu mạng đang chập chờn...
+	</div>
 
-    <script src="_framework/blazor.web.js" autostart="false"></script>
+	<script src="_framework/blazor.web.js" autostart="false"></script>
+	<script>
+		window.playQueueAudio = (textToSpeak) => {
+			if ('speechSynthesis' in window) {
+				let voices = window.speechSynthesis.getVoices();
+				let viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('vn') || v.name === 'Google Tiếng Việt');
+		// Reinitialize phosphor icons when Blazor updates DOM content.
+		window.phosphorIconsReinit = function () {
+			try {
+				const phosphorScript = document.querySelector('script[src*="phosphor-icons/web"]');
+				if (phosphorScript) {
+					const newScript = phosphorScript.cloneNode(true);
+					phosphorScript.parentNode.replaceChild(newScript, phosphorScript);
+				} else {
+					document.querySelectorAll('i[class*="ph-"]').forEach(icon => {
+						icon.style.display = 'none';
+						setTimeout(() => icon.style.display = '', 0);
+					});
+				}
+			} catch (error) {
+				console.debug('Phosphor Icons reinitialization completed');
+			}
+		};
 
-    <script>
-        // Phosphor Icons reinitialize function for Blazor navigation
-        window.phosphorIconsReinit = function() {
-            try {
-                // Phosphor Icons web library transforms <i class="ph-*"> tags into SVG elements
-                // When Blazor re-renders components, new icon elements need to be processed
+				if (viVoice) {
+					window.speechSynthesis.cancel();
+					let utterance = new SpeechSynthesisUtterance(textToSpeak);
+					utterance.voice = viVoice;
+					utterance.lang = 'vi-VN';
+					utterance.rate = 0.85;
+					window.speechSynthesis.speak(utterance);
+					console.log("Đang đọc bằng Web Speech API");
+					return; // Đọc thành công thì thoát luôn, không chạy xuống dưới nữa
+				}
+			}
 
-                // Method: Reload the Phosphor Icons library script to force reinitialization
-                const phosphorScript = document.querySelector('script[src*="phosphor-icons/web"]');
-                if (phosphorScript) {
-                    // Clone and replace the script to trigger re-execution
-                    const newScript = phosphorScript.cloneNode(true);
-                    phosphorScript.parentNode.replaceChild(newScript, phosphorScript);
-                } else {
-                    // Fallback: Try to trigger icon updates through CSS recalculation
-                    document.querySelectorAll('i[class*="ph-"]').forEach(icon => {
-                        // Force browser to recalculate styles
-                        icon.style.display = 'none';
-                        setTimeout(() => icon.style.display = '', 0);
-                    });
-                }
-            } catch (error) {
-                console.debug('Phosphor Icons reinitialization completed');
-            }
-        };
+			// CÁCH 2: "ĐƯỜNG TÀ" - GỌI THẲNG API GOOGLE TRANSLATE
+			// Sẽ chạy vào đây nếu Cách 1 thất bại (Máy không có tiếng Việt)
+			console.log("Máy không có giọng Tiếng Việt. Đang nhờ Backend đi xin Google...");
+			try {
+				let encodedText = encodeURIComponent(textToSpeak);
 
-        (() => {
-            const maximumRetryCount = 3;
-            const retryIntervalMilliseconds = 3000;
-            let currentReconnectionProcess = null;
-            let reloadTimer = null;
-            let isReloading = false;
+				// Trình duyệt gọi nội bộ vào /api/tts của chính mình -> Miễn nhiễm với CORS!
+				let audio = new Audio(`/api/tts?text=${encodedText}`);
 
-            const startReconnectionProcess = () => {
-                let isCanceled = false;
+				audio.play().catch(e => {
+					console.error("Lỗi phát âm thanh (Nhớ click chuột vào trang 1 lần trước khi gọi số nha!):", e);
+				});
+			} catch (e) {
+				console.error("Trời sập! Lỗi tạo Audio:", e);
+			}
+		};
 
-                (async () => {
-                    for (let i = 0; i < maximumRetryCount; i++) {
-                        await new Promise(resolve => setTimeout(resolve, retryIntervalMilliseconds));
+		(() => {
+			const maximumRetryCount = 3;
+			const retryIntervalMilliseconds = 3000;
+			let currentReconnectionProcess = null;
+			let reloadTimer = null;
+			let isReloading = false;
 
-                        if (isCanceled) return;
+			const startReconnectionProcess = () => {
+				let isCanceled = false;
 
-                        try {
-                            const result = await Blazor.reconnect();
+				(async () => {
+					for (let i = 0; i < maximumRetryCount; i++) {
+						await new Promise(resolve => setTimeout(resolve, retryIntervalMilliseconds));
 
-                            if (!result) {
-                                location.reload();
-                                return;
-                            }
+						if (isCanceled) return;
 
-                            return;
-                        } catch {
-                        }
-                    }
+						try {
+							const result = await Blazor.reconnect();
 
-                    document.getElementById('custom-reconnect-banner').innerText = "❌ Mất kết nối máy chủ. Đang chờ khôi phục...";
+							if (!result) {
+								location.reload();
+								return;
+							}
 
-                    if (reloadTimer) return;
+							return;
+						} catch {
+						}
+					}
 
-                    reloadTimer = setInterval(async () => {
-                    try {
-                        if (isReloading) return;
-                        // Gõ cửa Server một cái thật nhẹ
-                        let response = await fetch('/favicon.png', {
-                            method: 'GET',
-                            cache: 'no-store'
-                        });
+					document.getElementById('custom-reconnect-banner').innerText = "❌ Mất kết nối máy chủ. Đang chờ khôi phục...";
 
-                        // Cửa mở (Server trả lời OK) -> F5 NGAY VÀ LUÔN!
-                        if (response.ok) {
-                            isReloading = true;
-                            clearInterval(reloadTimer);
-                            console.log("Server đã hồi sinh! Đang tải lại...");
-                            location.reload();
-                        }
-                    } catch (error) {
-                        console.log("Ping thất bại, Server vẫn chưa online...");
-                    }
-                }, 3000);
-                })();
+					if (reloadTimer) return;
 
-                return {
-                    cancel: () => {
-                        isCanceled = true;
-                    }
-                };
-            };
+					reloadTimer = setInterval(async () => {
+						try {
+							if (isReloading) return;
+							// Gõ cửa Server một cái thật nhẹ
+							let response = await fetch('/favicon.png', {
+								method: 'GET',
+								cache: 'no-store'
+							});
 
-            Blazor.start({
-                circuit: {
-                    reconnectionHandler: {
-                        onConnectionDown: function (options, error) {
-                            console.log("Mất kết nối tới Server. Đang cố gắng nối lại...");
-                            console.error(error);
-                            document.getElementById('custom-reconnect-banner').classList.remove('hidden');
-                            document.getElementById('custom-reconnect-banner').innerText = "⚠️ Tín hiệu mạng đang chập chờn...";
-                            currentReconnectionProcess ??= startReconnectionProcess();
-                        },
-                        onConnectionUp: function () {
-                            console.log("Đã kết nối lại thành công.");
-                            document.getElementById('custom-reconnect-banner').classList.add('hidden');
-                            currentReconnectionProcess?.cancel();
-                            currentReconnectionProcess = null;
+							// Cửa mở (Server trả lời OK) -> F5 NGAY VÀ LUÔN!
+							if (response.ok) {
+								isReloading = true;
+								clearInterval(reloadTimer);
+								console.log("Server đã hồi sinh! Đang tải lại...");
+								location.reload();
+							}
+						} catch (error) {
+							console.log("Ping thất bại, Server vẫn chưa online...");
+						}
+					}, 3000);
+				})();
 
-                            if (reloadTimer) {
-                                clearInterval(reloadTimer);
-                                reloadTimer = null;
-                            }
-                        }
-                    }
-                }
-            });
-        })();
-    </script>
+				return {
+					cancel: () => {
+						isCanceled = true;
+					}
+				};
+			};
+
+			Blazor.start({
+				circuit: {
+					reconnectionHandler: {
+						onConnectionDown: function (options, error) {
+							console.log("Mất kết nối tới Server. Đang cố gắng nối lại...");
+							console.error(error);
+							document.getElementById('custom-reconnect-banner').classList.remove('hidden');
+							document.getElementById('custom-reconnect-banner').innerText = "⚠️ Tín hiệu mạng đang chập chờn...";
+							currentReconnectionProcess ??= startReconnectionProcess();
+						},
+						onConnectionUp: function () {
+							console.log("Đã kết nối lại thành công.");
+							document.getElementById('custom-reconnect-banner').classList.add('hidden');
+							currentReconnectionProcess?.cancel();
+							currentReconnectionProcess = null;
+
+							if (reloadTimer) {
+								clearInterval(reloadTimer);
+								reloadTimer = null;
+							}
+						}
+					}
+				}
+			});
+		})();
+	</script>
 </body>
 
 </html>
-    

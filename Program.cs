@@ -76,15 +76,46 @@ namespace SmartClinic
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
-            RecurringJob.AddOrUpdate<SequenceResetJob>(
-                "daily-sequence-reset", // ID của Job (đặt tên tùy ý)
-                job => job.ExecuteAsync(), // Hàm sẽ được gọi
-                "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
-                new RecurringJobOptions
-                {
-                    // Fix triệt để lỗi sai múi giờ trên Server
-                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
-                });
+            //RecurringJob.AddOrUpdate<SequenceResetJob>(
+            //    "daily-sequence-reset", // ID của Job (đặt tên tùy ý)
+            //    job => job.ExecuteAsync(), // Hàm sẽ được gọi
+            //    "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
+            //    new RecurringJobOptions
+            //    {
+            //        // Fix triệt để lỗi sai múi giờ trên Server
+            //        TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
+            //    });
+
+            //app.MapPost("/api/test-checkin", async (ITicketService ticketService) =>
+            //{
+            //    try
+            //    {
+            //        // Giả lập 100 user khác nhau cùng vào Khoa Nội (DepartmentId = 1)
+            //        var randomPhone = $"09{Random.Shared.Next(10000000, 99999999)}";
+            //        var ticket = await ticketService.GenerateTicketAsync("Test Load", randomPhone, 1);
+            //        return Results.Ok(new { ticket.TicketNumber, ticket.RoomId });
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        return Results.BadRequest(ex.Message);
+            //    }
+            //});
+
+            app.MapGet("/api/tts", async (string text) =>
+            {
+                // Gọi cổng tw-ob cực xịn của Google
+                string url = $"https://translate.google.com/translate_tts?ie=UTF-8&tl=vi-VN&client=tw-ob&q={Uri.EscapeDataString(text)}";
+
+                using var client = new HttpClient();
+                // Giả danh trình duyệt để Google không chặn
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+                // Tải file MP3 về Server C#
+                var audioBytes = await client.GetByteArrayAsync(url);
+
+                // Trả file MP3 đó về cho Tivi Frontend của mình
+                return Results.File(audioBytes, "audio/mpeg");
+            });
 
             app.Run();
         }
