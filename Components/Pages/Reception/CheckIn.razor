@@ -147,11 +147,10 @@
 		}
 		catch (Exception ex)
 		{
-			// Ghi log chi tiết lỗi kèm các biến số ngữ cảnh vào hệ thống
 			Logger.LogError(ex, "Lỗi hệ thống bất ngờ khi cấp số cho bệnh nhân: {PatientName}, SĐT: {Phone}, Khoa: {DeptId}", 
 						 patientName, patientPhone, selectedDepartmentId);
 			
-			// Hiển thị thông báo chung chung, an toàn cho End-User
+			// Notification
 			ToastService.ShowError("Đã xảy ra sự cố trong quá trình cấp số. Vui lòng thử lại sau hoặc liên hệ bộ phận IT.");
 		}
 		finally
@@ -167,14 +166,14 @@
 		var existingPatient = await TicketService.FindPatientByPhoneAsync(patientPhone);
 		if (existingPatient != null)
 		{
-			// Tự động điền tên bệnh nhân
+			// Auto-fill patient name
 			patientName = existingPatient.FullName;
 			isExistingPatient = true;
 			ToastService.ShowInfo($"Tìm thấy hồ sơ: {patientName}");
 		}
 		else
 		{
-			// Reset nếu nhập số khác
+			// Reset form
 			if (isExistingPatient) patientName = string.Empty;
 			isExistingPatient = false;
 		}

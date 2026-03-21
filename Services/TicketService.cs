@@ -60,7 +60,7 @@ namespace SmartClinic.Services
 
                 var today = DateTime.UtcNow;
 
-                // 2. Tìm phòng trống nhất (Lúc này an toàn tuyệt đối, không sợ đọc trùng)
+                // 2. Tìm phòng trống nhất
                 var selectedRoomInfo = await _context.Rooms
                     .Where(r => r.DepartmentId == departmentId && r.IsActive && r.DoctorShifts.Any(ds => ds.StartTime <= today && ds.EndTime >= today))
                     .Select(r => new
@@ -79,7 +79,7 @@ namespace SmartClinic.Services
                     throw new Exception("Hiện tại không có phòng nào mở cửa cho khoa này!");
                 }
 
-                // 3. Lấy số tự tăng (Độc lập, siêu nhanh)
+                // 3. Lấy số tự tăng
                 var nextTicketNumber = await _context.Database
                     .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
                     .SingleAsync();

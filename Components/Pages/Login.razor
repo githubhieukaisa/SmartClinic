@@ -52,9 +52,6 @@
 			</div>
 
 			<div class="pt-2">
-				@* Do EditForm quản lý việc submit, ta chỉ cần truyền Type="submit".
-                   Component Button đã tự mặc định Variant là Primary và IsFullWidth là true.
-                *@
 				<Button Type="submit" IsLoading="isLoading">
 					Đăng Nhập Vào Hệ Thống
 				</Button>
@@ -94,7 +91,7 @@
 				var claims = jwtToken.Claims.ToList();
 				var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-				// 3. THIẾT LẬP COOKIE SIÊU BẢO MẬT & GIẤU TOKEN VÀO TRONG
+				// 3. THIẾT LẬP COOKIE
 				var authProperties = new AuthenticationProperties
 				{
 					IsPersistent = true,
@@ -122,7 +119,7 @@
 		}
 		catch (NavigationException)
 		{
-			//Bắt được NavigationException thì KHÔNG LÀM GÌ CẢ (ném nó đi tiếp)
+			//Bắt được NavigationException thì KHÔNG LÀM GÌ CẢ
 			// Để cho Blazor thực hiện việc Redirect trang!
 			throw;
 		}

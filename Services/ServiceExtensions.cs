@@ -54,15 +54,12 @@ namespace SmartClinic.Services
         /// </summary>
         public static IServiceCollection AddSmartClinicHangfire(this IServiceCollection services, IConfiguration configuration)
         {
-            // 1. ĐĂNG KÝ HANGFIRE VÀ KẾT NỐI DB POSTGRESQL
             services.AddHangfire(config => config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
                 .UseSimpleAssemblyNameTypeSerializer()
                 .UseRecommendedSerializerSettings()
                 .UsePostgreSqlStorage(options =>
                     options.UseNpgsqlConnection(configuration.GetConnectionString("MyCnn"))));
-
-            // 2. KHỞI ĐỘNG External services
             services.AddHangfireServer();
             return services;
         }
@@ -85,33 +82,28 @@ namespace SmartClinic.Services
                         OnValidatePrincipal = async context =>
                         {
                             var expiresUtc = context.Properties.ExpiresUtc;
-                            // Kiểm tra xem Access Token đã hết hạn 15 phút chưa?
                             if (expiresUtc != null && expiresUtc.Value < DateTimeOffset.UtcNow)
                             {
                                 var refreshToken = context.Properties.GetString("refresh_token");
                                 if (!string.IsNullOrEmpty(refreshToken))
                                 {
-                                    // Hết hạn -> Gọi AuthService đổi Token mới!
+                                    // change token
                                     var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
                                     var newTokens = await authService.RenewTokenAsync(refreshToken);
 
                                     if (newTokens != null)
                                     {
-                                        // Lưu Token mới vào Cookie nội bộ
                                         context.Properties.StoreTokens(new[] {
                                                 new AuthenticationToken { Name = "access_token", Value = newTokens.AccessToken },
                                                 new AuthenticationToken { Name = "refresh_token", Value = newTokens.RefreshToken }
                                             });
 
-                                        // Gia hạn thời gian sống thêm 15 phút nữa
                                         context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(15);
-
-                                        // Ra lệnh cho hệ thống tự động lưu Cookie mới xuống trình duyệt
+                                        //Save new cookie
                                         context.ShouldRenew = true;
                                     }
                                     else
                                     {
-                                        // Refresh token hỏng -> Hủy phiên, bắt đăng nhập lại
                                         context.RejectPrincipal();
                                         await context.HttpContext.SignOutAsync();
                                     }

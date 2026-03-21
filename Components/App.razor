@@ -54,12 +54,11 @@
 					utterance.rate = 0.85;
 					window.speechSynthesis.speak(utterance);
 					console.log("Đang đọc bằng Web Speech API");
-					return; // Đọc thành công thì thoát luôn, không chạy xuống dưới nữa
+					return; // Đọc thành công thì thoát luôn
 				}
 			}
 
-			// CÁCH 2: "ĐƯỜNG TÀ" - GỌI THẲNG API GOOGLE TRANSLATE
-			// Sẽ chạy vào đây nếu Cách 1 thất bại (Máy không có tiếng Việt)
+			// GỌI THẲNG API GOOGLE TRANSLATE
 			console.log("Máy không có giọng Tiếng Việt. Đang nhờ Backend đi xin Google...");
 			try {
 				let encodedText = encodeURIComponent(textToSpeak);

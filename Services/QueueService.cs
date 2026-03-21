@@ -34,7 +34,7 @@ namespace SmartClinic.Services
 
             var today = DateTime.Today;
 
-            // 2. TÌM SỐ ĐANG GỌI (Nhớ thêm điều kiện RoomId)
+            // 2. TÌM SỐ ĐANG GỌI
             var currentCall = await _context.QueueTickets
                 .Where(t => t.RoomId == roomId && t.Status == "Calling" && t.CreatedAt.Date == today)
                 .OrderByDescending(t => t.CreatedAt)
@@ -45,7 +45,7 @@ namespace SmartClinic.Services
                 })
                 .FirstOrDefaultAsync();
 
-            // 3. TÌM DANH SÁCH CHỜ (Nhớ thêm điều kiện RoomId)
+            // 3. TÌM DANH SÁCH CHỜ
             var nextTickets = await _context.QueueTickets
                 .Where(t => t.RoomId == roomId && t.Status == "Waiting" && t.CreatedAt.Date == today)
                 .OrderBy(t => t.CreatedAt)
@@ -84,7 +84,7 @@ namespace SmartClinic.Services
                 {
                     currentCalling.Status = "Missed";
 
-                    // Log lại để IT/Admin biết
+                    // Log
                     Console.WriteLine($"[System] Bệnh nhân {currentCalling.TicketNumber} đã vắng mặt 3 lần. Chuyển trạng thái thành Missed.");
                 }
                 else
@@ -99,17 +99,17 @@ namespace SmartClinic.Services
 
                     if (nextWaitings.Count == 0)
                     {
-                        // Nếu đằng sau không còn ai, thì cứ để ổng ở nguyên vị trí (không đổi CreatedAt)
+                        // Nếu đằng sau không còn ai, do nothing
                     }
                     else if (nextWaitings.Count < 3)
                     {
-                        // Nếu đằng sau chỉ có 1 hoặc 2 người (ít hơn 3), thì đẩy ổng xuống CUỐI CÙNG của nhóm ít ỏi đó
+                        // Nếu đằng sau chỉ có 1 hoặc 2 người (ít hơn 3), thì đẩy ổng xuống CUỐI CÙNG
                         var lastPerson = nextWaitings[^1];
                         currentCalling.CreatedAt = lastPerson.CreatedAt.AddMilliseconds(1);
                     }
                     else
                     {
-                        // Nếu đằng sau đông người, lấy người thứ 3 làm mốc, nhét ổng vào ngay sau người thứ 3
+                        // Nếu đằng sau đông người, lấy người thứ 3 làm mốc, nhét vào ngay sau người thứ 3
                         var thirdPerson = nextWaitings[2];
                         currentCalling.CreatedAt = thirdPerson.CreatedAt.AddMilliseconds(1);
                     }
@@ -127,7 +127,6 @@ namespace SmartClinic.Services
 
             // 3. Cập nhật trạng thái người mới thành "Calling"
             nextPatient.Status = "Calling";
-            //nextPatient.RoomName = roomName; // Gán phòng cho bệnh nhân
 
             await _context.SaveChangesAsync();
 

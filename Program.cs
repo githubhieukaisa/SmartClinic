@@ -61,13 +61,13 @@ namespace SmartClinic
             {
                 DashboardTitle = "SmartClinic Background Jobs",
 
-                // Gắn cái Khiên bảo vệ bạn vừa tạo vào đây
+                // Authorization filter for admin access
                 Authorization = new[] { new MyHangfireAuthorizationFilter() },
 
                 AppPath = "/login"
             });
 
-            // Định nghĩa route cho logout
+            // Logout endpoint để xóa cookie và đăng xuất người dùng
             app.MapPost("/logout", async (HttpContext context) =>
             {
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -80,12 +80,11 @@ namespace SmartClinic
                 .AddInteractiveServerRenderMode();
 
             RecurringJob.AddOrUpdate<SequenceResetJob>(
-                "daily-sequence-reset", // ID của Job (đặt tên tùy ý)
+                "daily-sequence-reset", // job id
                 job => job.ExecuteAsync(), // Hàm sẽ được gọi
                 "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
                 new RecurringJobOptions
                 {
-                    // Fix triệt để lỗi sai múi giờ trên Server
                     TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
                 });
 

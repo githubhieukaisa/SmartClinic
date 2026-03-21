@@ -8,7 +8,6 @@ namespace SmartClinic.Services
         private readonly SmartClinicDbContext _dbContext;
         private readonly ILogger<SequenceResetJob> _logger;
 
-        // Inject trực tiếp DbContext, cực kỳ sạch sẽ
         public SequenceResetJob(SmartClinicDbContext dbContext, ILogger<SequenceResetJob> logger)
         {
             _dbContext = dbContext;
