@@ -82,6 +82,25 @@ public class NotificationService : IAsyncDisposable
     }
 
     /// <summary>
+    /// Bỏ theo dõi một room cụ thể khi đổi phòng/chuyển ca
+    /// </summary>
+    public async Task LeaveRoomAsync(int roomId)
+    {
+        if (_hubConnection == null || !IsConnected) return;
+
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService.LeaveRoomAsync] Leaving Room_{roomId}");
+            await _hubConnection.InvokeAsync("LeaveRoomAsync", roomId);
+            System.Diagnostics.Debug.WriteLine($"✅ [NotificationService.LeaveRoomAsync] Successfully left Room_{roomId}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [NotificationService.LeaveRoomAsync] Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Ensure SignalR connection is started
     /// 
     /// Safe to call from multiple pages simultaneously.
