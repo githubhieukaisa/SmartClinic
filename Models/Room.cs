@@ -10,5 +10,6 @@
         public virtual Department Department { get; set; } = null!;
 
         public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
+        public virtual ICollection<DoctorShift> DoctorShifts { get; set; } = new List<DoctorShift>();
     }
 }

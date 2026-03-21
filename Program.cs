@@ -1,4 +1,6 @@
 ﻿using Hangfire;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -61,15 +63,16 @@ namespace SmartClinic
             {
                 DashboardTitle = "SmartClinic Background Jobs",
 
-                // Gắn cái Khiên bảo vệ bạn vừa tạo vào đây
+                // Authorization filter for admin access
                 Authorization = new[] { new MyHangfireAuthorizationFilter() },
 
                 AppPath = "/login"
             });
 
-            // Định nghĩa route cho logout
-            app.MapPost("/logout", (HttpContext context) =>
+            // Logout endpoint để xóa cookie và đăng xuất người dùng
+            app.MapPost("/logout", async (HttpContext context) =>
             {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 context.Response.Cookies.Delete("jwt_token");
                 context.Response.Cookies.Delete("refresh_token");
                 return Results.Redirect("/login");
@@ -79,14 +82,13 @@ namespace SmartClinic
                 .AddInteractiveServerRenderMode();
 
             RecurringJob.AddOrUpdate<SequenceResetJob>(
-               "daily-sequence-reset", // ID của Job (đặt tên tùy ý)
-               job => job.ExecuteAsync(), // Hàm sẽ được gọi
-               "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
-               new RecurringJobOptions
-               {
-                   // Fix triệt để lỗi sai múi giờ trên Server
-                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
-               });
+                "daily-sequence-reset", // job id
+                job => job.ExecuteAsync(), // Hàm sẽ được gọi
+                "0 0 * * *", // Cron expression: 0 phút, 0 giờ (Nửa đêm)
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
+                });
 
             //app.MapPost("/api/test-checkin", async (ITicketService ticketService) =>
             //{

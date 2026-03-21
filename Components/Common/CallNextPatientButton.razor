@@ -28,7 +28,7 @@
 @code {
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
-    // 1. Parameters cho phép ghi đè linh hoạt từ component cha
+    // 1. Parameters
     [Parameter] public int? RoomId { get; set; }
     [Parameter] public string RoomName { get; set; } = "";
     [Parameter] public string ButtonText { get; set; } = "Gọi bệnh nhân";
