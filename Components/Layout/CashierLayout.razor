@@ -56,14 +56,11 @@
 
         <!-- Sign out -->
         <div class="p-4 border-t border-border">
-            <form action="/logout" method="post">
-                <AntiforgeryToken />
-                <button type="submit"
-                        class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-red-50 transition font-medium">
-                    <i class="ph-bold ph-sign-out text-lg"></i>
-                    <span>Sign Out</span>
-                </button>
-            </form>
+            <button @onclick="HandleLogout"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-red-50 transition font-medium">
+                <i class="ph-bold ph-sign-out text-lg"></i>
+                <span>Sign Out</span>
+            </button>
         </div>
     </aside>
 
@@ -85,6 +82,11 @@
         {
             _cashierName = user.FindFirst("FullName")?.Value ?? "Cashier";
         }
+    }
+
+    private void HandleLogout()
+    {
+        Nav.NavigateTo("/logout-action", forceLoad: true);
     }
 
     private string NavClass(string href)

@@ -34,12 +34,22 @@ namespace SmartClinic.Services
                 .Include(p => p.Ticket)
                     .ThenInclude(t => t!.Patient)
                 .Include(p => p.Ticket)
-                    .ThenInclude(t => t!.Doctor)
+                    .ThenInclude(t => t!.Doctor)   // Doctor qua QueueTicket.DoctorId
                 .Include(p => p.PrescriptionDetails)
                     .ThenInclude(d => d.Medicine)
                 .Where(p => p.Status == "Pending")
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
+
+            // Tính lại TotalAmount từ Medicine.Price × Quantity (fix UnitPrice = 0)
+            foreach (var p in prescriptions)
+            {
+                if (p.TotalAmount == 0 && p.PrescriptionDetails.Any())
+                {
+                    p.TotalAmount = p.PrescriptionDetails
+                        .Sum(d => d.Medicine != null ? d.Medicine.Price * d.Quantity : 0);
+                }
+            }
 
             return prescriptions.Select(MapToDto).ToList();
         }
@@ -79,12 +89,14 @@ namespace SmartClinic.Services
                     .FirstOrDefaultAsync(p => p.Id == prescriptionId);
 
                 if (prescription == null)
-                    return (false, "Không tìm thấy đơn thuốc.");
+                    return (false, "Prescription not found.");
 
                 if (prescription.Status != "Pending")
-                    return (false, $"Đơn thuốc đang ở trạng thái '{prescription.Status}', không thể xuất.");
+                    return (false, $"Prescription is '{prescription.Status}', cannot dispense.");
 
-                // 1. Trừ tồn kho từng thuốc
+                decimal total = 0;
+
+                // 1. Trừ tồn kho + gán UnitPrice từ Medicine.Price (fix UnitPrice = 0)
                 foreach (var detail in prescription.PrescriptionDetails)
                 {
                     if (detail.Medicine == null) continue;
@@ -92,14 +104,19 @@ namespace SmartClinic.Services
                     if (detail.Medicine.StockQuantity < detail.Quantity)
                     {
                         await transaction.RollbackAsync();
-                        return (false, $"Thuốc '{detail.Medicine.Name}' không đủ tồn kho (còn {detail.Medicine.StockQuantity}, cần {detail.Quantity}).");
+                        return (false, $"'{detail.Medicine.Name}' insufficient stock (have {detail.Medicine.StockQuantity}, need {detail.Quantity}).");
                     }
 
+                    // Gán đúng giá từ Medicine
+                    detail.UnitPrice = detail.Medicine.Price;
                     detail.Medicine.StockQuantity -= detail.Quantity;
+                    total += detail.Medicine.Price * detail.Quantity;
                 }
 
-                // 2. Cập nhật trạng thái đơn
+                // 2. Cập nhật TotalAmount + Status
+                prescription.TotalAmount = total;
                 prescription.Status = "Dispensed";
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -109,20 +126,20 @@ namespace SmartClinic.Services
                     PrescriptionId = prescription.Id,
                     TicketNumber = prescription.Ticket?.TicketNumber ?? 0,
                     PatientName = prescription.Ticket?.Patient?.FullName ?? "Unknown",
-                    TotalAmount = prescription.TotalAmount ?? 0
+                    TotalAmount = total
                 };
 
                 await _hubContext.Clients.Group("Cashiers")
                     .SendAsync("PrescriptionDispensed", notification);
 
-                System.Diagnostics.Debug.WriteLine($"[PharmacyService] Dispensed OK, notified Cashiers");
+                System.Diagnostics.Debug.WriteLine($"[PharmacyService] Dispensed OK, total={total:N0}đ, notified Cashiers");
                 return (true, "");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 System.Diagnostics.Debug.WriteLine($"[PharmacyService] ERROR: {ex.Message}");
-                return (false, "Lỗi hệ thống khi xuất thuốc.");
+                return (false, "System error during dispense.");
             }
         }
 
@@ -167,10 +184,11 @@ namespace SmartClinic.Services
             TicketId = p.TicketId ?? 0,
             TicketNumber = p.Ticket?.TicketNumber ?? 0,
             PatientName = p.Ticket?.Patient?.FullName ?? "—",
-            DoctorName = p.Ticket?.Doctor?.FullName ?? "—",
+            // DoctorName lấy từ QueueTicket.Doctor (DoctorId assign khi bác sĩ gọi bệnh nhân)
+            DoctorName = p.Ticket?.Doctor?.FullName ?? (p.Ticket?.Patient?.FullName != null ? "Not assigned" : "—"),
             DoctorNote = p.DoctorNote,
             Status = p.Status ?? "Pending",
-            TotalAmount = p.TotalAmount ?? 0,
+            TotalAmount = p.TotalAmount ?? p.PrescriptionDetails.Sum(d => d.Medicine != null ? d.Medicine.Price * d.Quantity : d.UnitPrice * d.Quantity),
             CreatedAt = p.CreatedAt,
             Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto
             {
@@ -179,7 +197,8 @@ namespace SmartClinic.Services
                 MedicineName = d.Medicine?.Name ?? "—",
                 Unit = d.Medicine?.Unit,
                 Quantity = d.Quantity,
-                UnitPrice = d.UnitPrice,
+                // UnitPrice: dùng Medicine.Price nếu detail.UnitPrice chưa set (= 0)
+                UnitPrice = d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.Price ?? 0),
                 UsageInstruction = d.UsageInstruction
             }).ToList()
         };

@@ -23,7 +23,7 @@ namespace SmartClinic.Services
             // ✅ Đăng ký CÁCH 1: DbContextFactory (cho services)
             services.AddDbContextFactory<SmartClinicDbContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("MyCnn")));
-            
+
             // ✅ Đăng ký CÁCH 2: DbContext bằng Pool (cho pages)
             // Tạo pool từ factory để pages có thể inject DbContext trực tiếp
             services.AddPooledDbContextFactory<SmartClinicDbContext>(options =>
@@ -46,6 +46,8 @@ namespace SmartClinic.Services
             services.AddScoped<ICashierService, CashierService>();
             services.AddSingleton<NotificationService>();
             services.AddBlazoredToast();
+            services.AddScoped<VNPayService>();
+            services.AddHttpContextAccessor();
             return services;
         }
 

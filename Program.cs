@@ -1,4 +1,6 @@
 ﻿using Hangfire;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -74,7 +76,11 @@ namespace SmartClinic
                 context.Response.Cookies.Delete("refresh_token");
                 return Results.Redirect("/login");
             });
-
+            app.MapGet("/logout-action", async (HttpContext context) =>
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return Results.Redirect("/login");
+            });
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
