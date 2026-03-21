@@ -1,0 +1,393 @@
+﻿@page "/pharmacist/medicines"
+@using Microsoft.AspNetCore.Authorization
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using SmartClinic.Components.Layout
+@using Blazored.Toast.Services
+@rendermode InteractiveServer
+@layout PharmacistLayout
+@attribute [Authorize(Policy = "PharmacistPolicy")]
+@inject IPharmacyService PharmacyService
+@inject IToastService ToastService
+
+<div class="p-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Medicine Inventory</h1>
+            <p class="text-muted-foreground mt-1">Manage medicines and stock levels</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="text-right">
+                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+            </div>
+            <button @onclick="OpenCreateModal"
+                    class="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition active:scale-95">
+                <i class="ph ph-plus-circle"></i>
+                Add Medicine
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Total Medicines</h4>
+                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-pill text-xl text-primary"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-primary">@(_medicines?.Count ?? 0)</p>
+            <div class="mt-4 bg-primary/10 rounded-full h-2">
+                <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Low Stock</h4>
+                <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-warning text-xl text-amber-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-amber-600">@(_medicines?.Count(m => m.StockQuantity < 20) ?? 0)</p>
+            <div class="mt-4 bg-amber-100 rounded-full h-2">
+                <div class="bg-amber-500 h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Inventory Value</h4>
+                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-currency-circle-dollar text-xl text-green-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-green-600">
+                @((_medicines?.Sum(m => m.Price * m.StockQuantity) ?? 0).ToString("N0"))đ
+            </p>
+            <div class="mt-4 bg-green-100 rounded-full h-2">
+                <div class="bg-green-600 h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Medicine Table -->
+    <div class="bg-card rounded-xl border border-border shadow-sm">
+        <div class="flex items-center justify-between p-6 border-b border-border">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-pill text-xl text-foreground"></i>
+                <h2 class="text-xl font-bold text-foreground">All Medicines</h2>
+            </div>
+            <div class="relative">
+                <i class="ph  absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"></i>
+                <input @bind="_search" @bind:event="oninput"
+                       placeholder="Search medicines..."
+                       class="pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-56" />
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            @if (_medicines == null)
+            {
+                <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
+                    <span class="text-sm">Loading...</span>
+                </div>
+            }
+            else if (!FilteredMedicines.Any())
+            {
+                <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph ph-pill text-4xl"></i>
+                    <p class="text-sm font-medium">No medicines found</p>
+                </div>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border bg-muted/30">
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">ID</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Name</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Unit</th>
+                            <th class="text-right py-3 px-5 font-semibold text-muted-foreground">Price</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Stock</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in FilteredMedicines)
+                        {
+                            <tr class="border-b border-border hover:bg-muted/20 transition">
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
+                                        @m.Id
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5">
+                                    <p class="font-medium text-foreground">@m.Name</p>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                        @(m.Unit ?? "—")
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5 text-right font-semibold text-foreground">
+                                    @m.Price.ToString("N0")đ
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @(m.StockQuantity < 20 ? "bg-red-100 text-red-700" : m.StockQuantity < 50 ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700")">
+                                        @m.StockQuantity
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button @onclick="() => OpenEditModal(m)"
+                                                class="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition">
+                                            <i class="ph ph-pencil"></i>
+                                            Edit
+                                        </button>
+                                        <button @onclick="() => ConfirmDelete(m)"
+                                                class="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition">
+                                            <i class="ph ph-trash"></i>
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@* ── Modals — rendered via JS teleport vào document.body ────────────────── *@
+@if (_showModal)
+{
+    <div id="medicine-modal-backdrop"
+         style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;">
+        <!-- Backdrop -->
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"
+             @onclick="CloseModal"></div>
+
+        <!-- Card -->
+        <div style="position:relative;z-index:1;width:100%;max-width:440px;margin:0 16px;"
+             class="bg-card rounded-2xl border border-border shadow-2xl p-8">
+
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                        <i class="ph ph-pill text-xl text-primary"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-foreground">
+                        @(_editingMedicine.Id == 0 ? "Add Medicine" : "Edit Medicine")
+                    </h3>
+                </div>
+                <button @onclick="CloseModal"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-1.5">
+                        Medicine Name <span class="text-red-500">*</span>
+                    </label>
+                    <input @bind="_editingMedicine.Name"
+                           placeholder="e.g. Paracetamol 500mg"
+                           class="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-1.5">Unit</label>
+                    <select @bind="_editingMedicine.Unit"
+                            class="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="">— Select unit —</option>
+                        <option value="Tablet">Tablet</option>
+                        <option value="Capsule">Capsule</option>
+                        <option value="Bottle">Bottle</option>
+                        <option value="Tube">Tube</option>
+                        <option value="Vial">Vial</option>
+                        <option value="Sachet">Sachet</option>
+                        <option value="ml">ml</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">
+                            Price (đ) <span class="text-red-500">*</span>
+                        </label>
+                        <input @bind="_editingMedicine.Price" type="number" min="0"
+                               placeholder="0"
+                               class="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1.5">
+                            Stock Qty <span class="text-red-500">*</span>
+                        </label>
+                        <input @bind="_editingMedicine.StockQuantity" type="number" min="0"
+                               placeholder="0"
+                               class="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button @onclick="CloseModal"
+                        class="flex-1 px-4 py-2.5 bg-muted text-foreground rounded-lg text-sm font-medium hover:bg-muted/70 transition">
+                    Cancel
+                </button>
+                <button @onclick="SaveMedicineAsync" disabled="@_saving"
+                        class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition disabled:opacity-50">
+                    @if (_saving)
+                    {
+                        <i class="ph ph-spinner-gap animate-spin"></i>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <i class="ph ph-floppy-disk"></i>
+                        <span>@(_editingMedicine.Id == 0 ? "Add" : "Save")</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_deletingMedicine != null)
+{
+    <div style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"
+             @onclick="() => _deletingMedicine = null"></div>
+
+        <div style="position:relative;z-index:1;width:100%;max-width:400px;margin:0 16px;"
+             class="bg-card rounded-2xl border border-border shadow-2xl p-8 text-center">
+
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="ph ph-trash text-3xl text-red-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-foreground mb-2">Delete Medicine</h3>
+            <p class="text-muted-foreground text-sm mb-6">
+                Are you sure you want to delete
+                <strong class="text-foreground">@_deletingMedicine.Name</strong>?
+                This cannot be undone.
+            </p>
+            <div class="flex gap-3">
+                <button @onclick="() => _deletingMedicine = null"
+                        class="flex-1 px-4 py-2.5 bg-muted text-foreground rounded-lg text-sm font-medium hover:bg-muted/70 transition">
+                    Cancel
+                </button>
+                <button @onclick="ExecuteDeleteAsync" disabled="@_saving"
+                        class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                    @if (_saving)
+                    {
+                        <i class="ph ph-spinner-gap animate-spin"></i>
+                    }
+                    <span>Delete</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Medicine>? _medicines;
+    private string _search = "";
+    private bool _showModal;
+    private bool _saving;
+    private Medicine _editingMedicine = new();
+    private Medicine? _deletingMedicine;
+
+    private IEnumerable<Medicine> FilteredMedicines =>
+        string.IsNullOrWhiteSpace(_search)
+            ? (_medicines ?? Enumerable.Empty<Medicine>())
+            : (_medicines ?? Enumerable.Empty<Medicine>())
+                .Where(m => m.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                         || (m.Unit ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+        => await LoadAsync();
+
+    private async Task LoadAsync()
+        => _medicines = await PharmacyService.GetAllMedicinesAsync();
+
+    private void OpenCreateModal()
+    {
+        _editingMedicine = new Medicine { StockQuantity = 0, Price = 0 };
+        _showModal = true;
+    }
+
+    private void OpenEditModal(Medicine m)
+    {
+        _editingMedicine = new Medicine
+        {
+            Id = m.Id,
+            Name = m.Name,
+            Unit = m.Unit,
+            Price = m.Price,
+            StockQuantity = m.StockQuantity
+        };
+        _showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+        _editingMedicine = new();
+    }
+
+    private async Task SaveMedicineAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_editingMedicine.Name))
+        {
+            ToastService.ShowWarning("Medicine name is required.");
+            return;
+        }
+        _saving = true;
+        try
+        {
+            if (_editingMedicine.Id == 0)
+            {
+                await PharmacyService.CreateMedicineAsync(_editingMedicine);
+                ToastService.ShowSuccess($"'{_editingMedicine.Name}' added successfully.");
+            }
+            else
+            {
+                var (ok, err) = await PharmacyService.UpdateMedicineAsync(_editingMedicine);
+                if (!ok) { ToastService.ShowError(err); return; }
+                ToastService.ShowSuccess($"'{_editingMedicine.Name}' updated.");
+            }
+            _showModal = false;
+            await LoadAsync();
+        }
+        finally { _saving = false; }
+    }
+
+    private void ConfirmDelete(Medicine m) => _deletingMedicine = m;
+
+    private async Task ExecuteDeleteAsync()
+    {
+        if (_deletingMedicine == null) return;
+        _saving = true;
+        try
+        {
+            var (ok, err) = await PharmacyService.DeleteMedicineAsync(_deletingMedicine.Id);
+            if (ok)
+            {
+                ToastService.ShowSuccess($"'{_deletingMedicine.Name}' deleted.");
+                _deletingMedicine = null;
+                await LoadAsync();
+            }
+            else ToastService.ShowError(err);
+        }
+        finally { _saving = false; }
+    }
+}

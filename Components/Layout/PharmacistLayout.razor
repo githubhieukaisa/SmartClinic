@@ -53,6 +53,12 @@
                             <span>Prescription Queue</span>
                         </NavLink>
                     </li>
+                    <li>
+                        <NavLink href="/pharmacist/medicines" class="@NavClass("/pharmacist/medicines")">
+                            <i class="ph ph-pill text-lg"></i>
+                            <span>Medicine Inventory</span>
+                        </NavLink>
+                    </li>
                 </ul>
             </nav>
 
@@ -69,7 +75,7 @@
             </div>
         </aside>
 
-        <main class="flex-1 ml-64 overflow-auto">
+        <main class="flex-1 ml-64 overflow-y-auto" style="isolation: auto;">
             <div class="min-h-screen bg-background">
                 @Body
             </div>

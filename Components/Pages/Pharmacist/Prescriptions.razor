@@ -113,6 +113,7 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-border bg-muted/30">
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground w-10"></th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground">#</th>
                             <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Patient</th>
                             <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Doctor</th>
@@ -125,7 +126,22 @@
                     <tbody>
                         @foreach (var p in _prescriptions)
                         {
+                            var pid = p.PrescriptionId;
                             <tr class="border-b border-border hover:bg-muted/20 transition">
+                                <!-- Expand toggle -->
+                                <td class="py-3 px-4 text-center">
+                                    <button @onclick="@(() => ToggleExpand(pid))"
+                                            class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground">
+                                        @if (_expanded.Contains(pid))
+                                        {
+                                            <i class="ph ph-caret-up text-base"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="ph ph-caret-down text-base"></i>
+                                        }
+                                    </button>
+                                </td>
                                 <td class="py-3 px-5 text-center">
                                     <span class="inline-flex items-center justify-center w-8 h-8 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">
                                         @p.TicketNumber
@@ -194,7 +210,7 @@
                             @if (_expanded.Contains(p.PrescriptionId))
                             {
                                 <tr class="bg-muted/10 border-b border-border">
-                                    <td colspan="7" class="px-5 py-4">
+                                    <td colspan="8" class="px-5 py-4">
                                         <div class="rounded-lg border border-border overflow-hidden">
                                             <table class="w-full text-xs">
                                                 <thead>
