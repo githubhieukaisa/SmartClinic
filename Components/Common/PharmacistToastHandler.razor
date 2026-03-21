@@ -1,6 +1,8 @@
 ﻿@* PharmacistToastHandler.razor
-   Lắng nghe SignalR "NewPrescriptionReady" và hiển thị toast cho Dược sĩ.
-   Đặt component này trong PharmacistLayout.
+   - Lắng nghe SignalR "NewPrescriptionReady"
+   - Hiển thị toast
+   - Raise event OnNewPrescription để trang Prescriptions.razor tự reload
+   Đặt trong PharmacistLayout.
 *@
 @using Blazored.Toast.Services
 @using Microsoft.AspNetCore.SignalR.Client
@@ -12,6 +14,12 @@
 @code {
     private HubConnection? _hub;
 
+    /// <summary>
+    /// Event fired khi có đơn thuốc mới.
+    /// Prescriptions.razor subscribe vào đây để tự reload danh sách.
+    /// </summary>
+    public event Func<NewPrescriptionNotificationDto, Task>? OnNewPrescription;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -21,15 +29,21 @@
             .WithAutomaticReconnect()
             .Build();
 
-        // Lắng nghe đơn thuốc mới từ bác sĩ
         _hub.On<NewPrescriptionNotificationDto>("NewPrescriptionReady", async (data) =>
         {
+            // 1. Hiện toast
             await InvokeAsync(() =>
             {
                 Toaster.ShowSuccess(
-                    $"💊 Đơn mới #{data.TicketNumber} - {data.PatientName} " +
-                    $"({data.MedicineCount} thuốc · {data.TotalAmount:N0}đ)");
+                    $"💊 New prescription #{data.TicketNumber} — {data.PatientName} " +
+                    $"({data.MedicineCount} items · {data.TotalAmount:N0}đ)");
             });
+
+            // 2. Notify trang Prescriptions để tự reload
+            if (OnNewPrescription != null)
+            {
+                await OnNewPrescription.Invoke(data);
+            }
         });
 
         await _hub.StartAsync();

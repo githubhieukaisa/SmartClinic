@@ -129,6 +129,15 @@ authProperties);
 					{
 						redirectUrl = "/hangfire";
 					}
+					else if ((roleMask & 4) == 4)   // Pharmacist 
+					{
+						redirectUrl = "/pharmacist/prescriptions";
+					}
+					else if ((roleMask & 8) == 8)   // Cashier    
+					{
+						redirectUrl = "/cashier/payments";
+					}
+
 				}
 
 				NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
