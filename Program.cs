@@ -1,4 +1,6 @@
 ﻿using Hangfire;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -66,8 +68,9 @@ namespace SmartClinic
             });
 
             // Định nghĩa route cho logout
-            app.MapPost("/logout", (HttpContext context) =>
+            app.MapPost("/logout", async (HttpContext context) =>
             {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 context.Response.Cookies.Delete("jwt_token");
                 context.Response.Cookies.Delete("refresh_token");
                 return Results.Redirect("/login");

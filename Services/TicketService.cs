@@ -58,11 +58,11 @@ namespace SmartClinic.Services
             {
                 await _context.Database.ExecuteSqlRawAsync("SELECT \"Id\" FROM \"Departments\" WHERE \"Id\" = {0} FOR UPDATE", departmentId);
 
-                var today = DateTime.UtcNow.Date;
+                var today = DateTime.UtcNow;
 
                 // 2. Tìm phòng trống nhất (Lúc này an toàn tuyệt đối, không sợ đọc trùng)
                 var selectedRoomInfo = await _context.Rooms
-                    .Where(r => r.DepartmentId == departmentId && r.IsActive)
+                    .Where(r => r.DepartmentId == departmentId && r.IsActive && r.DoctorShifts.Any(ds => ds.StartTime <= today && ds.EndTime >= today))
                     .Select(r => new
                     {
                         Room = r,

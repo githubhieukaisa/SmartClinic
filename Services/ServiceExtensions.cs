@@ -44,6 +44,8 @@ namespace SmartClinic.Services
             services.AddScoped<PatientService>();
             services.AddSingleton<NotificationService>();
             services.AddBlazoredToast();
+            //Đăng ký logger cho AuthService
+            
             return services;
         }
 
