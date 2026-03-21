@@ -1,4 +1,5 @@
 ﻿@page "/doctor/my-patients"
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Models
 @using SmartClinic.Services
@@ -123,11 +124,8 @@
                 <h2 class="text-xl font-bold text-foreground">Today's Queue</h2>
             </div>
             <div class="flex items-center gap-2">
-                <CallNextPatientButton 
-                    RoomId="@_currentRoomId"
-                    RoomName="@_roomName"
-                    ButtonText="Gọi BN Tiếp Theo"
-                    CssClass="" />
+                <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
+                                       CssClass="" />
                 <button @onclick="RefreshQueueAsync"
                         class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
                     <i class="ph ph-arrows-clockwise"></i>
@@ -172,22 +170,25 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var ticket in _queueTickets)
+                        @foreach (var ticket in PagedTickets)
                         {
                             <tr class="border-b border-border transition @GetRowBgClass(ticket.Status)">
                                 <td class="py-3 px-5 text-center">
-                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
+                                    <span
+                                        class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
                                         @ticket.TicketNumber
                                     </span>
                                 </td>
                                 <td class="py-3 px-5">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
+                                        <div
+                                            class="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
                                             @GetInitials(ticket.Patient?.FullName)
                                         </div>
                                         <div>
                                             <p class="font-medium text-foreground">@(ticket.Patient?.FullName ?? "—")</p>
-                                            <p class="text-xs text-muted-foreground">@(ticket.Patient?.Address ?? "No address")</p>
+                                            <p class="text-xs text-muted-foreground">@(ticket.Patient?.Address ?? "No address")
+                                            </p>
                                         </div>
                                     </div>
                                 </td>
@@ -207,7 +208,8 @@
                                     </div>
                                 </td>
                                 <td class="py-3 px-5 text-center">
-                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.Status)">
+                                    <span
+                                        class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.Status)">
                                         @ticket.Status
                                     </span>
                                 </td>
@@ -233,6 +235,10 @@
                         }
                     </tbody>
                 </table>
+
+                <!-- Phân trang Component -->
+                <Pagination CurrentPage="@_currentPage" TotalItems="@TotalCount" PageSize="@_pageSize"
+                            OnPageChanged="HandlePageChanged" />
             }
         </div>
     </div>
@@ -242,9 +248,22 @@
     private List<QueueTicket>? _queueTickets;
     private bool _showNotification = false;
     private bool _isUpdating = false;
-    private int _currentDoctorId = 0;  // Will be set from authentication claims
-    private string? _roomName;  // Room name from claims
-    private int? _currentRoomId;  // Room ID from claims
+    private int _currentDoctorId = 0; // Will be set from authentication claims
+    private string? _roomName; // Room name from claims
+    private int? _currentRoomId; // Room ID from claims
+
+    // Pagination constants/state
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+
+    private IEnumerable<QueueTicket> PagedTickets =>
+        _queueTickets?.Skip((_currentPage - 1) * _pageSize).Take(_pageSize) ?? Enumerable.Empty<QueueTicket>();
+
+    private void HandlePageChanged(int page)
+    {
+        _currentPage = page;
+        StateHasChanged();
+    }
 
     private int TotalCount => _queueTickets?.Count ?? 0;
     private int WaitingCount => _queueTickets?.Count(t => t.Status == "Waiting") ?? 0;
@@ -278,15 +297,30 @@
                 System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Could not extract DoctorId from claims");
             }
 
-            // Extract RoomName from claims
-            var roomNameClaim = user.FindFirst("RoomName");
-            _roomName = roomNameClaim?.Value ?? "Unassigned";
+            // Lấy trực tiếp RoomId và RoomName từ Database theo thời gian thực (Single Source of Truth)
+            var now = DateTime.Now;
+            var activeShift = await DbContext.DoctorShifts
+                .Include(s => s.Room)
+                .Where(s => s.DoctorId == _currentDoctorId
+                         && s.StartTime <= now
+                         && (s.EndTime == null || s.EndTime >= now))
+                .OrderByDescending(s => s.StartTime)
+                .FirstOrDefaultAsync();
 
-            // Extract RoomId from claims
-            var roomIdClaim = user.FindFirst("RoomId");
-            if (roomIdClaim != null && int.TryParse(roomIdClaim.Value, out int roomId))
+            if (activeShift != null)
             {
-                _currentRoomId = roomId;
+                _currentRoomId = activeShift.RoomId;
+                _roomName = activeShift.Room.Name;
+            }
+            else
+            {
+                // Nếu lỡ ca, thì rớt về phòng gốc mặc định
+                var doctor = await DbContext.Users
+                    .Include(u => u.Room)
+                    .FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
+
+                _currentRoomId = doctor?.RoomId;
+                _roomName = doctor?.Room?.Name ?? "Unassigned";
             }
 
             System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ Room: {_roomName}, RoomId: {_currentRoomId}");
@@ -330,11 +364,11 @@
         if (firstRender)
         {
             System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ OnAfterRender - subscribing to SignalR events");
-            
+
             // STEP 2: Subscribe to events AFTER data is loaded (safe!)
             Notification.OnPatientQueueUpdated += HandleQueueUpdatedAsync;
             Notification.OnQueueStatusUpdated += HandleStatusChangedAsync;
-            
+
             System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Subscribed to SignalR events");
         }
     }
@@ -342,35 +376,35 @@
     private async void HandleQueueUpdatedAsync(string patientName)
     {
         System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ HandleQueueUpdated: New patient '{patientName}' added to queue");
-        
+
         await InvokeAsync(async () =>
-        {
-            try
-            {
-                _isUpdating = true;
-                _showNotification = true;
-                StateHasChanged();
+                {
+                    try
+                    {
+                        _isUpdating = true;
+                        _showNotification = true;
+                        StateHasChanged();
 
-                // Reload queue from database
-                System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Reloading queue data from database");
-                await LoadDataAsync(withDelay: true);
+                        // Reload queue from database
+                        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Reloading queue data from database");
+                        await LoadDataAsync(withDelay: true);
 
-                _isUpdating = false;
-                StateHasChanged();
+                        _isUpdating = false;
+                        StateHasChanged();
 
-                // Auto-hide notification after 3 seconds
-                await Task.Delay(3000);
-                _showNotification = false;
-                StateHasChanged();
-                
-                System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Queue updated successfully");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleQueueUpdated: {ex.Message}");
-                _isUpdating = false;
-            }
-        });
+                        // Auto-hide notification after 3 seconds
+                        await Task.Delay(3000);
+                        _showNotification = false;
+                        StateHasChanged();
+
+                        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Queue updated successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleQueueUpdated: {ex.Message}");
+                        _isUpdating = false;
+                    }
+                });
     }
 
     /// <summary>
@@ -380,30 +414,30 @@
     private async void HandleStatusChangedAsync(int ticketId)
     {
         System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ HandleStatusChanged: TicketId={ticketId}");
-        
+
         await InvokeAsync(async () =>
-        {
-            try
-            {
-                // Find the ticket that changed
-                var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
-                if (ticketToUpdate != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Updating UI for ticket {ticketId}");
-                    // Trigger UI update
-                    StateHasChanged();
-                    System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ UI updated for ticket {ticketId}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[MyPatient] ⚠️ Ticket {ticketId} not found in local list");
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleStatusChanged: {ex.Message}");
-            }
-        });
+                    try
+                    {
+                        // Find the ticket that changed
+                        var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
+                        if (ticketToUpdate != null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Updating UI for ticket {ticketId}");
+                            // Trigger UI update
+                            StateHasChanged();
+                            System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ UI updated for ticket {ticketId}");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MyPatient] ⚠️ Ticket {ticketId} not found in local list");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleStatusChanged: {ex.Message}");
+                    }
+                });
     }
 
     private async Task RefreshQueueAsync()
@@ -411,12 +445,12 @@
         try
         {
             _isUpdating = true;
-            StateHasChanged();  // Show "Updating..." indicator
-            
+            StateHasChanged(); // Show "Updating..." indicator
+
             await LoadDataAsync(withDelay: true);
-            
+
             _isUpdating = false;
-            StateHasChanged();  // ✅ CRITICAL: Trigger UI update with new data
+            StateHasChanged(); // ✅ CRITICAL: Trigger UI update with new data
         }
         catch (Exception ex)
         {
@@ -451,17 +485,17 @@
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
         System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Disposing - unsubscribing from SignalR events");
-        
+
         // Unsubscribe from events
         Notification.OnPatientQueueUpdated -= HandleQueueUpdatedAsync;
         Notification.OnQueueStatusUpdated -= HandleStatusChangedAsync;
-        
+
         System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Unsubscribed from SignalR events");
-        
+
         // NOTE: We do NOT dispose NotificationService here!
         // It's a Singleton - connection must persist across page navigation
         // It will be disposed by DI container when app shuts down
-        
+
         await ValueTask.CompletedTask;
     }
 
@@ -537,7 +571,7 @@
             // Now create a QueueTicket for the current logged-in doctor
             // ✅ Uses _currentDoctorId from authentication claims
             await PatientService.AddQueueTicketAsync(
-                doctorId: _currentDoctorId,  // Current doctor from claims
+                doctorId: _currentDoctorId, // Current doctor from claims
                 patientId: testPatient.Id,
                 diagnosis: "Test Diagnosis"
             );

@@ -63,23 +63,33 @@
             _doctorId = docId;
         }
 
-        // Khởi chạy Timer quét Database trong background (Mỗi 1 phút)
-        _shiftCheckTimer = new System.Threading.Timer(async _ => await CheckActiveShiftAsync(), null, TimeSpan.Zero,
-TimeSpan.FromMinutes(1));
+        // Khởi chạy ngay lần đầu tiên để load & join phòng hiện tại của bác sĩ (nếu có)
+        await CheckActiveShiftAsync();
+
+        // Khởi chạy Timer quét Database trong background (Mỗi 15 giây)
+        _shiftCheckTimer = new System.Threading.Timer(async _ => await CheckActiveShiftAsync(), null, TimeSpan.FromSeconds(15),
+TimeSpan.FromSeconds(15));
     }
 
     private async Task CheckActiveShiftAsync()
     {
+        var now = DateTime.Now;
+        // Log để dễ dàng theo dõi thời điểm chạy vòng background Timer (để ở đây cho chắc chắn log luôn hiện)
+        System.Diagnostics.Debug.WriteLine($"[MainLayout] ⏰ ---------- Timer Tick: {now.ToString("HH:mm:ss")} | DoctorId: {_doctorId} ----------");
+
         if (_doctorId <= 0) return;
 
         try
         {
-            // Mở 1 connection Database riêng, độc lập rác rưởi của UI
+            // Mở 1 connection Database riêng
             using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
-            // Tìm xem CA TRỰC NÀO ĐANG ĐƯỢC CHỈ ĐỊNH (Tương tự logic AuthService)
+            // Lấy CA TRỰC ĐANG ACTIVE (Status == Active)
             var activeShift = await dbContext.DoctorShifts
-                .Where(s => s.DoctorId == _doctorId && s.Status == "Active")
+                .Where(s => s.DoctorId == _doctorId
+                         && s.Status == "Active"
+                         && s.StartTime <= now
+                         && (s.EndTime == null || s.EndTime >= now))
                 .OrderByDescending(s => s.StartTime)
                 .FirstOrDefaultAsync();
 
@@ -87,7 +97,7 @@ TimeSpan.FromMinutes(1));
 
             if (activeRoomId == null)
             {
-                // Nếu không có ca trực, rollback về Room mặc định của User
+                // Nếu không có ca trực (hoặc đã lỡ ca), rollback về Room mặc định của User
                 var doctor = await dbContext.Users.FindAsync(_doctorId);
                 activeRoomId = doctor?.RoomId;
             }
@@ -97,7 +107,7 @@ TimeSpan.FromMinutes(1));
             {
                 if (_currentRoomId != activeRoomId.Value)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[MainLayout] 🔄 Background shift switch detected! Doctor={_doctorId}, OldRoom={_currentRoomId}, NewRoom={activeRoomId.Value}");
+                    System.Diagnostics.Debug.WriteLine($"[MainLayout] 🔄 TIMERSHIFT DETECTED! Time: {now.ToString("HH:mm:ss")}. Doctor={_doctorId}, OldRoom={_currentRoomId?.ToString() ?? "NULL"}, NewRoom={activeRoomId.Value}");
 
                     // 1. Thoát Phòng Cũ (nếu đang ở phòng nào đó)
                     if (_currentRoomId.HasValue)
@@ -108,6 +118,11 @@ TimeSpan.FromMinutes(1));
                     // 2. Vào Phòng Mới
                     await Notification.JoinRoomAsync(activeRoomId.Value);
                     _currentRoomId = activeRoomId.Value;
+                }
+                else
+                {
+                    // Ping log để bạn biết Timer vẫn đang chạy
+                    System.Diagnostics.Debug.WriteLine($"[MainLayout] ⏳ {now.ToString("HH:mm:ss")}: Timer tick, still in Room_{_currentRoomId.Value}...");
                 }
             }
         }

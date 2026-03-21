@@ -1,0 +1,47 @@
+@namespace SmartClinic.Components.Common
+
+<div class="flex items-center justify-between mt-6 px-6 pb-6">
+    <p class="text-sm text-muted-foreground">
+        Showing @_currentStartIndex to @_currentEndIndex of @TotalItems patients
+    </p>
+    <div class="flex items-center gap-1">
+        <button
+            class="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-foreground hover:bg-muted transition @(CurrentPage <= 1 ? "opacity-50 cursor-not-allowed" : "")"
+            disabled="@(CurrentPage <= 1)" @onclick="() => OnPageChanged.InvokeAsync(CurrentPage - 1)">
+            <i class="ph ph-caret-left"></i>
+        </button>
+
+        @for (int i = 1; i <= _totalPages; i++)
+        {
+            var pageNum = i;
+            if (pageNum == CurrentPage)
+            {
+                <button
+                class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-medium">@pageNum</button>
+            }
+            else
+            {
+                <button
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted text-sm font-medium transition"
+                @onclick="() => OnPageChanged.InvokeAsync(pageNum)">@pageNum</button>
+            }
+        }
+
+        <button
+            class="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-foreground hover:bg-muted transition @(CurrentPage >= _totalPages || _totalPages == 0 ? "opacity-50 cursor-not-allowed" : "")"
+            disabled="@(CurrentPage >= _totalPages)" @onclick="() => OnPageChanged.InvokeAsync(CurrentPage + 1)">
+            <i class="ph ph-caret-right"></i>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CurrentPage { get; set; } = 1;
+    [Parameter] public int TotalItems { get; set; } = 0;
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+
+    private int _totalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
+    private int _currentStartIndex => TotalItems == 0 ? 0 : (CurrentPage - 1) * PageSize + 1;
+    private int _currentEndIndex => Math.Min(CurrentPage * PageSize, TotalItems);
+}
