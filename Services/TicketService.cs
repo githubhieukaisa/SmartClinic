@@ -62,7 +62,9 @@ namespace SmartClinic.Services
 
                 // 2. Tìm phòng trống nhất
                 var selectedRoomInfo = await _context.Rooms
-                    .Where(r => r.DepartmentId == departmentId && r.IsActive && r.DoctorShifts.Any(ds => ds.StartTime <= today && ds.EndTime >= today))
+                    .Where(r => r.DepartmentId == departmentId 
+                        && r.IsActive 
+                        && r.DoctorShifts.Any(ds => ds.StartTime <= today && (ds.EndTime == null || ds.EndTime >= today)))
                     .Select(r => new
                     {
                         Room = r,
