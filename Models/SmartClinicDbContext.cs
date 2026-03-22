@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +29,9 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<Department> Departments { get; set; }
     public virtual DbSet<Room> Rooms { get; set; }
     public virtual DbSet<DoctorShift> DoctorShifts { get; set; }
+    public virtual DbSet<LabTest> LabTests { get; set; }
+    public virtual DbSet<LabOrder> LabOrders { get; set; }
+    public virtual DbSet<LabOrderDetail> LabOrderDetails { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
@@ -157,6 +160,52 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.PasswordHash).HasMaxLength(255);
             entity.Property(e => e.RoleMask).HasDefaultValue(0);
             entity.Property(e => e.Username).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<LabTest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("LabTests_pkey");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Price).HasPrecision(10, 2);
+            entity.Property(e => e.Unit).HasMaxLength(50);
+
+            entity.HasOne(d => d.DefaultRoom)
+                .WithMany()
+                .HasForeignKey(d => d.DefaultRoomId)
+                .HasConstraintName("LabTests_DefaultRoomId_fkey");
+        });
+
+        modelBuilder.Entity<LabOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("LabOrders_pkey");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValueSql("'Pending'::character varying");
+
+            entity.HasOne(d => d.QueueTicket).WithMany(p => p.LabOrders)
+                .HasForeignKey(d => d.TicketId)
+                .HasConstraintName("LabOrders_TicketId_fkey");
+        });
+
+        modelBuilder.Entity<LabOrderDetail>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("LabOrderDetails_pkey");
+            entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+
+            entity.HasOne(d => d.LabOrder).WithMany(p => p.LabOrderDetails)
+                .HasForeignKey(d => d.LabOrderId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("LabOrderDetails_LabOrderId_fkey");
+
+            entity.HasOne(d => d.LabTest).WithMany(p => p.LabOrderDetails)
+                .HasForeignKey(d => d.LabTestId)
+                .HasConstraintName("LabOrderDetails_LabTestId_fkey");
         });
 
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))

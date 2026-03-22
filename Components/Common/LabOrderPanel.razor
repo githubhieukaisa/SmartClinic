@@ -1,0 +1,136 @@
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@using Blazored.Toast.Services
+
+@inject ILabService LabService
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+@implements IAsyncDisposable
+
+<div class="bg-white rounded shadow p-4 border border-slate-200 mt-4">
+    <h3 class="text-lg font-semibold text-slate-800 mb-4">Danh Mục Xét Nghiệm</h3>
+
+    @if (_labTests == null)
+    {
+        <div class="text-slate-500 text-sm">Đang tải danh mục xét nghiệm...</div>
+    }
+    else if (!_labTests.Any())
+    {
+        <div class="text-slate-500 text-sm">Không có danh mục xét nghiệm nào trên hệ thống.</div>
+    }
+    else
+    {
+        <form @onsubmit="SubmitLabOrderAsync">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                @foreach (var test in _labTests)
+                {
+                    <label
+                        class="flex items-center space-x-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 p-3 rounded cursor-pointer hover:bg-slate-100 transition-colors">
+                        <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                               checked="@_selectedLabTestIds.Contains(test.Id)"
+                               @onchange="@(e => ToggleLabTest(test.Id, e.Value))" />
+                        <span class="flex-1 font-medium">@test.Name</span>
+                        <span class="text-slate-500">@test.Price.ToString("N0") VNĐ</span>
+                    </label>
+                }
+            </div>
+
+            <button type="submit" disabled="@(!_selectedLabTestIds.Any() || _isSubmitting)"
+                    class="w-full bg-blue-600 text-white font-medium py-2 px-4 rounded hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-sm flex justify-center items-center">
+                @if (_isSubmitting)
+                {
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+                         viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    <span>Đang gửi...</span>
+                }
+                else
+                {
+                    <span>Gửi Chỉ Định Xét Nghiệm</span>
+                }
+            </button>
+        </form>
+    }
+</div>
+
+@code {
+    [Parameter] public int TicketId { get; set; }
+    [Parameter] public int RoomId { get; set; }
+
+    private List<LabTest>? _labTests;
+    private HashSet<int> _selectedLabTestIds = new();
+    private bool _isSubmitting = false;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _labTests = await LabService.GetAllLabTestsAsync();
+
+        // Connect to LabHub to receive results for this doctor's room
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/labHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<int>("LabResultReady", async (ticketId) =>
+        {
+            if (ticketId == TicketId)
+            {
+                await InvokeAsync(() =>
+                {
+                    ToastService.ShowSuccess("Kết quả xét nghiệm của bệnh nhân này đã có!");
+                    StateHasChanged();
+                });
+            }
+        });
+
+        await _hubConnection.StartAsync();
+
+        // Join Doctor's room to receive events specific to this room
+        await _hubConnection.InvokeAsync("JoinDoctorRoom", RoomId);
+    }
+
+    private void ToggleLabTest(int testId, object? checkedValue)
+    {
+        if (checkedValue is bool isChecked)
+        {
+            if (isChecked) _selectedLabTestIds.Add(testId);
+            else _selectedLabTestIds.Remove(testId);
+        }
+    }
+
+    private async Task SubmitLabOrderAsync()
+    {
+        if (!_selectedLabTestIds.Any()) return;
+
+        _isSubmitting = true;
+        try
+        {
+            await LabService.CreateLabOrderAsync(TicketId, _selectedLabTestIds.ToList());
+            ToastService.ShowSuccess("Đã chuyển phiếu xét nghiệm cho Kỹ thuật viên!");
+            _selectedLabTestIds.Clear();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Lỗi khi gửi phiếu: {ex.Message}");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

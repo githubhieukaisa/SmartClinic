@@ -1,10 +1,11 @@
-﻿namespace SmartClinic.Models
+namespace SmartClinic.Models
 {
     public class Room : BaseEntity
     {
         public string Name { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
+        public bool IsLab { get; set; } = false;
 
         public int DepartmentId { get; set; }
         public virtual Department Department { get; set; } = null!;

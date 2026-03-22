@@ -1,4 +1,4 @@
-﻿using Hangfire;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartClinic.Components;
@@ -49,6 +49,7 @@ namespace SmartClinic
 
 
             app.MapHub<QueueHub>("/queueHub");
+            app.MapHub<LabHub>("/labHub");
 
             app.UseHttpsRedirection();
 
