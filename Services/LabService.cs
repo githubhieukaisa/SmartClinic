@@ -10,23 +10,27 @@ namespace SmartClinic.Services;
 
 public class LabService : ILabService
 {
-    private readonly SmartClinicDbContext _context;
+    private readonly IDbContextFactory<SmartClinicDbContext> _dbFactory;
     private readonly IHubContext<LabHub> _labHubContext;
 
-    public LabService(SmartClinicDbContext context, IHubContext<LabHub> labHubContext)
+    public LabService(IDbContextFactory<SmartClinicDbContext> dbFactory, IHubContext<LabHub> labHubContext)
     {
-        _context = context;
+        _dbFactory = dbFactory;
         _labHubContext = labHubContext;
     }
 
     public async Task<List<LabTest>> GetAllLabTestsAsync()
     {
-        return await _context.LabTests.ToListAsync();
+        using var context = _dbFactory.CreateDbContext();
+        return await context.LabTests
+            .Include(t => t.DefaultRoom)
+            .ToListAsync();
     }
 
     public async Task CreateLabOrderAsync(int ticketId, List<int> labTestIds)
     {
-        var ticket = await _context.QueueTickets.FindAsync(ticketId);
+        using var context = _dbFactory.CreateDbContext();
+        var ticket = await context.QueueTickets.FindAsync(ticketId);
         if (ticket == null) return;
 
         var labOrder = new LabOrder
@@ -34,10 +38,10 @@ public class LabService : ILabService
             TicketId = ticketId,
             Status = "Pending"
         };
-        _context.LabOrders.Add(labOrder);
-        await _context.SaveChangesAsync(); // Lưu LabOrder để sinh Id
+        context.LabOrders.Add(labOrder);
+        await context.SaveChangesAsync(); 
 
-        var labTests = await _context.LabTests.Where(lt => labTestIds.Contains(lt.Id)).ToListAsync();
+        var labTests = await context.LabTests.Where(lt => labTestIds.Contains(lt.Id)).ToListAsync();
         foreach (var test in labTests)
         {
             var detail = new LabOrderDetail
@@ -46,19 +50,20 @@ public class LabService : ILabService
                 LabTestId = test.Id,
                 UnitPrice = test.Price
             };
-            _context.LabOrderDetails.Add(detail);
+            context.LabOrderDetails.Add(detail);
         }
 
         ticket.Status = "Testing";
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
-        // Broadcast to Lab technicians
         await _labHubContext.Clients.Group("LabTechnicians").SendAsync("LabOrderCreated", labOrder.Id);
     }
 
+
     public async Task<List<LabOrder>> GetPendingLabOrdersAsync()
     {
-        return await _context.LabOrders
+        using var context = _dbFactory.CreateDbContext();
+        return await context.LabOrders
             .Include(lo => lo.QueueTicket)
             .ThenInclude(qt => qt.Patient)
             .Include(lo => lo.LabOrderDetails)
@@ -70,7 +75,8 @@ public class LabService : ILabService
 
     public async Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl)
     {
-        var detail = await _context.LabOrderDetails
+        using var context = _dbFactory.CreateDbContext();
+        var detail = await context.LabOrderDetails
             .Include(lod => lod.LabOrder)
             .ThenInclude(lo => lo.QueueTicket)
             .FirstOrDefaultAsync(lod => lod.Id == labOrderDetailId);
@@ -79,9 +85,9 @@ public class LabService : ILabService
 
         detail.ResultNotes = resultNotes;
         detail.ResultFileUrl = resultFileUrl;
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
-        var orderDetails = await _context.LabOrderDetails
+        var orderDetails = await context.LabOrderDetails
             .Where(lod => lod.LabOrderId == detail.LabOrderId)
             .ToListAsync();
 
@@ -90,9 +96,9 @@ public class LabService : ILabService
         if (allDetailsDone)
         {
             detail.LabOrder.Status = "Done";
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
 
-            var allOrdersForTicket = await _context.LabOrders
+            var allOrdersForTicket = await context.LabOrders
                 .Where(lo => lo.TicketId == detail.LabOrder.TicketId)
                 .ToListAsync();
 
@@ -100,7 +106,7 @@ public class LabService : ILabService
             if (allOrdersDone)
             {
                 detail.LabOrder.QueueTicket.Status = "Examining";
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
 
                 // Broadcast to Doctor
                 string doctorRoomGroup = $"DoctorRoom_{detail.LabOrder.QueueTicket.RoomId}";
@@ -111,7 +117,19 @@ public class LabService : ILabService
 
     public async Task<bool> HasPendingLabOrdersAsync(int ticketId)
     {
-        return await _context.LabOrders
+        using var context = _dbFactory.CreateDbContext();
+        return await context.LabOrders
             .AnyAsync(lo => lo.TicketId == ticketId && lo.Status != "Done");
+    }
+
+    public async Task<List<LabOrder>> GetLabOrdersByTicketAsync(int ticketId)
+    {
+        using var context = _dbFactory.CreateDbContext();
+        return await context.LabOrders
+            .Include(lo => lo.LabOrderDetails)
+                .ThenInclude(lod => lod.LabTest)
+            .Where(lo => lo.TicketId == ticketId)
+            .OrderByDescending(lo => lo.CreatedAt)
+            .ToListAsync();
     }
 }

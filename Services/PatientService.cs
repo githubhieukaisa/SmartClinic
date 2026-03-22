@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -136,7 +136,7 @@ namespace SmartClinic.Services
                 var tickets = await context.QueueTickets
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
-                    .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling"))
+                    .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling" || t.Status == "Testing"))
                     .ToListAsync();  // Load to memory first, then sort
 
                 // Sort by priority: Examining → Calling → Waiting
@@ -286,4 +286,3 @@ namespace SmartClinic.Services
         }
     }
 }
-

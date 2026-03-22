@@ -213,6 +213,26 @@ public partial class SmartClinicDbContext : DbContext
             relationship.DeleteBehavior = DeleteBehavior.Restrict;
         }
 
+        // --- Data Seeding (Chạy 1 lần duy nhất lúc Migration) ---
+        modelBuilder.Entity<Department>().HasData(
+            new Department { Id = 8, Name = "Xét nghiệm & Chẩn đoán hình ảnh", Code = "XN_CDHA" }
+        );
+
+        modelBuilder.Entity<Room>().HasData(
+            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
+            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
+            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, IsActive = true, IsLab = true }
+        );
+
+        modelBuilder.Entity<LabTest>().HasData(
+            new LabTest { Id = 1, Name = "Tổng phân tích tế bào máu", Price = 150000, Unit = "Lần", Description = "Xét nghiệm máu cơ bản", DefaultRoomId = 9 },
+            new LabTest { Id = 2, Name = "Đường huyết mao mạch", Price = 50000, Unit = "Lần", Description = "Kiểm tra tiểu đường", DefaultRoomId = 9 },
+            new LabTest { Id = 3, Name = "Sinh hóa máu (Chức năng Gan/Thận)", Price = 250000, Unit = "Lần", Description = "AST, ALT, Creatinin, Ure...", DefaultRoomId = 9 },
+            new LabTest { Id = 4, Name = "Siêu âm ổ bụng tổng quát", Price = 200000, Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
+            new LabTest { Id = 5, Name = "Siêu âm tuyến giáp", Price = 150000, Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
+            new LabTest { Id = 6, Name = "X-Quang ngực thẳng", Price = 120000, Unit = "Lần", Description = "Chụp X-quang phổi", DefaultRoomId = 11 }
+        );
+
         OnModelCreatingPartial(modelBuilder);
     }
 

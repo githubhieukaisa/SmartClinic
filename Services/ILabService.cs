@@ -11,4 +11,5 @@ public interface ILabService
     Task<List<LabOrder>> GetPendingLabOrdersAsync();
     Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl);
     Task<bool> HasPendingLabOrdersAsync(int ticketId);
+    Task<List<LabOrder>> GetLabOrdersByTicketAsync(int ticketId);
 }
