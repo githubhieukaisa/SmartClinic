@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -11,12 +11,14 @@ namespace SmartClinic.Services
         private readonly SmartClinicDbContext _context;
         private readonly IQueueService _queueService;
         private readonly IHubContext<QueueHub> _hubContext;
+        private readonly IHubContext<PatientHub> _patientHubContext;
 
-        public TicketService(SmartClinicDbContext context, IQueueService queueService, IHubContext<QueueHub> hubContext)
+        public TicketService(SmartClinicDbContext context, IQueueService queueService, IHubContext<QueueHub> hubContext, IHubContext<PatientHub> patientHubContext)
         {
             _context = context;
             _queueService = queueService;
             _hubContext = hubContext;
+            _patientHubContext = patientHubContext;
         }
 
         public async Task<Patient?> FindPatientByPhoneAsync(string phone)
@@ -112,6 +114,12 @@ namespace SmartClinic.Services
                     // throw new Exception("BÙM! Đứt cáp quang biển, SignalR không gửi được tin nhắn!");
 
                     await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
+                    await _patientHubContext.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new
+                    {
+                        ticketId = ticket.Id,
+                        patientName,
+                        roomId = selectedRoomInfo.Room.Id
+                    });
                 }
                 catch (Exception ex)
                 {

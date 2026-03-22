@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +29,9 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<Department> Departments { get; set; }
     public virtual DbSet<Room> Rooms { get; set; }
     public virtual DbSet<DoctorShift> DoctorShifts { get; set; }
+    public virtual DbSet<LabTest> LabTests { get; set; }
+    public virtual DbSet<LabOrder> LabOrders { get; set; }
+    public virtual DbSet<LabOrderDetail> LabOrderDetails { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
@@ -159,10 +162,76 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.Username).HasMaxLength(50);
         });
 
+        modelBuilder.Entity<LabTest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("LabTests_pkey");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Price).HasPrecision(10, 2);
+            entity.Property(e => e.Unit).HasMaxLength(50);
+
+            entity.HasOne(d => d.DefaultRoom)
+                .WithMany()
+                .HasForeignKey(d => d.DefaultRoomId)
+                .HasConstraintName("LabTests_DefaultRoomId_fkey");
+        });
+
+        modelBuilder.Entity<LabOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("LabOrders_pkey");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValueSql("'Pending'::character varying");
+
+            entity.HasOne(d => d.QueueTicket).WithMany(p => p.LabOrders)
+                .HasForeignKey(d => d.TicketId)
+                .HasConstraintName("LabOrders_TicketId_fkey");
+        });
+
+        modelBuilder.Entity<LabOrderDetail>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("LabOrderDetails_pkey");
+            entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+
+            entity.HasOne(d => d.LabOrder).WithMany(p => p.LabOrderDetails)
+                .HasForeignKey(d => d.LabOrderId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("LabOrderDetails_LabOrderId_fkey");
+
+            entity.HasOne(d => d.LabTest).WithMany(p => p.LabOrderDetails)
+                .HasForeignKey(d => d.LabTestId)
+                .HasConstraintName("LabOrderDetails_LabTestId_fkey");
+        });
+
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
         {
             relationship.DeleteBehavior = DeleteBehavior.Restrict;
         }
+
+        // --- Data Seeding (Chạy 1 lần duy nhất lúc Migration) ---
+        modelBuilder.Entity<Department>().HasData(
+            new Department { Id = 8, Name = "Xét nghiệm & Chẩn đoán hình ảnh", Code = "XN_CDHA" }
+        );
+
+        modelBuilder.Entity<Room>().HasData(
+            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
+            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
+            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, IsActive = true, IsLab = true }
+        );
+
+        modelBuilder.Entity<LabTest>().HasData(
+            new LabTest { Id = 1, Name = "Tổng phân tích tế bào máu", Price = 150000, Unit = "Lần", Description = "Xét nghiệm máu cơ bản", DefaultRoomId = 9 },
+            new LabTest { Id = 2, Name = "Đường huyết mao mạch", Price = 50000, Unit = "Lần", Description = "Kiểm tra tiểu đường", DefaultRoomId = 9 },
+            new LabTest { Id = 3, Name = "Sinh hóa máu (Chức năng Gan/Thận)", Price = 250000, Unit = "Lần", Description = "AST, ALT, Creatinin, Ure...", DefaultRoomId = 9 },
+            new LabTest { Id = 4, Name = "Siêu âm ổ bụng tổng quát", Price = 200000, Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
+            new LabTest { Id = 5, Name = "Siêu âm tuyến giáp", Price = 150000, Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
+            new LabTest { Id = 6, Name = "X-Quang ngực thẳng", Price = 120000, Unit = "Lần", Description = "Chụp X-quang phổi", DefaultRoomId = 11 }
+        );
 
         OnModelCreatingPartial(modelBuilder);
     }

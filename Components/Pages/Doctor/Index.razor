@@ -12,6 +12,7 @@
 @inject NavigationManager NavigationManager
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ITicketService TicketService
 <div class="p-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
@@ -258,24 +259,19 @@
                 return;
             }
 
-            // 1. Tạo Patient giả
-            var testPatient = new Patient
+            var doctor = await DbContext.Users.Include(u => u.Room).FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
+            if (doctor?.Room == null)
             {
-                FullName = $"Test Patient {DateTime.Now:HHmmss}",
-                Phone = "0900000000",
-                Address = "123 Test Street",
-                DoB = new DateOnly(1990, 1, 1),
-                CreatedAt = DateTime.Now,
-            };
-            DbContext.Patients.Add(testPatient);
-            await DbContext.SaveChangesAsync();
+                ToastService.ShowError("Doctor has no assigned room.");
+                return;
+            }
 
-            // 2. Gọi PatientService.AddQueueTicketAsync → tự tìm Room theo DoctorShift & broadcast SignalR
-            await PatientService.AddQueueTicketAsync(
-                doctorId: _currentDoctorId,
-                patientId: testPatient.Id,
-                diagnosis: "Test Diagnosis"
+            await TicketService.GenerateTicketAsync(
+                $"Test Patient {DateTime.Now:HHmmss}",
+                "0900000000",
+                doctor.Room.DepartmentId
             );
+            ToastService.ShowSuccess("Test ticket added successfully.");
         }
         catch (Exception ex)
         {

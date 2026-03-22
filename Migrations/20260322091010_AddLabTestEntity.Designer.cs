@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260322091010_AddLabTestEntity")]
+    partial class AddLabTestEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -63,15 +66,6 @@ namespace SmartClinic.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Departments");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 8,
-                            Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1675),
-                            Name = "Xét nghiệm & Chẩn đoán hình ảnh"
-                        });
                 });
 
             modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
@@ -213,68 +207,6 @@ namespace SmartClinic.Migrations
                     b.HasIndex("DefaultRoomId");
 
                     b.ToTable("LabTests");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1867),
-                            DefaultRoomId = 9,
-                            Description = "Xét nghiệm máu cơ bản",
-                            Name = "Tổng phân tích tế bào máu",
-                            Price = 150000m,
-                            Unit = "Lần"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1874),
-                            DefaultRoomId = 9,
-                            Description = "Kiểm tra tiểu đường",
-                            Name = "Đường huyết mao mạch",
-                            Price = 50000m,
-                            Unit = "Lần"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1876),
-                            DefaultRoomId = 9,
-                            Description = "AST, ALT, Creatinin, Ure...",
-                            Name = "Sinh hóa máu (Chức năng Gan/Thận)",
-                            Price = 250000m,
-                            Unit = "Lần"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1877),
-                            DefaultRoomId = 10,
-                            Description = "Siêu âm màu",
-                            Name = "Siêu âm ổ bụng tổng quát",
-                            Price = 200000m,
-                            Unit = "Lần"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1879),
-                            DefaultRoomId = 10,
-                            Description = "Siêu âm màu",
-                            Name = "Siêu âm tuyến giáp",
-                            Price = 150000m,
-                            Unit = "Lần"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1880),
-                            DefaultRoomId = 11,
-                            Description = "Chụp X-quang phổi",
-                            Name = "X-Quang ngực thẳng",
-                            Price = 120000m,
-                            Unit = "Lần"
-                        });
                 });
 
             modelBuilder.Entity("SmartClinic.Models.Medicine", b =>
@@ -503,9 +435,6 @@ namespace SmartClinic.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsLab")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasColumnType("text");
@@ -519,38 +448,6 @@ namespace SmartClinic.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.ToTable("Rooms");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1840),
-                            DepartmentId = 8,
-                            IsActive = true,
-                            IsLab = true,
-                            Location = "Tầng 2",
-                            Name = "Phòng Lấy Máu"
-                        },
-                        new
-                        {
-                            Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1844),
-                            DepartmentId = 8,
-                            IsActive = true,
-                            IsLab = true,
-                            Location = "Tầng 2",
-                            Name = "Phòng Siêu Âm"
-                        },
-                        new
-                        {
-                            Id = 11,
-                            CreatedAt = new DateTime(2026, 3, 22, 23, 9, 55, 998, DateTimeKind.Local).AddTicks(1846),
-                            DepartmentId = 8,
-                            IsActive = true,
-                            IsLab = true,
-                            Location = "Tầng 1",
-                            Name = "Phòng X-Quang"
-                        });
                 });
 
             modelBuilder.Entity("SmartClinic.Models.User", b =>

@@ -1,4 +1,4 @@
-﻿@page "/doctor/my-patients"
+@page "/doctor/my-patients"
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Models
@@ -16,6 +16,7 @@
 @inject SmartClinicDbContext DbContext
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IToastService ToastService
+@inject ITicketService TicketService
 @attribute [Authorize(Policy = "DoctorPolicy")]
 
 <div class="p-8">
@@ -23,7 +24,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-foreground">Patient Queue</h1>
+            <h1 class="text-3xl font-bold text-foreground">Hàng Đợi Bệnh Nhân</h1>
             @if (!string.IsNullOrEmpty(_roomName))
             {
                 <p class="text-muted-foreground mt-1">📍 <span class="font-medium">@_roomName</span></p>
@@ -31,14 +32,14 @@
         </div>
         <div class="flex items-center gap-4">
             <div class="text-right">
-                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
-                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, dd/MM/yyyy")</p>
+                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("HH:mm")</p>
             </div>
             @if (_isUpdating)
             {
                 <div class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium">
                     <span class="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-                    Updating...
+                    Đang cập nhật...
                 </div>
             }
             else
@@ -63,8 +64,8 @@
                     <i class="ph ph-bell-ringing text-lg text-primary"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-medium text-foreground">New patient added to queue</p>
-                    <p class="text-xs text-muted-foreground">Queue has been updated</p>
+                    <p class="text-sm font-medium text-foreground">Có bệnh nhân mới trong hàng đợi</p>
+                    <p class="text-xs text-muted-foreground">Hàng đợi đã được cập nhật</p>
                 </div>
             </div>
             <button @onclick="() => _showNotification = false"
@@ -78,7 +79,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Total in Queue</h4>
+                <h4 class="font-semibold text-foreground text-sm">Tổng số hàng đợi</h4>
                 <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                     <i class="ph ph-queue text-xl text-primary"></i>
                 </div>
@@ -91,7 +92,7 @@
 
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Waiting</h4>
+                <h4 class="font-semibold text-foreground text-sm">Đang chờ khám</h4>
                 <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-hourglass text-xl text-amber-600"></i>
                 </div>
@@ -104,7 +105,7 @@
 
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">In Progress</h4>
+                <h4 class="font-semibold text-foreground text-sm">Đang khám / Xét nghiệm</h4>
                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-clock text-xl text-blue-600"></i>
                 </div>
@@ -121,20 +122,20 @@
         <div class="flex items-center justify-between p-6 border-b border-border">
             <div class="flex items-center gap-2">
                 <i class="ph ph-list-numbers text-xl text-foreground"></i>
-                <h2 class="text-xl font-bold text-foreground">Today's Queue</h2>
+                <h2 class="text-xl font-bold text-foreground">Hàng Đợi Hôm Nay</h2>
             </div>
             <div class="flex items-center gap-2">
                 <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
-                                       CssClass="" />
+                                       CssClass="" OnCalled="RefreshQueueAsync" />
                 <button @onclick="RefreshQueueAsync"
                         class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
                     <i class="ph ph-arrows-clockwise"></i>
-                    Refresh
+                    Làm mới
                 </button>
                 <button @onclick="AddTestQueueTicketAsync"
                         class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
                     <i class="ph ph-plus"></i>
-                    Add Test Ticket
+                    Thêm phiếu mẫu
                 </button>
             </div>
         </div>
@@ -144,14 +145,14 @@
             {
                 <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
                     <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
-                    <span class="text-sm">Loading queue...</span>
+                    <span class="text-sm">Đang tải hàng đợi...</span>
                 </div>
             }
             else if (!_queueTickets.Any())
             {
                 <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
                     <i class="ph ph-queue text-4xl"></i>
-                    <p class="text-sm font-medium">No patients in queue today</p>
+                    <p class="text-sm font-medium">Hôm nay không có bệnh nhân nào trong hàng đợi</p>
                 </div>
             }
             else
@@ -159,14 +160,14 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-border bg-muted/30">
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">#</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Patient</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Age</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Phone</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Diagnosis</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Wait Time</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Status</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Action</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">STT</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Bệnh nhân</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Tuổi</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Số điện thoại</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chẩn đoán</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chờ đợi</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Trạng thái</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -187,13 +188,13 @@
                                         </div>
                                         <div>
                                             <p class="font-medium text-foreground">@(ticket.Patient?.FullName ?? "—")</p>
-                                            <p class="text-xs text-muted-foreground">@(ticket.Patient?.Address ?? "No address")
+                                            <p class="text-xs text-muted-foreground">@(ticket.Patient?.Address ?? "Không có địa chỉ")
                                             </p>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="py-3 px-5 text-center text-foreground">
-                                    @(GetAge(ticket.Patient?.DoB) > 0 ? $"{GetAge(ticket.Patient?.DoB)} yrs" : "—")
+                                    @(GetAge(ticket.Patient?.DoB) > 0 ? $"{GetAge(ticket.Patient?.DoB)} tuổi" : "—")
                                 </td>
                                 <td class="py-3 px-5 text-center text-foreground">
                                     @(ticket.Patient?.Phone ?? "—")
@@ -210,7 +211,7 @@
                                 <td class="py-3 px-5 text-center">
                                     <span
                                         class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.Status)">
-                                        @ticket.Status
+                                        @TranslateStatus(ticket.Status)
                                     </span>
                                 </td>
                                 <td class="py-3 px-5 flex items-center justify-center gap-2">
@@ -219,15 +220,15 @@
                                         <button @onclick="() => StartExaminationAsync(ticket.Id)"
                                                 class="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium shadow-md hover:shadow-lg transition">
                                             <i class="ph ph-door-open"></i>
-                                            Start Exam
+                                            Bắt đầu khám
                                         </button>
                                     }
-                                    else if (ticket.Status == "Examining")
+                                    else if (ticket.Status == "Examining" || ticket.Status == "Testing")
                                     {
                                         <button @onclick="() => OnExaminePatientAsync(ticket.Id, ticket.PatientId)"
                                                 class="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition">
                                             <i class="ph ph-stethoscope"></i>
-                                            Examine
+                                            Khám bệnh
                                         </button>
                                     }
                                 </td>
@@ -248,11 +249,10 @@
     private List<QueueTicket>? _queueTickets;
     private bool _showNotification = false;
     private bool _isUpdating = false;
-    private int _currentDoctorId = 0; // Will be set from authentication claims
-    private string? _roomName; // Room name from claims
-    private int? _currentRoomId; // Room ID from claims
+    private int _currentDoctorId = 0;
+    private string? _roomName;
+    private int? _currentRoomId;
 
-    // Pagination constants/state
     private int _currentPage = 1;
     private int _pageSize = 10;
 
@@ -266,38 +266,24 @@
     }
 
     private int TotalCount => _queueTickets?.Count ?? 0;
-    private int WaitingCount => _queueTickets?.Count(t => t.Status == "Waiting") ?? 0;
-    private int InProgressCount => _queueTickets?.Count(t => t.Status == "In Progress") ?? 0;
+    private int WaitingCount => _queueTickets?.Count(t => t.Status == "Waiting" || t.Status == "Calling") ?? 0;
+    private int InProgressCount => _queueTickets?.Count(t => t.Status == "Examining" || t.Status == "Testing") ?? 0;
     private int WaitingPct => TotalCount > 0 ? WaitingCount * 100 / TotalCount : 0;
     private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
 
-    /// <summary>
-    /// INITIALIZATION: Load doctor ID and room info from authentication claims and then load queue data
-    /// The doctor ID comes from the JWT token's NameIdentifier claim (set during login)
-    /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Page initializing");
-
-        // STEP 1: Get authentication state and extract doctor ID from claims
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
         if (user?.Identity?.IsAuthenticated == true)
         {
-            // Extract UserId from ClaimTypes.NameIdentifier (set in AuthService.cs line 84)
             var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int doctorId))
             {
                 _currentDoctorId = doctorId;
-                System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ Authenticated as DoctorId={_currentDoctorId}");
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Could not extract DoctorId from claims");
             }
 
-            // Lấy trực tiếp RoomId và RoomName từ Database theo thời gian thực (Single Source of Truth)
             var now = DateTime.Now;
             var activeShift = await DbContext.DoctorShifts
                 .Include(s => s.Room)
@@ -314,130 +300,76 @@
             }
             else
             {
-                // Nếu lỡ ca, thì rớt về phòng gốc mặc định
                 var doctor = await DbContext.Users
                     .Include(u => u.Room)
                     .FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
 
                 _currentRoomId = doctor?.RoomId;
-                _roomName = doctor?.Room?.Name ?? "Unassigned";
+                _roomName = doctor?.Room?.Name ?? "Chưa phân phòng";
             }
-
-            System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ Room: {_roomName}, RoomId: {_currentRoomId}");
         }
-        else
-        {
-            System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ User not authenticated");
-        }
-
-        // STEP 2: Load queue data
-        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Loading queue data for DoctorId={_currentDoctorId}");
-        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ SignalR IsConnected: {Notification.IsConnected}");
 
         await LoadDataAsync();
 
-        // STEP 3: Join the room group for receiving room-specific notifications
         if (_currentRoomId.HasValue && _currentRoomId.Value > 0)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Joining room group for RoomId={_currentRoomId}");
                 await Notification.JoinRoomAsync(_currentRoomId.Value);
-                System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ Joined room group successfully");
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[MyPatient] ⚠️ Error joining room group: {ex.Message}");
-            }
+            catch (Exception) { }
         }
-
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Queue data loaded");
     }
 
-    /// <summary>
-    /// AFTER RENDER: Subscribe to SignalR events
-    /// Data is guaranteed to be loaded before subscription
-    /// This prevents race conditions
-    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ OnAfterRender - subscribing to SignalR events");
-
-            // STEP 2: Subscribe to events AFTER data is loaded (safe!)
             Notification.OnPatientQueueUpdated += HandleQueueUpdatedAsync;
             Notification.OnQueueStatusUpdated += HandleStatusChangedAsync;
-
-            System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Subscribed to SignalR events");
         }
     }
 
     private async void HandleQueueUpdatedAsync(string patientName)
     {
-        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ HandleQueueUpdated: New patient '{patientName}' added to queue");
-
         await InvokeAsync(async () =>
-                {
-                    try
-                    {
-                        _isUpdating = true;
-                        _showNotification = true;
-                        StateHasChanged();
+        {
+            try
+            {
+                _isUpdating = true;
+                _showNotification = true;
+                StateHasChanged();
 
-                        // Reload queue from database
-                        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Reloading queue data from database");
-                        await LoadDataAsync(withDelay: true);
+                await LoadDataAsync(withDelay: true);
 
-                        _isUpdating = false;
-                        StateHasChanged();
+                _isUpdating = false;
+                StateHasChanged();
 
-                        // Auto-hide notification after 3 seconds
-                        await Task.Delay(3000);
-                        _showNotification = false;
-                        StateHasChanged();
-
-                        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Queue updated successfully");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleQueueUpdated: {ex.Message}");
-                        _isUpdating = false;
-                    }
-                });
+                await Task.Delay(3000);
+                _showNotification = false;
+                StateHasChanged();
+            }
+            catch (Exception)
+            {
+                _isUpdating = false;
+            }
+        });
     }
 
-    /// <summary>
-    /// Handles status changes for queue tickets (Waiting → Examining, etc)
-    /// Called when another doctor or the same doctor updates a ticket's status
-    /// </summary>
     private async void HandleStatusChangedAsync(int ticketId)
     {
-        System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ HandleStatusChanged: TicketId={ticketId}");
-
         await InvokeAsync(async () =>
+        {
+            try
+            {
+                var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
+                if (ticketToUpdate != null)
                 {
-                    try
-                    {
-                        // Find the ticket that changed
-                        var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
-                        if (ticketToUpdate != null)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[MyPatient] ▶ Updating UI for ticket {ticketId}");
-                            // Trigger UI update
-                            StateHasChanged();
-                            System.Diagnostics.Debug.WriteLine($"[MyPatient] ✅ UI updated for ticket {ticketId}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[MyPatient] ⚠️ Ticket {ticketId} not found in local list");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[MyPatient] ❌ Error in HandleStatusChanged: {ex.Message}");
-                    }
-                });
+                    StateHasChanged();
+                }
+            }
+            catch (Exception) { }
+        });
     }
 
     private async Task RefreshQueueAsync()
@@ -445,17 +377,14 @@
         try
         {
             _isUpdating = true;
-            StateHasChanged(); // Show "Updating..." indicator
-
+            StateHasChanged();
             await LoadDataAsync(withDelay: true);
-
             _isUpdating = false;
-            StateHasChanged(); // ✅ CRITICAL: Trigger UI update with new data
+            StateHasChanged();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             _isUpdating = false;
-            System.Diagnostics.Debug.WriteLine($"Error refreshing queue: {ex.Message}");
         }
     }
 
@@ -471,31 +400,16 @@
         {
             _queueTickets = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [LoadData] Error: {ex.Message}");
             _queueTickets = new();
         }
     }
 
-    /// <summary>
-    /// CLEANUP: Unsubscribe from events when page is destroyed
-    /// Do NOT dispose NotificationService - it's a Singleton!
-    /// </summary>
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ▶ Disposing - unsubscribing from SignalR events");
-
-        // Unsubscribe from events
         Notification.OnPatientQueueUpdated -= HandleQueueUpdatedAsync;
         Notification.OnQueueStatusUpdated -= HandleStatusChangedAsync;
-
-        System.Diagnostics.Debug.WriteLine("[MyPatient] ✅ Unsubscribed from SignalR events");
-
-        // NOTE: We do NOT dispose NotificationService here!
-        // It's a Singleton - connection must persist across page navigation
-        // It will be disposed by DI container when app shuts down
-
         await ValueTask.CompletedTask;
     }
 
@@ -520,139 +434,98 @@
     {
         if (!createdAt.HasValue) return "—";
         var elapsed = DateTime.Now - createdAt.Value;
-        if (elapsed.TotalHours >= 1) return $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m";
-        if (elapsed.TotalMinutes < 1) return "Just now";
-        return $"{(int)elapsed.TotalMinutes} min";
+        if (elapsed.TotalHours >= 1) return $"{(int)elapsed.TotalHours} giờ {elapsed.Minutes} phút";
+        if (elapsed.TotalMinutes < 1) return "Vừa xong";
+        return $"{(int)elapsed.TotalMinutes} phút";
     }
 
     private static string GetStatusClass(string status) => status switch
     {
         "Done" => "bg-green-100 text-green-700",
-        "In Progress" => "bg-blue-100 text-blue-700",
         "Examining" => "bg-cyan-100 text-cyan-700",
         "Calling" => "bg-orange-100 text-orange-700",
         "Waiting" => "bg-amber-100 text-amber-700",
+        "Testing" => "bg-purple-100 text-purple-700",
         _ => "bg-gray-100 text-gray-700"
     };
 
     private static string GetRowBgClass(string status) => status switch
     {
         "Done" => "bg-green-50",
-        "In Progress" => "bg-blue-50",
         "Examining" => "bg-cyan-50",
         "Calling" => "bg-orange-50",
         "Waiting" => "bg-amber-50",
+        "Testing" => "bg-purple-50",
         _ => ""
+    };
+
+    private static string TranslateStatus(string status) => status switch
+    {
+        "Waiting" => "Chờ khám",
+        "Calling" => "Đang gọi",
+        "Examining" => "Đang khám",
+        "Testing" => "Đang xét nghiệm",
+        "Done" => "Hoàn tất",
+        _ => status
     };
 
     private async Task AddTestQueueTicketAsync()
     {
         try
         {
-            if (_currentDoctorId == 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ [AddTestQueueTicket] DoctorId not loaded yet");
-                return;
-            }
+            if (_currentDoctorId == 0 || !_currentRoomId.HasValue) return;
+            var room = await DbContext.Rooms.FindAsync(_currentRoomId.Value);
+            if (room == null) return;
 
-            // First, create a test patient
-            var testPatient = new Patient
-            {
-                FullName = $"Test Patient {DateTime.Now:HHmmss}",
-                Phone = "0123456789",
-                Address = "123 Test Street",
-                DoB = new DateOnly(1990, 1, 1),
-                CreatedAt = DateTime.Now
-            };
-
-            DbContext.Patients.Add(testPatient);
-            await DbContext.SaveChangesAsync();
-
-            // Now create a QueueTicket for the current logged-in doctor
-            // ✅ Uses _currentDoctorId from authentication claims
-            await PatientService.AddQueueTicketAsync(
-                doctorId: _currentDoctorId, // Current doctor from claims
-                patientId: testPatient.Id,
-                diagnosis: "Test Diagnosis"
+            await TicketService.GenerateTicketAsync(
+                $"Bệnh nhân mẫu {DateTime.Now:HHmmss}",
+                "0123456789",
+                room.DepartmentId
             );
 
-            // Show feedback
             _showNotification = true;
             StateHasChanged();
-
             await Task.Delay(3000);
             _showNotification = false;
             StateHasChanged();
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
-        }
+        catch (Exception) { }
     }
 
-    /// <summary>
-    /// Navigate to examination page when doctor clicks "Examine" button
-    /// </summary>
     private Task OnExaminePatientAsync(int ticketId, int? patientId)
     {
-        if (!patientId.HasValue)
-        {
-            System.Diagnostics.Debug.WriteLine($"❌ [OnExamine] PatientId is null");
-            return Task.CompletedTask;
-        }
-
-        System.Diagnostics.Debug.WriteLine($"🔵 [OnExamine] Doctor clicked examine button for TicketId={ticketId}, PatientId={patientId}");
-
+        if (!patientId.HasValue) return Task.CompletedTask;
         try
         {
-            // Navigate directly to examination page
             NavigationManager.NavigateTo($"/doctor/examination/{ticketId}/{patientId.Value}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [OnExamine] ERROR: {ex.Message}");
-            ToastService.ShowError($"Error: {ex.Message}");
+            ToastService.ShowError($"Lỗi: {ex.Message}");
         }
-
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Start examination: Update ticket status from "Calling" to "Examining"
-    /// This confirms the patient has entered the room
-    /// </summary>
     private async Task StartExaminationAsync(int ticketId)
     {
-        System.Diagnostics.Debug.WriteLine($"🔵 [StartExamination] Doctor confirmed patient entry for TicketId={ticketId}");
-
         try
         {
-            // Update ticket status from "Calling" to "Examining"
             var ticket = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
             if (ticket == null)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [StartExamination] Ticket {ticketId} not found");
-                ToastService.ShowError("Ticket not found");
+                ToastService.ShowError("Không tìm thấy phiếu");
                 return;
             }
 
-            // Update status in database
             ticket.Status = "Examining";
             DbContext.QueueTickets.Update(ticket);
             await DbContext.SaveChangesAsync();
-
-            System.Diagnostics.Debug.WriteLine($"✅ [StartExamination] Ticket {ticketId} status updated to 'Examining'");
-
-            // Trigger UI update
             StateHasChanged();
-
-            // Show success notification
-            ToastService.ShowSuccess($"Patient {ticket.Patient?.FullName} is now being examined");
+            ToastService.ShowSuccess($"Đang bắt đầu khám cho {ticket.Patient?.FullName}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [StartExamination] ERROR: {ex.Message}");
-            ToastService.ShowError($"Error: {ex.Message}");
+            ToastService.ShowError($"Lỗi: {ex.Message}");
         }
     }
 }

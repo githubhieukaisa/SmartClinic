@@ -1,4 +1,4 @@
-﻿using Blazored.Toast;
+using Blazored.Toast;
 using Blazored.Toast.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -23,7 +23,7 @@ namespace SmartClinic.Services
             // ✅ Đăng ký CÁCH 1: DbContextFactory (cho services)
             services.AddDbContextFactory<SmartClinicDbContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("MyCnn")));
-            
+
             // ✅ Đăng ký CÁCH 2: DbContext bằng Pool (cho pages)
             // Tạo pool từ factory để pages có thể inject DbContext trực tiếp
             services.AddPooledDbContextFactory<SmartClinicDbContext>(options =>
@@ -44,10 +44,11 @@ namespace SmartClinic.Services
             services.AddScoped<PatientService>();
             services.AddScoped<IPharmacyService, PharmacyService>();
             services.AddScoped<ICashierService, CashierService>();
+            services.AddScoped<ILabService, LabService>();
             services.AddSingleton<NotificationService>();
             services.AddBlazoredToast();
             //Đăng ký logger cho AuthService
-            
+
             return services;
         }
 
@@ -143,6 +144,7 @@ namespace SmartClinic.Services
                 options.AddPolicy("PharmacistPolicy", policy => policy.RequireAssertion(context => HasRole(context, 4)));
                 options.AddPolicy("CashierPolicy", policy => policy.RequireAssertion(context => HasRole(context, 8)));
                 options.AddPolicy("AdminPolicy", policy => policy.RequireAssertion(context => HasRole(context, 16)));
+                options.AddPolicy("LabTechPolicy", policy => policy.RequireAssertion(context => HasRole(context, 32)));
             });
             return services;
         }

@@ -49,6 +49,7 @@ namespace SmartClinic
 
 
             app.MapHub<QueueHub>("/queueHub");
+            app.MapHub<LabHub>("/labHub");
 
             app.UseHttpsRedirection();
 

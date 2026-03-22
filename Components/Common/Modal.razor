@@ -1,0 +1,83 @@
+@if (IsVisible)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+        @* Backdrop — absolute, render TRƯỚC panel trong DOM *@
+        <div class="absolute inset-0 bg-slate-900/50" @onclick="HandleBackdropClick">
+        </div>
+
+        @* Panel — relative z-10, render SAU backdrop → nằm trên *@
+        <div class="relative z-10 w-full @SizeClass
+            bg-white
+            rounded-2xl shadow-2xl ring-1 ring-slate-900/5
+            flex flex-col max-h-[90vh]" @onclick:stopPropagation="true">
+
+            @* Header *@
+            @if (HeaderContent is not null)
+            {
+                <div class="flex items-center justify-between px-6 py-4
+                    border-b border-slate-100 dark:border-slate-700 shrink-0">
+                    <div class="flex-1">
+                        @HeaderContent
+                    </div>
+                    <button type="button" @onclick="CloseModal" class="ml-4 p-1.5 rounded-lg text-slate-400
+                        hover:text-slate-700 hover:bg-slate-100
+                        dark:hover:text-slate-200 dark:hover:bg-slate-700
+                        transition-colors focus:outline-none">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            }
+
+            @* Body *@
+            <div class="flex-1 overflow-y-auto px-6 py-5">
+                @ChildContent
+            </div>
+
+            @* Footer *@
+            @if (FooterContent is not null)
+            {
+                <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-700 shrink-0">
+                    @FooterContent
+                </div>
+            }
+
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public bool IsVisible { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnClose { get; set; }
+
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+    [Parameter] public ModalSize Size { get; set; } = ModalSize.Md;
+    [Parameter] public bool CloseOnBackdrop { get; set; } = true;
+
+    public enum ModalSize { Sm, Md, Lg, Xl, Xxl }
+
+    private string SizeClass => Size switch
+    {
+        ModalSize.Sm => "max-w-sm",
+        ModalSize.Md => "max-w-md",
+        ModalSize.Lg => "max-w-lg",
+        ModalSize.Xl => "max-w-2xl",
+        ModalSize.Xxl => "max-w-4xl",
+        _ => "max-w-md"
+    };
+
+    private async Task HandleBackdropClick()
+    {
+        if (CloseOnBackdrop)
+            await CloseModal();
+    }
+
+    private async Task CloseModal()
+    {
+        await OnClose.InvokeAsync();
+    }
+}
