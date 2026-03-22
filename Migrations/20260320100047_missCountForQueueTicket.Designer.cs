@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260320100047_missCountForQueueTicket")]
+    partial class missCountForQueueTicket
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -259,9 +262,6 @@ namespace SmartClinic.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AdditionalNotes")
-                        .HasColumnType("text");
-
                     b.Property<string>("ClinicalDiagnosis")
                         .HasColumnType("text");
 
@@ -269,9 +269,6 @@ namespace SmartClinic.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Diagnosis")
-                        .HasColumnType("text");
 
                     b.Property<int?>("DoctorId")
                         .HasColumnType("integer");
@@ -294,9 +291,6 @@ namespace SmartClinic.Migrations
 
                     b.Property<int>("TicketNumber")
                         .HasColumnType("integer");
-
-                    b.Property<string>("TreatmentPlan")
-                        .HasColumnType("text");
 
                     b.HasKey("Id")
                         .HasName("QueueTickets_pkey");

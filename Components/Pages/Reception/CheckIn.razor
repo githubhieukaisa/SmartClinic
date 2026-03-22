@@ -5,10 +5,11 @@
 @using SmartClinic.Components.Common
 @using SmartClinic.Models
 @using SmartClinic.Services
+@using SmartClinic.Services.Exceptions
 @inject ITicketService TicketService
 @inject IDepartmentService DepartmentService
 @inject IToastService ToastService
-@inject ILogger Logger
+@inject ILogger<CheckIn> Logger
 @rendermode InteractiveServer
 
 <div class="flex items-center justify-center min-h-screen p-4 bg-slate-50">
@@ -145,13 +146,18 @@
 
 			ToastService.ShowSuccess($"Cấp số thành công cho bệnh nhân {patientName}!");
 		}
+		catch (BusinessException bex)
+		{
+			// Lỗi business logic - an toàn để hiển thị cho user
+			ToastService.ShowError(bex.Message);
+			Logger.LogWarning(bex, "Business error when generating ticket for patient: {PatientName}, Phone: {Phone}, DeptId: {DeptId}", patientName, patientPhone, selectedDepartmentId);
+		}
 		catch (Exception ex)
 		{
-			// Ghi log chi tiết lỗi kèm các biến số ngữ cảnh vào hệ thống
-			Logger.LogError(ex, "Lỗi hệ thống bất ngờ khi cấp số cho bệnh nhân: {PatientName}, SĐT: {Phone}, Khoa: {DeptId}", 
-						 patientName, patientPhone, selectedDepartmentId);
-			
-			// Hiển thị thông báo chung chung, an toàn cho End-User
+			// Lỗi hệ thống - không hiển thị chi tiết
+			Logger.LogError(ex, "System error when generating ticket for patient: {PatientName}, Phone: {Phone}, DeptId: {DeptId}", 
+				patientName, patientPhone, selectedDepartmentId);
+
 			ToastService.ShowError("Đã xảy ra sự cố trong quá trình cấp số. Vui lòng thử lại sau hoặc liên hệ bộ phận IT.");
 		}
 		finally
@@ -167,14 +173,14 @@
 		var existingPatient = await TicketService.FindPatientByPhoneAsync(patientPhone);
 		if (existingPatient != null)
 		{
-			// Tự động điền tên bệnh nhân
+			// Auto-fill patient name
 			patientName = existingPatient.FullName;
 			isExistingPatient = true;
 			ToastService.ShowInfo($"Tìm thấy hồ sơ: {patientName}");
 		}
 		else
 		{
-			// Reset nếu nhập số khác
+			// Reset form
 			if (isExistingPatient) patientName = string.Empty;
 			isExistingPatient = false;
 		}

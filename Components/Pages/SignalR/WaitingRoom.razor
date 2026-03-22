@@ -32,6 +32,7 @@
 			<div class="flex flex-col gap-6 md:flex-row">
 				<div class="flex-1">
 					<CurrentCallCard TicketNumber="@DisplayData.CurrentTicketNumber"
+									 PatientName="@DisplayData.PatientName"
 									 RoomName="@DisplayData.RoomName" />
 				</div>
 
@@ -72,8 +73,7 @@
 
 			if (isNewTicket && data.CurrentTicketNumber != "---")
 			{
-				// Tạo câu đọc. Tùy em muốn đọc dài hay ngắn.
-				// Ví dụ: "Xin mời bệnh nhân số 1 0 0 5 vào phòng Nội 1 0 1"
+				// Chuẩn bị nội dung cần đọc
 				string textToSpeak = $"Xin mời bệnh nhân số, {data.CurrentTicketNumber}, tên, {data.PatientName}, vào {data.RoomName}";
 
 				try

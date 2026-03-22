@@ -224,13 +224,15 @@
                 {
                     <!-- Đã gửi → hiện badge, không cho sửa -->
                     <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 text-green-600 text-sm font-medium w-fit">
+                        <div
+                            class="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 text-green-600 text-sm font-medium w-fit">
                             <i class="ph ph-check-circle text-base"></i>
                             <span>Prescription submitted — sent to Pharmacist</span>
                         </div>
-                        
+
                         @* ── TEST ONLY — xóa khi production ───────────────────── *@
-                        <button @onclick="ResetPrescriptionTestAsync" class="flex items-center gap-2 px-3 py-2 bg-red-500/10 text-red-600 rounded-lg text-sm font-medium hover:bg-red-500/20 transition border border-red-500/30">
+                        <button @onclick="ResetPrescriptionTestAsync"
+                                class="flex items-center gap-2 px-3 py-2 bg-red-500/10 text-red-600 rounded-lg text-sm font-medium hover:bg-red-500/20 transition border border-red-500/30">
                             <i class="ph ph-trash"></i>
                             Test: Xoá Toàn Bộ Đơn Thuốc
                         </button>
@@ -578,10 +580,10 @@
             {
                 DbContext.Prescriptions.Remove(existingPrescription);
                 await DbContext.SaveChangesAsync();
-                
+
                 _prescriptionSaved = false;
                 _prescribedMedicines.Clear();
-                
+
                 ToastService.ShowInfo("Đã xóa hoàn toàn đơn thuốc trong Database! Bạn có thể kê lại từ đầu.");
                 StateHasChanged();
             }
