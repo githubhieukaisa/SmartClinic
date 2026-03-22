@@ -8,21 +8,22 @@ namespace SmartClinic.Services
 {
     public class QueueService : IQueueService
     {
-        private readonly SmartClinicDbContext _context;
+        private readonly IDbContextFactory<SmartClinicDbContext> _dbFactory;
         private readonly IHubContext<QueueHub> _hubContext;
         private const int _displayCount = 5;
 
-        public QueueService(SmartClinicDbContext context, IHubContext<QueueHub> hubContext)
+        public QueueService(IDbContextFactory<SmartClinicDbContext> dbFactory, IHubContext<QueueHub> hubContext)
         {
-            _context = context;
+            _dbFactory = dbFactory;
             _hubContext = hubContext;
         }
 
         public async Task<QueueDisplayDto> GetDisplayDataAsync(int roomId)
         {
             Console.WriteLine($"Fetching display data for RoomId {roomId}...");
+            await using var context = await _dbFactory.CreateDbContextAsync();
             // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
-            var activeShift = await _context.DoctorShifts
+            var activeShift = await context.DoctorShifts
                 .Where(s => s.RoomId == roomId && s.Status == "Active")
                 .Select(s => new
                 {
@@ -35,7 +36,7 @@ namespace SmartClinic.Services
             var today = DateTime.Today;
 
             // 2. TÌM SỐ ĐANG GỌI
-            var currentCall = await _context.QueueTickets
+            var currentCall = await context.QueueTickets
                 .Where(t => t.RoomId == roomId && t.Status == "Calling" && t.CreatedAt.Date == today)
                 .OrderByDescending(t => t.CreatedAt)
                 .Select(t => new
@@ -46,7 +47,7 @@ namespace SmartClinic.Services
                 .FirstOrDefaultAsync();
 
             // 3. TÌM DANH SÁCH CHỜ
-            var nextTickets = await _context.QueueTickets
+            var nextTickets = await context.QueueTickets
                 .Where(t => t.RoomId == roomId && t.Status == "Waiting" && t.CreatedAt.Date == today)
                 .OrderBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
@@ -69,11 +70,12 @@ namespace SmartClinic.Services
         public async Task<bool> CallNextPatientAsync(int roomId)
         {
             var today = DateTime.Today;
+            await using var context = await _dbFactory.CreateDbContextAsync();
 
-            bool isExamining = await _context.QueueTickets.AnyAsync(t => t.Status == "Examining" && t.CreatedAt.Date == today && t.RoomId == roomId);
+            bool isExamining = await context.QueueTickets.AnyAsync(t => t.Status == "Examining" && t.CreatedAt.Date == today && t.RoomId == roomId);
             if (isExamining) return false;
 
-            var currentCalling = await _context.QueueTickets
+            var currentCalling = await context.QueueTickets
                 .FirstOrDefaultAsync(t => t.Status == "Calling" && t.CreatedAt.Date == today && t.RoomId == roomId);
 
             if (currentCalling != null)
@@ -91,7 +93,7 @@ namespace SmartClinic.Services
                 {
                     currentCalling.Status = "Waiting";
                     // Tìm 3 người tiếp theo đang chờ
-                    var nextWaitings = await _context.QueueTickets
+                    var nextWaitings = await context.QueueTickets
                         .Where(t => t.Status == "Waiting" && t.CreatedAt.Date == today && t.RoomId == roomId)
                         .OrderBy(t => t.CreatedAt)
                         .Take(3) // Số N = 3
@@ -117,7 +119,7 @@ namespace SmartClinic.Services
             }
 
             // 2. Tìm bệnh nhân tiếp theo đang chờ
-            var nextPatient = await _context.QueueTickets
+            var nextPatient = await context.QueueTickets
                 .Where(t => t.Status == "Waiting" && t.CreatedAt.Date == today && t.RoomId == roomId)
                 .OrderBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
@@ -128,7 +130,7 @@ namespace SmartClinic.Services
             // 3. Cập nhật trạng thái người mới thành "Calling"
             nextPatient.Status = "Calling";
 
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
 
             // 4. Lấy data mới nhất sau khi DB thay đổi
             var displayData = await GetDisplayDataAsync(nextPatient.RoomId);

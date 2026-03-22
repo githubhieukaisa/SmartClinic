@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
+using SmartClinic.Services.Exceptions;
 
 namespace SmartClinic.Services
 {
@@ -62,7 +63,9 @@ namespace SmartClinic.Services
 
                 // 2. Tìm phòng trống nhất
                 var selectedRoomInfo = await _context.Rooms
-                    .Where(r => r.DepartmentId == departmentId && r.IsActive && r.DoctorShifts.Any(ds => ds.StartTime <= today && ds.EndTime >= today))
+                    .Where(r => r.DepartmentId == departmentId 
+                        && r.IsActive 
+                        && r.DoctorShifts.Any(ds => ds.StartTime <= today && (ds.EndTime == null || ds.EndTime >= today)))
                     .Select(r => new
                     {
                         Room = r,
@@ -76,7 +79,7 @@ namespace SmartClinic.Services
 
                 if (selectedRoomInfo == null)
                 {
-                    throw new Exception("Hiện tại không có phòng nào mở cửa cho khoa này!");
+                    throw new BusinessException("Hiện tại không có phòng nào mở cửa cho khoa này!");
                 }
 
                 // 3. Lấy số tự tăng

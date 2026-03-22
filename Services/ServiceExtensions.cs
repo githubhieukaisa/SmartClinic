@@ -56,13 +56,25 @@ namespace SmartClinic.Services
         /// </summary>
         public static IServiceCollection AddSmartClinicHangfire(this IServiceCollection services, IConfiguration configuration)
         {
+            var hangfireConn = configuration.GetConnectionString("HangfireDb");
+
             services.AddHangfire(config => config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
                 .UseSimpleAssemblyNameTypeSerializer()
                 .UseRecommendedSerializerSettings()
                 .UsePostgreSqlStorage(options =>
-                    options.UseNpgsqlConnection(configuration.GetConnectionString("MyCnn"))));
-            services.AddHangfireServer();
+                {
+                    options.UseNpgsqlConnection(hangfireConn);
+                }, new PostgreSqlStorageOptions
+                {
+                    PrepareSchemaIfNecessary = true 
+                }));
+
+            services.AddHangfireServer(options =>
+            {
+                options.WorkerCount = 2;
+            });
+
             return services;
         }
 
