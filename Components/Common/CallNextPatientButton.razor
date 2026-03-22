@@ -1,4 +1,4 @@
-﻿@using Blazored.Toast.Services
+@using Blazored.Toast.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using SmartClinic.Services
 @inject IQueueService QueueService
@@ -36,6 +36,7 @@
     [Parameter] public string RoomName { get; set; } = "";
     [Parameter] public string ButtonText { get; set; } = "Gọi bệnh nhân";
     [Parameter] public string CssClass { get; set; } = ""; // Mở rộng CSS khi cần (VD: w-full trên mobile)
+    [Parameter] public EventCallback OnCalled { get; set; }
 
     // 2. Quản lý State
     private bool IsLoading { get; set; }
@@ -99,6 +100,11 @@
                     ? $"Phòng {ResolvedRoomId!.Value}"
                     : RoomName;
                 ToastService.ShowSuccess($"Đã gọi bệnh nhân vào {displayRoomName}");
+                
+                if (OnCalled.HasDelegate)
+                {
+                    await OnCalled.InvokeAsync();
+                }
             }
         }
         finally

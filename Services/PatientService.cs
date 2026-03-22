@@ -142,7 +142,7 @@ namespace SmartClinic.Services
                 // Sort by priority: Examining → Calling → Waiting
                 var sortedTickets = tickets
                     .OrderBy(t => t.Status == "Examining" ? 0 : t.Status == "Calling" ? 1 : 2)
-                    .ThenBy(t => t.CreatedAt)
+                    .ThenByDescending(t => t.CreatedAt)
                     .ToList();
 
                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {sortedTickets.Count} queue tickets for RoomId={doctorShift.RoomId}");

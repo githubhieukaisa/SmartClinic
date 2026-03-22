@@ -10,7 +10,8 @@
 @inject IQueueService QueueService
 @inject IJSRuntime JS
 
-<div class="flex flex-col items-center min-h-screen px-4 py-12 font-sans transition-colors duration-300 bg-slate-50 dark:bg-slate-900 sm:px-6 lg:px-8">
+<div
+	class="flex flex-col items-center min-h-screen px-4 py-12 font-sans transition-colors duration-300 bg-slate-50 dark:bg-slate-900 sm:px-6 lg:px-8">
 	<div class="w-full max-w-5xl space-y-8">
 
 		<h1 class="text-3xl font-extrabold tracking-tight text-center md:text-5xl text-slate-800 dark:text-white">
@@ -31,8 +32,7 @@
 		{
 			<div class="flex flex-col gap-6 md:flex-row">
 				<div class="flex-1">
-					<CurrentCallCard TicketNumber="@DisplayData.CurrentTicketNumber"
-									 RoomName="@DisplayData.RoomName" />
+					<CurrentCallCard TicketNumber="@DisplayData.CurrentTicketNumber" RoomName="@DisplayData.RoomName" />
 				</div>
 
 				<div class="w-full md:w-1/3">

@@ -1,4 +1,4 @@
-﻿@page "/doctor/my-patients"
+@page "/doctor/my-patients"
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Models
@@ -16,6 +16,7 @@
 @inject SmartClinicDbContext DbContext
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IToastService ToastService
+@inject ITicketService TicketService
 @attribute [Authorize(Policy = "DoctorPolicy")]
 
 <div class="p-8">
@@ -125,7 +126,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
-                                       CssClass="" />
+                                       CssClass="" OnCalled="RefreshQueueAsync" />
                 <button @onclick="RefreshQueueAsync"
                         class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
                     <i class="ph ph-arrows-clockwise"></i>
@@ -549,31 +550,19 @@
     {
         try
         {
-            if (_currentDoctorId == 0)
+            if (_currentDoctorId == 0 || !_currentRoomId.HasValue)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [AddTestQueueTicket] DoctorId not loaded yet");
+                System.Diagnostics.Debug.WriteLine($"❌ [AddTestQueueTicket] DoctorId or RoomId not loaded yet");
                 return;
             }
 
-            // First, create a test patient
-            var testPatient = new Patient
-            {
-                FullName = $"Test Patient {DateTime.Now:HHmmss}",
-                Phone = "0123456789",
-                Address = "123 Test Street",
-                DoB = new DateOnly(1990, 1, 1),
-                CreatedAt = DateTime.Now
-            };
+            var room = await DbContext.Rooms.FindAsync(_currentRoomId.Value);
+            if (room == null) return;
 
-            DbContext.Patients.Add(testPatient);
-            await DbContext.SaveChangesAsync();
-
-            // Now create a QueueTicket for the current logged-in doctor
-            // ✅ Uses _currentDoctorId from authentication claims
-            await PatientService.AddQueueTicketAsync(
-                doctorId: _currentDoctorId, // Current doctor from claims
-                patientId: testPatient.Id,
-                diagnosis: "Test Diagnosis"
+            await TicketService.GenerateTicketAsync(
+                $"Test Patient {DateTime.Now:HHmmss}",
+                "0123456789",
+                room.DepartmentId
             );
 
             // Show feedback

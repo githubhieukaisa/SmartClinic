@@ -246,11 +246,11 @@ public class NotificationService : IAsyncDisposable
 
             try
             {
-                int doctorId = data.GetProperty("doctorId").GetInt32();
+                int roomId = data.GetProperty("roomId").GetInt32();
                 int ticketId = data.GetProperty("ticketId").GetInt32();
                 string patientName = data.GetProperty("patientName").GetString() ?? "Unknown Patient";
 
-                System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService] Event: DoctorId={doctorId}, TicketId={ticketId}, PatientName={patientName}");
+                System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService] Event: RoomId={roomId}, TicketId={ticketId}, PatientName={patientName}");
 
                 // Broadcast to all connected clients (each page decides if it's relevant)
                 System.Diagnostics.Debug.WriteLine("[SignalR] QueueTicketUpdated received");
