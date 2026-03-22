@@ -1,4 +1,4 @@
-﻿@using Blazored.Toast
+@using Blazored.Toast
 @using Blazored.Toast.Configuration
 @using SmartClinic.Components.Common
 @using Microsoft.AspNetCore.Components.Authorization
@@ -11,10 +11,7 @@
                 IconType="IconType.Blazored"
                 @rendermode="InteractiveServer" />
 
-@* Expose ref để Prescriptions.razor subscribe vào OnNewPrescription event *@
-<PharmacistToastHandler @ref="_toastHandler" />
 
-<CascadingValue Value="_toastHandler">
     <div class="flex h-screen bg-background">
         <aside class="w-64 bg-sidebar border-r border-border flex flex-col fixed h-full">
 
@@ -81,11 +78,9 @@
             </div>
         </main>
     </div>
-</CascadingValue>
 
 @code {
     private string? _pharmacistName;
-    private PharmacistToastHandler? _toastHandler;
 
     protected override async Task OnInitializedAsync()
     {
@@ -96,6 +91,7 @@
             _pharmacistName = user.FindFirst("FullName")?.Value ?? "Pharmacist";
         }
     }
+
 
     private string NavClass(string href)
     {

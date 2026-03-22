@@ -1,4 +1,4 @@
-﻿using SmartClinic.DTOs;
+using SmartClinic.DTOs;
 using SmartClinic.Models;
 
 namespace SmartClinic.Services
@@ -10,6 +10,7 @@ namespace SmartClinic.Services
         Task<PrescriptionQueueDto?> GetPrescriptionDetailAsync(int prescriptionId);
         Task<(bool Success, string ErrorMessage)> DispenseMedicinesAsync(int prescriptionId);
         Task NotifyNewPrescriptionAsync(int prescriptionId);
+        Task NotifyPrescriptionDeletedAsync(int prescriptionId);
 
         // ── Medicine CRUD ───────────────────────────────────────────────────────
         Task<List<Medicine>> GetAllMedicinesAsync();

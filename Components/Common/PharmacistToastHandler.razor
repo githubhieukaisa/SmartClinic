@@ -1,4 +1,4 @@
-﻿@* PharmacistToastHandler.razor
+@* PharmacistToastHandler.razor
    - Lắng nghe SignalR "NewPrescriptionReady"
    - Hiển thị toast
    - Raise event OnNewPrescription để trang Prescriptions.razor tự reload
@@ -18,7 +18,8 @@
     /// Event fired khi có đơn thuốc mới.
     /// Prescriptions.razor subscribe vào đây để tự reload danh sách.
     /// </summary>
-    public event Func<NewPrescriptionNotificationDto, Task>? OnNewPrescription;
+    [Parameter]
+    public EventCallback<NewPrescriptionNotificationDto> OnNewPrescription { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -40,9 +41,23 @@
             });
 
             // 2. Notify trang Prescriptions để tự reload
-            if (OnNewPrescription != null)
+            if (OnNewPrescription.HasDelegate)
             {
-                await OnNewPrescription.Invoke(data);
+                await OnNewPrescription.InvokeAsync(data);
+            }
+        });
+
+        _hub.On<int>("PrescriptionDeleted", async (prescriptionId) =>
+        {
+            await InvokeAsync(() =>
+            {
+                Toaster.ShowInfo($"Prescription has been deleted by Doctor. Updating list...");
+            });
+
+            if (OnNewPrescription.HasDelegate)
+            {
+                // Truyền dummy object để trigger reload list
+                await OnNewPrescription.InvokeAsync(new NewPrescriptionNotificationDto { PrescriptionId = prescriptionId });
             }
         });
 

@@ -1,4 +1,4 @@
-﻿@page "/pharmacist/prescriptions"
+@page "/pharmacist/prescriptions"
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.DTOs
 @using SmartClinic.Services
@@ -13,6 +13,7 @@
 @implements IDisposable
 
 <div class="p-8">
+    <PharmacistToastHandler OnNewPrescription="HandleNewPrescriptionAsync" />
 
     <!-- Header — khớp với MyPatient/Index -->
     <div class="flex items-center justify-between mb-8">
@@ -248,8 +249,6 @@
 </div>
 
 @code {
-    // Nhận PharmacistToastHandler từ PharmacistLayout qua CascadingValue
-    [CascadingParameter] private PharmacistToastHandler? ToastHandler { get; set; }
 
     private List<PrescriptionQueueDto>? _prescriptions;
     private HashSet<int> _processing = new();
@@ -261,14 +260,6 @@
         await LoadDataAsync();
     }
 
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender && ToastHandler != null)
-        {
-            // Subscribe: khi có đơn mới → tự reload
-            ToastHandler.OnNewPrescription += HandleNewPrescriptionAsync;
-        }
-    }
 
     private async Task HandleNewPrescriptionAsync(NewPrescriptionNotificationDto data)
     {
@@ -325,9 +316,6 @@
 
     public void Dispose()
     {
-        // Unsubscribe tránh memory leak
-        if (ToastHandler != null)
-            ToastHandler.OnNewPrescription -= HandleNewPrescriptionAsync;
     }
 
     private static string GetInitials(string? name)

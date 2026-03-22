@@ -538,14 +538,20 @@
 
             foreach (var med in _prescribedMedicines)
             {
+                var selectedMed = _availableMedicines.FirstOrDefault(m => m.Id == med.MedicineId);
+                var unitPrice = selectedMed?.Price ?? 0;
+
                 prescription.PrescriptionDetails.Add(new PrescriptionDetail
                 {
                     MedicineId = med.MedicineId,
                     Quantity = med.Quantity,
-                    UnitPrice = 0, // TODO: lấy giá từ bảng Medicine
+                    UnitPrice = unitPrice,
                     UsageInstruction = med.Dosage,
                 });
             }
+
+            // Calculate total amount directly here so it persists and pharmacist sees it immediately
+            prescription.TotalAmount = prescription.PrescriptionDetails.Sum(d => d.UnitPrice * d.Quantity);
 
             DbContext.Prescriptions.Add(prescription);
             await DbContext.SaveChangesAsync();
@@ -578,8 +584,12 @@
 
             if (existingPrescription != null)
             {
+                var pId = existingPrescription.Id;
                 DbContext.Prescriptions.Remove(existingPrescription);
                 await DbContext.SaveChangesAsync();
+                
+                // Notify Pharmacists about deletion
+                await PharmacyService.NotifyPrescriptionDeletedAsync(pId);
 
                 _prescriptionSaved = false;
                 _prescribedMedicines.Clear();

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.DTOs;
 using SmartClinic.Hubs;
@@ -21,8 +21,8 @@ namespace SmartClinic.Services
 
         public async Task<List<PrescriptionQueueDto>> GetPendingPrescriptionsAsync()
         {
-            // NOTE: KHÔNG dùng AsNoTracking ở đây vì Dispense cần tracking
             var prescriptions = await _context.Prescriptions
+                .AsNoTracking()
                 .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
                 .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
@@ -154,7 +154,7 @@ namespace SmartClinic.Services
                 .AsNoTracking()
                 .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
-                .Include(p => p.PrescriptionDetails)
+                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
                 .FirstOrDefaultAsync(p => p.Id == prescriptionId);
             if (p == null) return;
 
@@ -168,6 +168,11 @@ namespace SmartClinic.Services
                     MedicineCount = p.PrescriptionDetails.Count,
                     TotalAmount = p.TotalAmount ?? 0
                 });
+        }
+
+        public async Task NotifyPrescriptionDeletedAsync(int prescriptionId)
+        {
+            await _hubContext.Clients.Group("Pharmacists").SendAsync("PrescriptionDeleted", prescriptionId);
         }
 
         // ─── HELPER ─────────────────────────────────────────────────────────────
