@@ -72,8 +72,7 @@
 
 			if (isNewTicket && data.CurrentTicketNumber != "---")
 			{
-				// Tạo câu đọc. Tùy em muốn đọc dài hay ngắn.
-				// Ví dụ: "Xin mời bệnh nhân số 1 0 0 5 vào phòng Nội 1 0 1"
+				// Chuẩn bị nội dung cần đọc
 				string textToSpeak = $"Xin mời bệnh nhân số, {data.CurrentTicketNumber}, tên, {data.PatientName}, vào {data.RoomName}";
 
 				try
