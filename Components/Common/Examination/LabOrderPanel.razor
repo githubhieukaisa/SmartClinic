@@ -78,7 +78,7 @@
                                             }
                                             else
                                             {
-                                                <div class="flex items-center gap-2 text-slate-400 italic">
+                                                <div class="flex items-center justify-center gap-2 text-slate-400 italic">
                                                     <i class="ph ph-clock animate-pulse"></i>
                                                     <span>Chờ kết quả...</span>
                                                 </div>
@@ -147,7 +147,8 @@
                                         {
                                             <tr>
                                                 <td class="px-4 py-3 font-medium text-slate-800 text-center">@testObj.Name</td>
-                                                <td class="px-4 py-3 text-slate-600 text-center">@(testObj.DefaultRoom?.Name ?? "-")</td>
+                                                <td class="px-4 py-3 text-slate-600 text-center">@(testObj.DefaultRoom?.Name ?? "-")
+                                                </td>
                                                 <td class="px-4 py-3 text-center text-slate-600">@testObj.Price.ToString("N0") VNĐ</td>
                                             </tr>
                                         }

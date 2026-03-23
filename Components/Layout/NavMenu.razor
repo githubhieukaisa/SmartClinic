@@ -16,42 +16,42 @@
 			</NotAuthorized>
 		</AuthorizeView>
 
-		@* Doctor Links *@
+		@* Bác Sĩ *@
 		<AuthorizeView Policy="DoctorPolicy">
 			<Authorized>
 				<NavLink class="@baseClass" href="/doctor/dashboard" Match="NavLinkMatch.All">
 					<i class="ph ph-squares-four text-lg"></i>
-					<span>Dashboard</span>
+					<span>Tổng Quan</span>
 				</NavLink>
 
 				<NavLink class="@baseClass" href="/doctor/my-patients">
 					<i class="ph ph-queue text-lg"></i>
-					<span>Patient Queue</span>
+					<span>Hàng Đợi</span>
 				</NavLink>
 
-				<NavLink class="@baseClass" href="doctor/patients">
-					<i class="ph ph-users text-lg"></i>
-					<span>Patients</span>
-				</NavLink>
-
-				<NavLink class="@baseClass" href="doctor/medical-records">
-					<i class="ph ph-file-text text-lg"></i>
-					<span>Medical Records</span>
-				</NavLink>
-
-				<NavLink class="@baseClass" href="doctor/prescriptions">
-					<i class="ph ph-pill text-lg"></i>
-					<span>Prescriptions</span>
-				</NavLink>
-
-				<NavLink class="@baseClass" href="doctor/lab-tests">
-					<i class="ph ph-test-tube text-lg"></i>
-					<span>Lab Tests</span>
-				</NavLink>
+				@* Hiện Khám Bệnh khi đang trong tiến trình *@
+				@if (NavManager.Uri.Contains("/doctor/examination/"))
+				{
+					<NavLink class="@baseClass" href="@NavManager.Uri" Match="NavLinkMatch.Prefix">
+						<i class="ph ph-stethoscope text-lg"></i>
+						<span>Khám Bệnh</span>
+					</NavLink>
+				}
 
 				<NavLink class="@baseClass" href="doctor/waiting-list-demo">
 					<i class="ph ph-stethoscope text-lg"></i>
 					<span>Phòng Khám</span>
+				</NavLink>
+
+			</Authorized>
+		</AuthorizeView>
+
+		@* Kỹ thuật viên xét nghiệm *@
+		<AuthorizeView Policy="LabTechPolicy">
+			<Authorized>
+				<NavLink class="@baseClass" href="/lab" Match="NavLinkMatch.All">
+					<i class="ph ph-flask text-lg"></i>
+					<span>Xét Nghiệm</span>
 				</NavLink>
 			</Authorized>
 		</AuthorizeView>
@@ -93,6 +93,23 @@
 </div>
 
 
+@implements IDisposable
+
 @code {
 	private const string baseClass = "w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted transition";
+
+	protected override void OnInitialized()
+	{
+		NavManager.LocationChanged += HandleLocationChanged;
+	}
+
+	private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+	{
+		StateHasChanged();
+	}
+
+	public void Dispose()
+	{
+		NavManager.LocationChanged -= HandleLocationChanged;
+	}
 }

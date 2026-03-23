@@ -87,11 +87,18 @@ public class LabService : ILabService
         detail.ResultFileUrl = resultFileUrl;
         await context.SaveChangesAsync();
 
+        // Broadcast to Doctor immediately so they can see partial results
+        if (detail.LabOrder.QueueTicket != null)
+        {
+            string doctorRoomGroup = $"DoctorRoom_{detail.LabOrder.QueueTicket.RoomId}";
+            await _labHubContext.Clients.Group(doctorRoomGroup).SendAsync("LabResultReady", detail.LabOrder.TicketId);
+        }
+
         var orderDetails = await context.LabOrderDetails
             .Where(lod => lod.LabOrderId == detail.LabOrderId)
             .ToListAsync();
 
-        // Check if all details are done
+        // Check if all details in this order are done
         bool allDetailsDone = orderDetails.All(lod => !string.IsNullOrEmpty(lod.ResultNotes));
         if (allDetailsDone)
         {
@@ -102,15 +109,12 @@ public class LabService : ILabService
                 .Where(lo => lo.TicketId == detail.LabOrder.TicketId)
                 .ToListAsync();
 
+            // Check if all lab orders for this patient are done
             bool allOrdersDone = allOrdersForTicket.All(lo => lo.Status == "Done");
             if (allOrdersDone)
             {
                 detail.LabOrder.QueueTicket.Status = "Examining";
                 await context.SaveChangesAsync();
-
-                // Broadcast to Doctor
-                string doctorRoomGroup = $"DoctorRoom_{detail.LabOrder.QueueTicket.RoomId}";
-                await _labHubContext.Clients.Group(doctorRoomGroup).SendAsync("LabResultReady", detail.LabOrder.TicketId);
             }
         }
     }
@@ -130,6 +134,30 @@ public class LabService : ILabService
                 .ThenInclude(lod => lod.LabTest)
             .Where(lo => lo.TicketId == ticketId)
             .OrderByDescending(lo => lo.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<LabOrder>> GetTodayLabOrdersAsync()
+    {
+        using var context = _dbFactory.CreateDbContext();
+        var today = System.DateTime.Today;
+        return await context.LabOrders
+            .Include(lo => lo.QueueTicket)
+                .ThenInclude(qt => qt.Patient)
+            .Include(lo => lo.LabOrderDetails)
+                .ThenInclude(lod => lod.LabTest)
+            .Where(lo => lo.CreatedAt >= today)
+            .OrderBy(lo => lo.CreatedAt)
+            .ToListAsync();
+    }
+    public async Task<List<Room>> GetLabStationsAsync()
+    {
+        using var context = _dbFactory.CreateDbContext();
+        return await context.LabTests
+            .Where(t => t.DefaultRoomId != null)
+            .Select(t => t.DefaultRoom!)
+            .Distinct()
+            .OrderBy(r => r.Name)
             .ToListAsync();
     }
 }

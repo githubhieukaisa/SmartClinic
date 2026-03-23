@@ -1,8 +1,8 @@
 @page "/doctor/examination/{TicketId:int}/{PatientId:int}"
+@using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
-@using SmartClinic.Components.Common
 @using SmartClinic.Components.Common.Examination
 @using Blazored.Toast.Services
 @using Microsoft.EntityFrameworkCore
@@ -13,6 +13,8 @@
 @inject IDbContextFactory<SmartClinicDbContext> DbFactory
 @inject IToastService ToastService
 @inject IPharmacyService PharmacyService
+@attribute [Authorize(Policy = "DoctorPolicy")]
+
 
 <div class="p-8">
     <!-- Back Button -->
