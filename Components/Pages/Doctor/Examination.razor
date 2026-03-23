@@ -1,17 +1,22 @@
 @page "/doctor/examination/{TicketId:int}/{PatientId:int}"
+@using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
 @using SmartClinic.Components.Common
+@using SmartClinic.Components.Common.Examination
 @using Blazored.Toast.Services
 @using Microsoft.EntityFrameworkCore
 @rendermode InteractiveServer
 @layout MainLayout
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
-@inject SmartClinicDbContext DbContext
+@inject IDbContextFactory<SmartClinicDbContext> DbFactory
 @inject IToastService ToastService
 @inject IPharmacyService PharmacyService
+@inject ILabService LabService
+@attribute [Authorize(Policy = "DoctorPolicy")]
+
 
 <div class="p-8">
     <!-- Back Button -->
@@ -19,7 +24,7 @@
         <button @onclick="GoBack"
                 class="flex items-center gap-2 px-4 py-2 text-primary hover:bg-muted rounded-lg transition">
             <i class="ph ph-arrow-left"></i>
-            Back to Queue
+            Quay về Hàng đợi
         </button>
     </div>
 
@@ -27,20 +32,20 @@
     {
         <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
             <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
-            <span class="text-sm">Loading patient information...</span>
+            <span class="text-sm">Đang tải thông tin bệnh nhân...</span>
         </div>
     }
     else if (!string.IsNullOrEmpty(_errorMessage))
     {
         <div class="bg-red-100 border border-red-300 rounded-lg p-4 mb-6">
-            <p class="text-red-700 font-medium">Error loading patient</p>
+            <p class="text-red-700 font-medium">Lỗi khi tải thông tin bệnh nhân</p>
             <p class="text-red-600 text-sm">@_errorMessage</p>
         </div>
     }
     else if (_patient == null)
     {
         <div class="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-6">
-            <p class="text-yellow-700">Patient information not found</p>
+            <p class="text-yellow-700">Không tìm thấy thông tin bệnh nhân</p>
         </div>
     }
     else
@@ -50,22 +55,22 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Patient Details -->
                 <div>
-                    <h1 class="text-3xl font-bold text-foreground mb-4">Patient Examination</h1>
+                    <h1 class="text-3xl font-bold text-foreground mb-4">Khám bệnh</h1>
                     <div class="space-y-3">
                         <div>
-                            <p class="text-xs text-muted-foreground">Full Name</p>
+                            <p class="text-xs text-muted-foreground">Họ và tên</p>
                             <p class="text-foreground font-medium">@_patient.FullName</p>
                         </div>
                         <div>
-                            <p class="text-xs text-muted-foreground">Age</p>
-                            <p class="text-foreground font-medium">@GetAge(_patient.DoB) years old</p>
+                            <p class="text-xs text-muted-foreground">Tuổi</p>
+                            <p class="text-foreground font-medium">@GetAge(_patient.DoB) tuổi</p>
                         </div>
                         <div>
-                            <p class="text-xs text-muted-foreground">Phone</p>
+                            <p class="text-xs text-muted-foreground">Số điện thoại</p>
                             <p class="text-foreground font-medium">@_patient.Phone</p>
                         </div>
                         <div>
-                            <p class="text-xs text-muted-foreground">Address</p>
+                            <p class="text-xs text-muted-foreground">Địa chỉ</p>
                             <p class="text-foreground font-medium">@_patient.Address</p>
                         </div>
                     </div>
@@ -73,20 +78,20 @@
 
                 <!-- Ticket Info -->
                 <div>
-                    <h3 class="text-lg font-semibold text-foreground mb-4">Queue Information</h3>
+                    <h3 class="text-lg font-semibold text-foreground mb-4">Thông tin hàng đợi</h3>
                     <div class="space-y-3">
                         <div>
-                            <p class="text-xs text-muted-foreground">Ticket Number</p>
+                            <p class="text-xs text-muted-foreground">Số thứ tự</p>
                             <p class="text-foreground font-medium text-lg">#@TicketId</p>
                         </div>
                         <div>
-                            <p class="text-xs text-muted-foreground">Status</p>
+                            <p class="text-xs text-muted-foreground">Trạng thái</p>
                             <p class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                Examining
+                                Đang khám
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs text-muted-foreground">Arrival Time</p>
+                            <p class="text-xs text-muted-foreground">Giờ đến</p>
                             <p class="text-foreground font-medium">@DateTime.Now.ToString("HH:mm")</p>
                         </div>
                     </div>
@@ -98,248 +103,100 @@
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
             <div class="flex items-center gap-3 mb-6">
                 <i class="ph ph-file-text text-2xl text-primary"></i>
-                <h2 class="text-xl font-bold text-foreground">Medical Record</h2>
+                <h2 class="text-xl font-bold text-foreground">Hồ Sơ Khám Bệnh</h2>
             </div>
 
             <div class="space-y-6">
                 <!-- Diagnosis -->
                 <div>
-                    <label class="block text-sm font-medium text-foreground mb-2">Diagnosis</label>
+                    <label class="block text-sm font-medium text-foreground mb-2">Chẩn đoán</label>
                     <textarea @bind="_diagnosis"
                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                              rows="4" placeholder="Enter patient diagnosis and findings..."></textarea>
+                              rows="4" placeholder="Nhập chẩn đoán và kết quả thăm khám..."></textarea>
                 </div>
 
                 <!-- Treatment Plan -->
                 <div>
-                    <label class="block text-sm font-medium text-foreground mb-2">Treatment Plan</label>
+                    <label class="block text-sm font-medium text-foreground mb-2">Kế hoạch điều trị</label>
                     <textarea @bind="_treatmentPlan"
                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                              rows="4" placeholder="Enter treatment plan and recommendations..."></textarea>
+                              rows="4" placeholder="Nhập kế hoạch điều trị và lời khuyên..."></textarea>
                 </div>
 
                 <!-- Additional Notes -->
                 <div>
-                    <label class="block text-sm font-medium text-foreground mb-2">Additional Notes</label>
+                    <label class="block text-sm font-medium text-foreground mb-2">Ghi chú thêm</label>
                     <textarea @bind="_notes"
                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                              rows="3" placeholder="Any additional clinical notes..."></textarea>
+                              rows="3" placeholder="Các ghi chú lâm sàng khác..."></textarea>
                 </div>
 
                 <!-- Save Medical Record Button -->
-                <SaveActionButton OnClick="SaveMedicalRecordAsync" Label="Save Medical Record" LoadingLabel="Saving..."
-                                  Icon="ph-floppy-disk" Disabled="@string.IsNullOrWhiteSpace(_diagnosis)" />
+                <SaveActionButton OnClick="SaveMedicalRecordAsync" Label="Lưu Hồ Sơ" LoadingLabel="Đang lưu..."
+                                  Icon="ph-floppy-disk"
+                                  Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes))" />
             </div>
         </div>
 
-        <!-- Prescription Section -->
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
-            <div class="flex items-center gap-3 mb-6">
-                <i class="ph ph-pill text-2xl text-primary"></i>
-                <h2 class="text-xl font-bold text-foreground">Prescription</h2>
-            </div>
+        <!-- Lab Tests Section (Test) -->
+        <LabOrderPanel TicketId="@TicketId" RoomId="@_currentRoomId" OnLabsUpdated="CheckPendingLabsAsync" />
 
-            <div class="space-y-6">
-                <!-- Medicine Selection -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-2">Select Medicine</label>
-                        <select @bind="_selectedMedicineId"
-                                class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="0">Choose a medicine...</option>
-                            @foreach (var med in _availableMedicines)
-                            {
-                                <option value="@med.Id">@med.Name (@med.Unit)</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-2">Quantity</label>
-                        <input type="number" @bind="_medicineQuantity"
-                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                               min="1" placeholder="Qty" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-foreground mb-2">Dosage</label>
-                        <input type="text" @bind="_medicineDosage"
-                               class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                               placeholder="e.g., 2x daily" />
-                    </div>
-                </div>
-
-                <!-- Add Medicine Button -->
-                <SaveActionButton OnClick="AddMedicineAsync" Label="Add Medicine" LoadingLabel="Adding..." Icon="ph-plus"
-                                  Disabled="@(_prescriptionSaved || _selectedMedicineId == 0 || _medicineQuantity < 1)" />
-
-                <!-- Selected Medicines Table -->
-                @if (_prescribedMedicines.Any())
-                {
-                    <div>
-                        <h3 class="text-sm font-semibold text-foreground mb-3">Prescribed Medicines</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
-                                <thead>
-                                    <tr class="border-b border-border bg-muted/30">
-                                        <th class="text-left py-3 px-4 font-medium text-muted-foreground">Medicine</th>
-                                        <th class="text-center py-3 px-4 font-medium text-muted-foreground">Quantity</th>
-                                        <th class="text-center py-3 px-4 font-medium text-muted-foreground">Dosage</th>
-                                        <th class="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var medicine in _prescribedMedicines)
-                                    {
-                                        <tr class="border-b border-border hover:bg-muted/20 transition">
-                                            <td class="py-3 px-4 text-foreground">@medicine.MedicineName</td>
-                                            <td class="py-3 px-4 text-center text-foreground">@medicine.Quantity</td>
-                                            <td class="py-3 px-4 text-center text-foreground">@medicine.Dosage</td>
-                                            <td class="py-3 px-4">
-                                                <div class="flex justify-center">
-                                                    <Button Variant="Button.ButtonVariant.Danger" IsFullWidth="false"
-                                                            Disabled="@_prescriptionSaved"
-                                                            OnClick="@(async _ => RemoveMedicine(medicine.MedicineId))">
-                                                        <i class="ph ph-trash mr-1"></i> Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                }
-                else
-                {
-                    <div class="text-center py-8 text-muted-foreground">
-                        <i class="ph ph-pill text-3xl mb-2 opacity-50"></i>
-                        <p class="text-sm">No medicines prescribed yet</p>
-                    </div>
-                }
-
-                <!-- Save Prescription Button / Locked State -->
-                @if (_prescriptionSaved)
-                {
-                    <!-- Đã gửi → hiện badge, không cho sửa -->
-                    <div class="flex items-center gap-4">
-                        <div
-                            class="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 text-green-600 text-sm font-medium w-fit">
-                            <i class="ph ph-check-circle text-base"></i>
-                            <span>Prescription submitted — sent to Pharmacist</span>
-                        </div>
-
-                        @* ── TEST ONLY — xóa khi production ───────────────────── *@
-                        <button @onclick="ResetPrescriptionTestAsync"
-                                class="flex items-center gap-2 px-3 py-2 bg-red-500/10 text-red-600 rounded-lg text-sm font-medium hover:bg-red-500/20 transition border border-red-500/30">
-                            <i class="ph ph-trash"></i>
-                            Test: Xoá Toàn Bộ Đơn Thuốc
-                        </button>
-                        @* ─────────────────────────────────────────────────────────── *@
-                    </div>
-                }
-                else
-                {
-                    <SaveActionButton OnClick="SavePrescriptionAsync" Label="Save Prescription" LoadingLabel="Saving..."
-                                      Icon="ph-prescription" Disabled="@(!_prescribedMedicines.Any())" />
-                }
-            </div>
-        </div>
-
-        <!-- Lab Tests Section -->
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
-            <div class="flex items-center gap-3 mb-6">
-                <i class="ph ph-flask text-2xl text-primary"></i>
-                <h2 class="text-xl font-bold text-foreground">Lab Tests</h2>
-            </div>
-
-            <div class="space-y-6">
-                <!-- Lab Test Selection -->
-                <div>
-                    <label class="block text-sm font-medium text-foreground mb-3">Select Lab Tests</label>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label
-                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox"
-                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Blood Test", (bool)e.Value!))"
-                                   class="w-4 h-4 rounded border-border" />
-                            <span class="text-sm text-foreground font-medium">Blood Test (CBC)</span>
-                        </label>
-                        <label
-                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox"
-                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Urinalysis", (bool)e.Value!))"
-                                   class="w-4 h-4 rounded border-border" />
-                            <span class="text-sm text-foreground font-medium">Urinalysis</span>
-                        </label>
-                        <label
-                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox"
-                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Chest X-Ray", (bool)e.Value!))"
-                                   class="w-4 h-4 rounded border-border" />
-                            <span class="text-sm text-foreground font-medium">Chest X-Ray</span>
-                        </label>
-                        <label
-                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox"
-                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("ECG", (bool)e.Value!))"
-                                   class="w-4 h-4 rounded border-border" />
-                            <span class="text-sm text-foreground font-medium">ECG</span>
-                        </label>
-                        <label
-                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox"
-                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Blood Glucose", (bool)e.Value!))"
-                                   class="w-4 h-4 rounded border-border" />
-                            <span class="text-sm text-foreground font-medium">Blood Glucose</span>
-                        </label>
-                        <label
-                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/20 cursor-pointer transition">
-                            <input type="checkbox"
-                                   @onchange="@((ChangeEventArgs e) => HandleLabTestChange("Thyroid Panel", (bool)e.Value!))"
-                                   class="w-4 h-4 rounded border-border" />
-                            <span class="text-sm text-foreground font-medium">Thyroid Panel</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Selected Lab Tests -->
-                @if (_selectedLabTests.Any())
-                {
-                    <div>
-                        <h3 class="text-sm font-semibold text-foreground mb-3">Ordered Tests</h3>
-                        <div class="flex flex-wrap gap-2">
-                            @foreach (var test in _selectedLabTests)
-                            {
-                                <div
-                                    class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium">
-                                    <i class="ph ph-check"></i>
-                                    <span>@test</span>
-                                    <button @onclick="() => _selectedLabTests.Remove(test)"
-                                            class="ml-1 hover:opacity-70 transition">
-                                        <i class="ph ph-x text-sm"></i>
-                                    </button>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
-
-                <!-- Save Lab Tests Button -->
-                <SaveActionButton OnClick="SaveLabTestsAsync" Label="Save Lab Tests" LoadingLabel="Saving..."
-                                  Icon="ph-flask" Disabled="@(!_selectedLabTests.Any())" />
-            </div>
-        </div>
+        <!-- Medicine Section (Prescription) -->
+        <PrescriptionPanel TicketId="@TicketId" />
 
         <!-- Action Buttons -->
-        <div class="flex gap-3 justify-end">
-            <SaveActionButton OnClick="@(() => { GoBack(); return Task.CompletedTask; })" Label="Cancel"
-                              LoadingLabel="Going back..." Icon="ph-arrow-left" />
-            <SaveActionButton OnClick="CompleteExaminationAsync" Label="Complete Examination" LoadingLabel="Completing..."
-                              Icon="ph-check" Variant="solid" ExtraCssClass="!bg-green-600 hover:!bg-green-700 !text-white" />
+        <div class="flex gap-3 justify-end items-center">
+            @if (_hasPendingLabs)
+            {
+                <span
+                    class="text-amber-600 text-xs font-bold flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                    <i class="ph ph-warning-circle text-base animate-pulse"></i>
+                    Đang chờ kết quả xét nghiệm...
+                </span>
+            }
+
+            <SaveActionButton OnClick="@(() => { GoBack(); return Task.CompletedTask; })" Label="Quay lại"
+                              LoadingLabel="Đang quay lại..." Icon="ph-arrow-left" />
+
+            <SaveActionButton OnClick="CompleteExaminationAsync" Label="Hoàn tất khám" LoadingLabel="Đang hoàn tất..."
+                              Icon="ph-check" Variant="solid" ExtraCssClass="shadow-md"
+                              Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes) || _hasPendingLabs)" />
         </div>
     }
+
+    <!-- Prescription Confirmation Modal -->
+    <Modal IsVisible="@_showPrescriptionConfirm" OnClose="() => _showPrescriptionConfirm = false"
+           Size="Modal.ModalSize.Md">
+        <HeaderContent>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                    <i class="ph ph-warning text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-amber-900">Chưa kê đơn thuốc</h3>
+                </div>
+            </div>
+        </HeaderContent>
+
+        <ChildContent>
+            <p class="text-sm text-foreground py-4">Bạn chưa kê đơn thuốc cho bệnh nhân này. Bạn có chắc chắn muốn
+                <b>Hoàn tất khám</b> mà không cần thuốc?
+            </p>
+        </ChildContent>
+
+        <FooterContent>
+            <div class="flex justify-end gap-3 w-full">
+                <button @onclick="() => _showPrescriptionConfirm = false"
+                        class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors text-sm">
+                    Quay lại kê đơn
+                </button>
+                <button @onclick="FinishCompleteAsync"
+                        class="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors text-sm">
+                    Xác nhận hoàn tất
+                </button>
+            </div>
+        </FooterContent>
+    </Modal>
 </div>
 
 @code {
@@ -349,28 +206,16 @@
     [Parameter]
     public int PatientId { get; set; }
 
+    private int _currentRoomId = 0;
     private Patient? _patient;
     private string _diagnosis = "";
     private string _treatmentPlan = "";
     private string _notes = "";
-
-    // Medicine prescription
-    private int _selectedMedicineId = 0;
-    private int _medicineQuantity = 1;
-    private string _medicineDosage = "";
-    private List<PrescribedMedicine> _prescribedMedicines = new();
-
-    // Lab tests
-    private List<string> _selectedLabTests = new();
-
-    // Prescription lock — chỉ cho phép lưu 1 lần
-    private bool _prescriptionSaved = false;
+    private bool _hasPendingLabs = false;
+    private bool _showPrescriptionConfirm = false;
 
     private bool _isLoading = true;
     private string? _errorMessage;
-
-    // Danh sách thuốc tải từ DB
-    private List<Medicine> _availableMedicines = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -378,63 +223,35 @@
 
         try
         {
-            // Load danh mục thuốc từ CSDL
-            _availableMedicines = await DbContext.Medicines
-                .OrderBy(m => m.Name)
-                .ToListAsync();
-
             _patient = await PatientService.GetPatientByIdAsync(PatientId);
+            _hasPendingLabs = await LabService.HasPendingLabOrdersAsync(TicketId);
 
             if (_patient == null)
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ [Examination] Patient not found with ID={PatientId}");
-                _errorMessage = $"Patient with ID {PatientId} not found";
+                _errorMessage = $"Không tìm thấy bệnh nhân có ID {PatientId}";
             }
             else
             {
                 System.Diagnostics.Debug.WriteLine($"✅ [Examination] Loaded patient: {_patient.FullName}");
             }
 
-            // Load existing medical record data from DB (nếu đã từng save trước đó)
-            var existingTicket = await DbContext.QueueTickets.FindAsync(TicketId);
+            // Load existing medical record data from DB
+            using var context = DbFactory.CreateDbContext();
+            var existingTicket = await context.QueueTickets.FindAsync(TicketId);
             if (existingTicket != null)
             {
+                _currentRoomId = existingTicket.RoomId;
                 _diagnosis = existingTicket.Diagnosis ?? "";
                 _treatmentPlan = existingTicket.TreatmentPlan ?? "";
                 _notes = existingTicket.AdditionalNotes ?? "";
-                System.Diagnostics.Debug.WriteLine($"✅ [Examination] Pre-filled medical record fields from DB");
+                System.Diagnostics.Debug.WriteLine($"✅ [Examination] Pre-filled medical record fields from DB. RoomId: {_currentRoomId}");
             }
-
-            // Kiểm tra + load Prescription đã lưu (nếu có) → khóa nút & hiện lại danh sách
-            var existingPrescription = await DbContext.Prescriptions
-                .Include(p => p.PrescriptionDetails)
-                    .ThenInclude(d => d.Medicine)
-                .FirstOrDefaultAsync(p => p.TicketId == TicketId);
-
-            if (existingPrescription != null)
-            {
-                _prescriptionSaved = true;
-
-                // Populate lại _prescribedMedicines để bảng hiện đúng thuốc đã lưu
-                _prescribedMedicines = existingPrescription.PrescriptionDetails
-                    .Select(d => new PrescribedMedicine
-                    {
-                        MedicineId = d.MedicineId ?? 0,
-                        MedicineName = d.Medicine?.Name ?? $"Medicine #{d.MedicineId}",
-                        Quantity = d.Quantity,
-                        Dosage = d.UsageInstruction ?? "",
-                    })
-                    .ToList();
-
-                System.Diagnostics.Debug.WriteLine($"✅ [Examination] Loaded {_prescribedMedicines.Count} prescribed medicine(s) from DB");
-            }
-
-            System.Diagnostics.Debug.WriteLine($"ℹ️ [Examination] PrescriptionSaved={_prescriptionSaved}");
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR loading patient: {ex.Message}");
-            _errorMessage = $"Error loading patient: {ex.Message}";
+            _errorMessage = "Không thể tải hồ sơ bệnh nhân. Vui lòng liên hệ bộ phận kỹ thuật hoặc thử lại sau.";
         }
         finally
         {
@@ -442,225 +259,111 @@
         }
     }
 
+    private async Task CheckPendingLabsAsync()
+    {
+        _hasPendingLabs = await LabService.HasPendingLabOrdersAsync(TicketId);
+        StateHasChanged();
+    }
+
     private async Task SaveMedicalRecordAsync()
     {
         System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving medical record for TicketId={TicketId}...");
 
-        // STEP 1: Get the QueueTicket from database
-        var queueTicket = await DbContext.QueueTickets.FindAsync(TicketId);
+        using var context = DbFactory.CreateDbContext();
+        var queueTicket = await context.QueueTickets.FindAsync(TicketId);
         if (queueTicket == null)
         {
-            _errorMessage = $"Queue ticket {TicketId} not found";
+            _errorMessage = $"Không tìm thấy số thứ tự {TicketId}";
             System.Diagnostics.Debug.WriteLine($"❌ [Examination] Queue ticket not found");
-            ToastService.ShowError("Queue ticket not found.");
+            ToastService.ShowError("Không tìm thấy thông tin lượt khám.");
             return;
         }
 
-        System.Diagnostics.Debug.WriteLine($"✅ [Examination] Found QueueTicket: {queueTicket.Id}");
-
-        // STEP 2: Update the medical record fields
         queueTicket.Diagnosis = _diagnosis;
         queueTicket.TreatmentPlan = _treatmentPlan;
         queueTicket.AdditionalNotes = _notes;
 
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Updating ticket fields...");
+        context.QueueTickets.Update(queueTicket);
+        await context.SaveChangesAsync();
 
-        // STEP 3: Save to database
-        DbContext.QueueTickets.Update(queueTicket);
-        await DbContext.SaveChangesAsync();
-
-        System.Diagnostics.Debug.WriteLine($"✅ [Examination] Medical record saved successfully");
-
-        // Bind lại từ object đã lưu → đảm bảo UI đồng bộ đúng với DB
         _diagnosis = queueTicket.Diagnosis ?? "";
         _treatmentPlan = queueTicket.TreatmentPlan ?? "";
         _notes = queueTicket.AdditionalNotes ?? "";
 
-        ToastService.ShowSuccess("Medical record saved successfully!");
+        ToastService.ShowSuccess("Đã lưu hồ sơ khám bệnh thành công!");
         StateHasChanged();
-    }
-
-    private async Task AddMedicineAsync()
-    {
-        if (_selectedMedicineId == 0 || _medicineQuantity < 1)
-            return;
-
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Adding medicine {_selectedMedicineId}");
-
-        var selectedMed = _availableMedicines.FirstOrDefault(m => m.Id == _selectedMedicineId);
-        if (selectedMed != null)
-        {
-            var medicine = new PrescribedMedicine
-            {
-                MedicineId = _selectedMedicineId,
-                MedicineName = selectedMed.Name,
-                Quantity = _medicineQuantity,
-                Dosage = _medicineDosage
-            };
-
-            _prescribedMedicines.Add(medicine);
-
-            // Reset inputs
-            _selectedMedicineId = 0;
-            _medicineQuantity = 1;
-            _medicineDosage = "";
-
-            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Added {selectedMed.Name}");
-        }
-
-        StateHasChanged();
-    }
-
-    private void RemoveMedicine(int medicineId)
-    {
-        _prescribedMedicines.RemoveAll(m => m.MedicineId == medicineId);
-        StateHasChanged();
-    }
-
-    private async Task SavePrescriptionAsync()
-    {
-        // Hard block — không cho lưu lần 2
-        if (_prescriptionSaved)
-        {
-            ToastService.ShowWarning("Prescription has already been submitted and cannot be modified.");
-            return;
-        }
-
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_prescribedMedicines.Count} prescription(s) for TicketId={TicketId}");
-        try
-        {
-            // Tạo mới Prescription (chỉ đến đây khi chưa có)
-            var prescription = new Prescription
-            {
-                TicketId = TicketId,
-                Status = "Pending",
-            };
-
-            foreach (var med in _prescribedMedicines)
-            {
-                var selectedMed = _availableMedicines.FirstOrDefault(m => m.Id == med.MedicineId);
-                var unitPrice = selectedMed?.Price ?? 0;
-
-                prescription.PrescriptionDetails.Add(new PrescriptionDetail
-                {
-                    MedicineId = med.MedicineId,
-                    Quantity = med.Quantity,
-                    UnitPrice = unitPrice,
-                    UsageInstruction = med.Dosage,
-                });
-            }
-
-            // Calculate total amount directly here so it persists and pharmacist sees it immediately
-            prescription.TotalAmount = prescription.PrescriptionDetails.Sum(d => d.UnitPrice * d.Quantity);
-
-            DbContext.Prescriptions.Add(prescription);
-            await DbContext.SaveChangesAsync();
-
-            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Prescription saved (PrescriptionId={prescription.Id})");
-
-            // Broadcast SignalR tới Dược sĩ
-            await PharmacyService.NotifyNewPrescriptionAsync(prescription.Id);
-
-            // Đánh dấu đã lưu → khóa UI
-            _prescriptionSaved = true;
-            StateHasChanged();
-
-            ToastService.ShowSuccess($"Saved {_prescribedMedicines.Count} prescription(s) — Pharmacist notified!");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR saving prescription: {ex.Message}");
-            ToastService.ShowError($"Error saving prescription: {ex.Message}");
-        }
-    }
-
-    // ── TEST ONLY — Hàm hỗ trợ reset đơn thuốc để test lại từ đầu ──────────
-    private async Task ResetPrescriptionTestAsync()
-    {
-        try
-        {
-            var existingPrescription = await DbContext.Prescriptions
-                .FirstOrDefaultAsync(p => p.TicketId == TicketId);
-
-            if (existingPrescription != null)
-            {
-                var pId = existingPrescription.Id;
-                DbContext.Prescriptions.Remove(existingPrescription);
-                await DbContext.SaveChangesAsync();
-                
-                // Notify Pharmacists about deletion
-                await PharmacyService.NotifyPrescriptionDeletedAsync(pId);
-
-                _prescriptionSaved = false;
-                _prescribedMedicines.Clear();
-
-                ToastService.ShowInfo("Đã xóa hoàn toàn đơn thuốc trong Database! Bạn có thể kê lại từ đầu.");
-                StateHasChanged();
-            }
-        }
-        catch (Exception ex)
-        {
-            ToastService.ShowError($"Lỗi khi xóa: {ex.Message}");
-        }
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private void HandleLabTestChange(string testName, bool isChecked)
-    {
-        if (isChecked && !_selectedLabTests.Contains(testName))
-        {
-            _selectedLabTests.Add(testName);
-        }
-        else if (!isChecked)
-        {
-            _selectedLabTests.Remove(testName);
-        }
-    }
-
-    private async Task SaveLabTestsAsync()
-    {
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_selectedLabTests.Count} lab tests for TicketId={TicketId}");
-        try
-        {
-            // TODO: lưu lab tests xuống DB (tạo bảng LabTestOrder hoặc lưu vào QueueTicket)
-            await Task.Delay(300); // placeholder cho async DB call
-            ToastService.ShowSuccess($"Saved {_selectedLabTests.Count} lab test(s) successfully!");
-            System.Diagnostics.Debug.WriteLine($"✅ [Examination] Lab tests saved");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR saving lab tests: {ex.Message}");
-            ToastService.ShowError($"Error saving lab tests: {ex.Message}");
-        }
     }
 
     private async Task CompleteExaminationAsync()
     {
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Completing examination for TicketId={TicketId}");
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Starting complete check for TicketId={TicketId}");
 
-        // Save medical record if any
-        if (!string.IsNullOrWhiteSpace(_diagnosis))
+        // Check if any prescription exists (with at least one medicine)
+        using (var context = DbFactory.CreateDbContext())
         {
-            // TODO: Save examination/medical record
+            var hasPrescription = await context.Prescriptions
+                .AnyAsync(p => p.TicketId == TicketId && p.PrescriptionDetails.Any());
+
+            if (!hasPrescription && !_showPrescriptionConfirm)
+            {
+                _showPrescriptionConfirm = true;
+                StateHasChanged();
+                return;
+            }
         }
 
-        // Save prescriptions if any
-        if (_prescribedMedicines.Any())
-        {
-            // TODO: Save prescriptions to database
-            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Saving {_prescribedMedicines.Count} medicines");
-        }
+        await FinishCompleteAsync();
+    }
 
-        // Order lab tests if any
-        if (_selectedLabTests.Any())
+    private async Task FinishCompleteAsync()
+    {
+        _showPrescriptionConfirm = false;
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Finishing completion for TicketId={TicketId}");
+
+        try
         {
-            // TODO: Create lab test orders
-            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Ordering {_selectedLabTests.Count} lab tests");
+            using var context = DbFactory.CreateDbContext();
+            var ticket = await context.QueueTickets
+                .Include(t => t.LabOrders)
+                    .ThenInclude(lo => lo.LabOrderDetails)
+                .FirstOrDefaultAsync(t => t.Id == TicketId);
+
+            if (ticket != null)
+            {
+                // 1. Consultation fee (mặc định 300k)
+                decimal total = 300000;
+
+                // 2. Lab Fees
+                var labTotal = ticket.LabOrders
+                    .SelectMany(lo => lo.LabOrderDetails)
+                    .Sum(lod => lod.UnitPrice);
+                total += labTotal;
+
+                // 3. Medicine Fees (lấy từ bảng Prescription liên kết với TicketId)
+                var prescription = await context.Prescriptions
+                    .FirstOrDefaultAsync(p => p.TicketId == TicketId);
+
+                if (prescription != null)
+                {
+                    total += prescription.TotalAmount ?? 0;
+                }
+
+                // Update Ticket
+                ticket.TotalAmount = total;
+                ticket.Status = "Completed";
+                ticket.Diagnosis = _diagnosis;
+                ticket.TreatmentPlan = _treatmentPlan;
+                ticket.AdditionalNotes = _notes;
+
+                await context.SaveChangesAsync();
+                ToastService.ShowSuccess($"Hoàn tất khám! Tổng quát: {total:N0} VNĐ");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            // TODO: Mark QueueTicket as "Completed" if no lab tests
-            System.Diagnostics.Debug.WriteLine($"🔵 [Examination] No lab tests, marking ticket as completed");
+            System.Diagnostics.Debug.WriteLine($"❌ [Examination] Complete error: {ex.Message}");
+            ToastService.ShowError("Lỗi hệ thống khi hoàn tất khám. Vui lòng đảm bảo các xét nghiệm và đơn thuốc đã được chốt.");
+            return;
         }
 
         System.Diagnostics.Debug.WriteLine($"✅ [Examination] Examination completed");
@@ -679,15 +382,4 @@
         if (dob.Value.ToDateTime(TimeOnly.MinValue) > DateTime.Today.AddYears(-age)) age--;
         return age;
     }
-
-    // Helper class for prescribed medicines
-    private class PrescribedMedicine
-    {
-        public int MedicineId { get; set; }
-        public string MedicineName { get; set; }
-        public int Quantity { get; set; }
-        public string Dosage { get; set; }
-    }
 }
-
-

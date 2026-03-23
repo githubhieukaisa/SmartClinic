@@ -136,13 +136,13 @@ namespace SmartClinic.Services
                 var tickets = await context.QueueTickets
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
-                    .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling"))
+                    .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling" || t.Status == "Testing"))
                     .ToListAsync();  // Load to memory first, then sort
 
-                // Sort by priority: Examining → Calling → Waiting
+                // Sort by priority: Examining → Testing → Calling → Waiting
                 var sortedTickets = tickets
-                    .OrderBy(t => t.Status == "Examining" ? 0 : t.Status == "Calling" ? 1 : 2)
-                    .ThenBy(t => t.CreatedAt)
+                    .OrderBy(t => t.Status == "Examining" ? 0 : t.Status == "Testing" ? 1 : t.Status == "Calling" ? 2 : 3)
+                    .ThenByDescending(t => t.CreatedAt)
                     .ToList();
 
                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {sortedTickets.Count} queue tickets for RoomId={doctorShift.RoomId}");
@@ -286,4 +286,3 @@ namespace SmartClinic.Services
         }
     }
 }
-

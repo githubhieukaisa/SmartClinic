@@ -1,0 +1,208 @@
+@page "/lab"
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using SmartClinic.Components.Common
+@using SmartClinic.Components.Common.Lab
+@using Microsoft.AspNetCore.SignalR.Client
+@using Blazored.Toast.Services
+
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "LabTechPolicy")]
+@rendermode InteractiveServer
+
+@inject ILabService LabService
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+
+@implements IAsyncDisposable
+
+<PageTitle>Kỹ Thuật Viên Xét Nghiệm - SmartClinic</PageTitle>
+
+<div class="max-w-7xl mx-auto px-4 py-8">
+    @* ── Tiêu đề trang ── *@
+    <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <i class="ph ph-flask text-3xl"></i>
+        </div>
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Hàng Đợi Xét Nghiệm</h1>
+            <p class="text-muted-foreground">Kỹ thuật viên cập nhật kết quả xét nghiệm</p>
+        </div>
+    </div>
+
+    @* ── Thanh tìm kiếm & bộ lọc ── *@
+    <div class="flex items-center gap-3 p-4 bg-card border border-border rounded-xl shadow-sm mb-8">
+        <div
+            class="flex-1 flex items-center bg-background border border-border rounded-lg px-3 focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+            <i class="ph ph-magnifying-glass text-muted-foreground text-lg"></i>
+            <input type="text" @bind="SearchTerm" @bind:event="oninput"
+                   class="flex-1 bg-transparent border-none py-2.5 px-3 text-sm focus:outline-none text-foreground"
+                   placeholder="Tìm bệnh nhân hoặc số phiếu..." />
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+            @* ── Workplace Selection (Station) ── *@
+            <div class="flex items-center gap-2 mr-4 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                <i class="ph ph-hospital text-muted-foreground"></i>
+                <select @bind="SelectedStationId"
+                        class="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer text-foreground p-0">
+                    <option value="0">Tất cả Trạm</option>
+                    @foreach (var station in _stations)
+                    {
+                        <option value="@station.Id">@station.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="flex bg-muted/40 p-1 rounded-lg border border-border gap-0.5">
+                <button @onclick='() => FilterStatus = "All"'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "All" ? "bg-card text-primary shadow" : "text-muted-foreground hover:text-foreground")'>
+                    Tất cả
+                </button>
+                <button @onclick='() => FilterStatus = "Pending"'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "Pending" ? "bg-card text-amber-600 shadow" : "text-muted-foreground hover:text-foreground")'>
+                    Đang chờ
+                </button>
+                <button @onclick='() => FilterStatus = "Done"'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "Done" ? "bg-card text-green-600 shadow" : "text-muted-foreground hover:text-foreground")'>
+                    Hoàn tất
+                </button>
+            </div>
+
+            <button @onclick="LoadDataAsync"
+                    class="flex items-center gap-2 px-4 py-2.5 bg-muted/40 border border-border rounded-lg text-sm font-semibold text-foreground hover:bg-muted transition-all">
+                <i class="ph ph-arrows-clockwise @(_isLoading ? "animate-spin" : "") text-base"></i>
+                Làm mới
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div
+            class="flex flex-col items-center justify-center p-24 gap-4 bg-card rounded-2xl border border-border shadow-sm">
+            <div class="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <p class="text-muted-foreground font-medium">Đang tải dữ liệu...</p>
+        </div>
+    }
+    else if (FilteredOrders == null || !FilteredOrders.Any())
+    {
+        <div
+            class="flex flex-col items-center justify-center p-24 gap-4 bg-card rounded-2xl border border-border shadow-sm text-center">
+            <div class="w-20 h-20 bg-muted rounded-full flex items-center justify-center text-muted-foreground/30 mb-2">
+                <i class="ph ph-tray text-5xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-foreground">Không tìm thấy yêu cầu xét nghiệm</h3>
+            <p class="text-muted-foreground max-w-sm">Hãy thử thay đổi từ khóa hoặc bộ lọc trạng thái của bạn.</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            @foreach (var order in PagedOrders)
+            {
+                <LabOrderCard Order="order" OnOrderUpdated="LoadDataAsync" SelectedStationId="_selectedStationId" />
+            }
+        </div>
+
+        @* ── Phân trang ── *@
+        <Pagination CurrentPage="_currentPage" TotalItems="FilteredOrders.Count()" PageSize="_pageSize"
+                    OnPageChanged="(p) => { _currentPage = p; StateHasChanged(); }" />
+    }
+</div>
+
+@code {
+    private List<LabOrder>? _labOrders;
+    private List<Room> _stations = new();
+    private bool _isLoading = true;
+    private HubConnection? _hubConnection;
+
+    // Pagination & Filters
+    private int _currentPage = 1;
+    private int _pageSize = 6;
+
+    private string _searchTerm = "";
+    private string SearchTerm
+    {
+        get => _searchTerm;
+        set { if (_searchTerm != value) { _searchTerm = value; _currentPage = 1; } }
+    }
+
+    private string _filterStatus = "Pending";
+    private string FilterStatus
+    {
+        get => _filterStatus;
+        set { if (_filterStatus != value) { _filterStatus = value; _currentPage = 1; } }
+    }
+
+    private int _selectedStationId = 0;
+    private int SelectedStationId
+    {
+        get => _selectedStationId;
+        set { if (_selectedStationId != value) { _selectedStationId = value; _currentPage = 1; } }
+    }
+
+    private IEnumerable<LabOrder> FilteredOrders => _labOrders?
+        .Where(o => (string.IsNullOrWhiteSpace(_searchTerm) ||
+                    (o.QueueTicket?.Patient?.FullName?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (o.QueueTicket?.TicketNumber.ToString().Contains(_searchTerm) ?? false)))
+        .Where(o => _filterStatus == "All" || o.Status == _filterStatus)
+        .Where(o => _selectedStationId == 0 || o.LabOrderDetails.Any(d => d.LabTest?.DefaultRoomId == _selectedStationId))
+        ?? Enumerable.Empty<LabOrder>();
+
+    private IEnumerable<LabOrder> PagedOrders => FilteredOrders
+        .Skip((_currentPage - 1) * _pageSize)
+        .Take(_pageSize);
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+        _stations = await LabService.GetLabStationsAsync();
+
+        // Connect to LabHub
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/labHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<int>("LabOrderCreated", async (orderId) =>
+        {
+            await InvokeAsync(async () =>
+            {
+                ToastService.ShowInfo("Có chỉ định xét nghiệm mới từ bác sĩ!");
+                await LoadDataAsync(); // Auto load new data
+                StateHasChanged();
+            });
+        });
+
+        await _hubConnection.StartAsync();
+
+        // Join technicians group to listen to "LabOrderCreated"
+        await _hubConnection.InvokeAsync("JoinLabTechGroup");
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _labOrders = await LabService.GetTodayLabOrdersAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Có lỗi khi kết nối database: " + ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartClinic.Models;
@@ -12,6 +12,7 @@ public partial class QueueTicket : BaseEntity
     public string Status { get; set; } = null!;
 
     public string? ClinicalDiagnosis { get; set; }
+    public decimal? TotalAmount { get; set; }
     public int MissCount { get; set; } = 0;
 
     public int? DoctorId { get; set; }
@@ -27,4 +28,6 @@ public partial class QueueTicket : BaseEntity
     public string? Diagnosis { get; set; }
     public string? TreatmentPlan { get; set; }
     public string? AdditionalNotes { get; set; }
+
+    public virtual ICollection<LabOrder> LabOrders { get; set; } = new List<LabOrder>();
 }
