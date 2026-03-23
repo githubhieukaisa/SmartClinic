@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -139,9 +139,9 @@ namespace SmartClinic.Services
                     .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling" || t.Status == "Testing"))
                     .ToListAsync();  // Load to memory first, then sort
 
-                // Sort by priority: Examining → Calling → Waiting
+                // Sort by priority: Examining → Testing → Calling → Waiting
                 var sortedTickets = tickets
-                    .OrderBy(t => t.Status == "Examining" ? 0 : t.Status == "Calling" ? 1 : 2)
+                    .OrderBy(t => t.Status == "Examining" ? 0 : t.Status == "Testing" ? 1 : t.Status == "Calling" ? 2 : 3)
                     .ThenByDescending(t => t.CreatedAt)
                     .ToList();
 

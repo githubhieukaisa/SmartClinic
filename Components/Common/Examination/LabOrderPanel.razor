@@ -179,6 +179,7 @@
 @code {
     [Parameter] public int TicketId { get; set; }
     [Parameter] public int RoomId { get; set; }
+    [Parameter] public EventCallback OnLabsUpdated { get; set; }
 
     private List<LabTest>? _labTests;
     private List<LabOrder>? _assignedOrders;
@@ -206,6 +207,7 @@
                 {
                     ToastService.ShowSuccess("Kết quả xét nghiệm của bệnh nhân này đã có!");
                     await ReloadAssignedOrdersAsync();
+                    if (OnLabsUpdated.HasDelegate) await OnLabsUpdated.InvokeAsync();
                     StateHasChanged();
                 });
             }
@@ -255,11 +257,13 @@
             _selectedLabTestIds.Clear();
             _showLabOrderConfirm = false;
             await ReloadAssignedOrdersAsync();
+            if (OnLabsUpdated.HasDelegate) await OnLabsUpdated.InvokeAsync();
             StateHasChanged();
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Lỗi khi gửi phiếu: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"❌ [LabOrderPanel] Order error: {ex.Message}");
+            ToastService.ShowError("Không thể gửi chỉ định xét nghiệm. Vui lòng kiểm tra lại danh mục và thử lại.");
         }
     }
 

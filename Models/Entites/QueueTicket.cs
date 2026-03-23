@@ -12,6 +12,7 @@ public partial class QueueTicket : BaseEntity
     public string Status { get; set; } = null!;
 
     public string? ClinicalDiagnosis { get; set; }
+    public decimal? TotalAmount { get; set; }
     public int MissCount { get; set; } = 0;
 
     public int? DoctorId { get; set; }

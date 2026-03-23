@@ -59,7 +59,8 @@
     }
     else if (!_prescriptions.Any())
     {
-        <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground bg-card rounded-xl border border-border">
+        <div
+            class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground bg-card rounded-xl border border-border">
             <i class="ph ph-prescription text-4xl"></i>
             <p class="font-medium">Không có đơn thuốc nào đang chờ</p>
         </div>
@@ -73,7 +74,8 @@
                     <!-- Prescription Header -->
                     <div class="flex items-center justify-between p-5 border-b border-border bg-amber-50">
                         <div class="flex items-center gap-4">
-                            <span class="inline-flex items-center justify-center w-10 h-10 bg-amber-200 text-amber-800 rounded-lg text-sm font-bold">
+                            <span
+                                class="inline-flex items-center justify-center w-10 h-10 bg-amber-200 text-amber-800 rounded-lg text-sm font-bold">
                                 #@p.TicketNumber
                             </span>
                             <div>
@@ -120,7 +122,8 @@
                                         <td class="py-3 px-5 text-center text-foreground">@d.Quantity</td>
                                         <td class="py-3 px-5 text-center text-muted-foreground">@(d.Unit ?? "—")</td>
                                         <td class="py-3 px-5 text-muted-foreground">@(d.UsageInstruction ?? "—")</td>
-                                        <td class="py-3 px-5 text-right font-medium text-foreground">@d.SubTotal.ToString("N0")đ</td>
+                                        <td class="py-3 px-5 text-right font-medium text-foreground">@d.SubTotal.ToString("N0")đ
+                                        </td>
                                     </tr>
                                 }
                             </tbody>

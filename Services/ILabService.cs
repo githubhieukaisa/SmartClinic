@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Components.Forms;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SmartClinic.Models;
@@ -14,4 +15,5 @@ public interface ILabService
     Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl);
     Task<bool> HasPendingLabOrdersAsync(int ticketId);
     Task<List<LabOrder>> GetLabOrdersByTicketAsync(int ticketId);
+    Task<string> UploadFileAsync(IBrowserFile file);
 }

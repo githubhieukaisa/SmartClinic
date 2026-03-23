@@ -283,7 +283,8 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Lỗi khi lưu đơn thuốc: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"❌ [PrescriptionPanel] Save error: {ex.Message}");
+            ToastService.ShowError("Không thể lưu đơn thuốc. Vui lòng kiểm tra lại danh mục thuốc hoặc kết nối máy chủ.");
         }
     }
 
@@ -316,7 +317,8 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Lỗi khi xóa: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"❌ [PrescriptionPanel] RESET error: {ex.Message}");
+            ToastService.ShowError("Có lỗi xảy ra khi xóa dữ liệu thử nghiệm.");
         }
     }
 

@@ -1,6 +1,9 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Hubs;
@@ -12,11 +15,13 @@ public class LabService : ILabService
 {
     private readonly IDbContextFactory<SmartClinicDbContext> _dbFactory;
     private readonly IHubContext<LabHub> _labHubContext;
+    private readonly IWebHostEnvironment _environment;
 
-    public LabService(IDbContextFactory<SmartClinicDbContext> dbFactory, IHubContext<LabHub> labHubContext)
+    public LabService(IDbContextFactory<SmartClinicDbContext> dbFactory, IHubContext<LabHub> labHubContext, IWebHostEnvironment environment)
     {
         _dbFactory = dbFactory;
         _labHubContext = labHubContext;
+        _environment = environment;
     }
 
     public async Task<List<LabTest>> GetAllLabTestsAsync()
@@ -159,5 +164,28 @@ public class LabService : ILabService
             .Distinct()
             .OrderBy(r => r.Name)
             .ToListAsync();
+    }
+
+    public async Task<string> UploadFileAsync(IBrowserFile file)
+    {
+        try
+        {
+            var folder = Path.Combine(_environment.WebRootPath, "uploads", "lab-results");
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+            var fileName = $"{System.Guid.NewGuid()}_{file.Name}";
+            var path = Path.Combine(folder, fileName);
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB max
+            using var fileStream = new FileStream(path, FileMode.Create);
+            await stream.CopyToAsync(fileStream);
+
+            return $"/uploads/lab-results/{fileName}";
+        }
+        catch (System.Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [LabService] Upload error: {ex.Message}");
+            throw;
+        }
     }
 }

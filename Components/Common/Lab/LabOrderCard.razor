@@ -33,7 +33,7 @@
         @foreach (var detail in Order.LabOrderDetails.Where(d => SelectedStationId == 0 || d.LabTest?.DefaultRoomId ==
         SelectedStationId))
         {
-            bool isDetailDone = !string.IsNullOrEmpty(detail.ResultNotes);
+            bool isDetailDone = _savedDetailIds.Contains(detail.Id);
             bool isExpanded = _expandedDetailIds.Contains(detail.Id);
 
             <div
@@ -82,27 +82,67 @@
                                 <div>
                                     <label
                                         class="block text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                        <i class="ph ph-link text-primary"></i>
-                                        Tệp đính kèm (URL Hình ảnh/PDF)
+                                        <i class="ph ph-file-arrow-up text-primary"></i>
+                                        Tệp đính kèm (Hình ảnh/PDF)
                                     </label>
-                                    <input type="text"
-                                           class="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm disabled:bg-muted/50 disabled:text-muted-foreground"
-                                           @bind="detail.ResultFileUrl" placeholder="https://..." readonly="@isDetailDone" />
-                                </div>
 
-                                <div class="flex justify-end pt-2">
-                                    <SaveActionButton OnClick="() => SaveResultAsync(detail)"
-                                                      Disabled="@(isDetailDone || string.IsNullOrWhiteSpace(detail.ResultNotes))"
-                                                      Label="@(isDetailDone ? "Đã Gửi Bác Sĩ" : "Lưu Kết Quả")" LoadingLabel="Đang lưu..."
-                                                      Icon="@(isDetailDone ? "ph-check-square" : "ph-floppy-disk")"
-                                                      Variant="@(isDetailDone ? "ghost" : "solid")" ExtraCssClass="!py-2 !h-9" />
+                                    @if (string.IsNullOrEmpty(detail.ResultFileUrl))
+                                    {
+                                        <label
+                                            class="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all group">
+                                            <div class="flex flex-col items-center gap-2 text-center">
+                                                <i
+                                                class="ph ph-cloud-arrow-up text-3xl text-muted-foreground group-hover:text-primary transition-colors"></i>
+                                                <span class="text-xs font-bold text-muted-foreground">Nhấn để tải lên kết quả (Max
+                                                    10MB)</span>
+                                                    <span class="text-[10px] text-muted-foreground/60">Chấp nhận .jpg, .png, .pdf...</span>
+                                                </div>
+                                                <InputFile OnChange="@(e => HandleFileSelected(e, detail))" class="hidden"
+                                                           disabled="@isDetailDone" />
+                                            </label>
+                                        }
+                                    else
+                                        {
+                                            <div class="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                                                <div class="flex items-center gap-3 overflow-hidden">
+                                                    <div
+                                                        class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                                        @{
+                                                            var ext = detail.ResultFileUrl.Split('.').LastOrDefault()?.ToLower();
+                                                            <i class="ph ph-@(ext == "pdf" ? "file-pdf" : "image-square") text-xl"></i>
+                                                        }
+                                                    </div>
+                                                    <div class="flex flex-col overflow-hidden">
+                                                        <span
+                                                        class="text-xs font-bold text-foreground truncate">@detail.ResultFileUrl.Split('/').Last()</span>
+                                                        <a href="@detail.ResultFileUrl" target="_blank"
+                                                           class="text-[10px] text-primary hover:underline font-bold">Xem tệp tin</a>
+                                                    </div>
+                                                </div>
+                                                @if (!isDetailDone)
+                                                {
+                                                    <button @onclick="() => detail.ResultFileUrl = null"
+                                                            class="p-2 text-muted-foreground hover:text-destructive transition-colors">
+                                                        <i class="ph ph-trash text-lg"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="flex justify-end pt-2">
+                                        <SaveActionButton OnClick="() => SaveResultAsync(detail)"
+                                                          Disabled="@(isDetailDone || string.IsNullOrWhiteSpace(detail.ResultNotes))"
+                                                          Label="@(isDetailDone ? "Đã Gửi Bác Sĩ" : "Lưu Kết Quả")" LoadingLabel="Đang lưu..."
+                                                          Icon="@(isDetailDone ? "ph-check-square" : "ph-floppy-disk")"
+                                                          Variant="@(isDetailDone ? "ghost" : "solid")" ExtraCssClass="!py-2 !h-9" />
+                                    </div>
                                 </div>
-                            </div>
-                        }
-                    </div>
-                }
+                            }
+                        </div>
+                    }
+                </div>
             </div>
-        </div>
 
 @code {
     [Parameter, EditorRequired] public LabOrder Order { get; set; } = default!;
@@ -110,6 +150,15 @@
     [Parameter] public int SelectedStationId { get; set; }
 
     private HashSet<int> _expandedDetailIds = new();
+    private HashSet<int> _savedDetailIds = new();
+
+    protected override void OnParametersSet()
+    {
+        _savedDetailIds = Order.LabOrderDetails
+            .Where(d => !string.IsNullOrEmpty(d.ResultNotes))
+            .Select(d => d.Id)
+            .ToHashSet();
+    }
 
     private void ToggleDetail(int detailId)
     {
@@ -117,6 +166,25 @@
             _expandedDetailIds.Remove(detailId);
         else
             _expandedDetailIds.Add(detailId);
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e, LabOrderDetail detail)
+    {
+        try
+        {
+            var file = e.File;
+            if (file != null)
+            {
+                var uploadedUrl = await LabService.UploadFileAsync(file);
+                detail.ResultFileUrl = uploadedUrl;
+                ToastService.ShowSuccess($"Đã tải lên tệp: {file.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [LabOrderCard] File upload error: {ex.Message}");
+            ToastService.ShowError("Không thể tải tệp lên. Vui lòng kiểm tra lại định dạng tệp (PDF/Ảnh) hoặc kích thước tệp (tối đa 10MB).");
+        }
     }
 
     private async Task SaveResultAsync(LabOrderDetail detail)
@@ -130,6 +198,7 @@
         try
         {
             await LabService.SubmitLabResultAsync(detail.Id, detail.ResultNotes, detail.ResultFileUrl);
+            _savedDetailIds.Add(detail.Id);
             ToastService.ShowSuccess($"Đã ghi nhận kết quả cho {detail.LabTest?.Name}");
 
             // Optionally collapse after saving
@@ -142,7 +211,8 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError("Có lỗi xảy ra khi lưu: " + ex.Message);
+            System.Diagnostics.Debug.WriteLine($"❌ [LabOrderCard] Save error: {ex.Message}");
+            ToastService.ShowError("Có lỗi xảy ra khi lưu kết quả. Vui lòng kiểm tra lại dữ liệu và kết nối mạng.");
         }
     }
 }

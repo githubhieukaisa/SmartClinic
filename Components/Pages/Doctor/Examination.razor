@@ -3,6 +3,7 @@
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
+@using SmartClinic.Components.Common
 @using SmartClinic.Components.Common.Examination
 @using Blazored.Toast.Services
 @using Microsoft.EntityFrameworkCore
@@ -13,6 +14,7 @@
 @inject IDbContextFactory<SmartClinicDbContext> DbFactory
 @inject IToastService ToastService
 @inject IPharmacyService PharmacyService
+@inject ILabService LabService
 @attribute [Authorize(Policy = "DoctorPolicy")]
 
 
@@ -131,24 +133,70 @@
 
                 <!-- Save Medical Record Button -->
                 <SaveActionButton OnClick="SaveMedicalRecordAsync" Label="Lưu Hồ Sơ" LoadingLabel="Đang lưu..."
-                                  Icon="ph-floppy-disk" Disabled="@string.IsNullOrWhiteSpace(_diagnosis)" />
+                                  Icon="ph-floppy-disk"
+                                  Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes))" />
             </div>
         </div>
 
         <!-- Lab Tests Section (Test) -->
-        <LabOrderPanel TicketId="@TicketId" RoomId="@_currentRoomId" />
+        <LabOrderPanel TicketId="@TicketId" RoomId="@_currentRoomId" OnLabsUpdated="CheckPendingLabsAsync" />
 
         <!-- Medicine Section (Prescription) -->
         <PrescriptionPanel TicketId="@TicketId" />
 
         <!-- Action Buttons -->
-        <div class="flex gap-3 justify-end">
+        <div class="flex gap-3 justify-end items-center">
+            @if (_hasPendingLabs)
+            {
+                <span
+                    class="text-amber-600 text-xs font-bold flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                    <i class="ph ph-warning-circle text-base animate-pulse"></i>
+                    Đang chờ kết quả xét nghiệm...
+                </span>
+            }
+
             <SaveActionButton OnClick="@(() => { GoBack(); return Task.CompletedTask; })" Label="Quay lại"
                               LoadingLabel="Đang quay lại..." Icon="ph-arrow-left" />
+
             <SaveActionButton OnClick="CompleteExaminationAsync" Label="Hoàn tất khám" LoadingLabel="Đang hoàn tất..."
-                              Icon="ph-check" Variant="solid" ExtraCssClass="!bg-green-600 hover:!bg-green-700 !text-white" />
+                              Icon="ph-check" Variant="solid" ExtraCssClass="shadow-md"
+                              Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes) || _hasPendingLabs)" />
         </div>
     }
+
+    <!-- Prescription Confirmation Modal -->
+    <Modal IsVisible="@_showPrescriptionConfirm" OnClose="() => _showPrescriptionConfirm = false"
+           Size="Modal.ModalSize.Md">
+        <HeaderContent>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                    <i class="ph ph-warning text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-amber-900">Chưa kê đơn thuốc</h3>
+                </div>
+            </div>
+        </HeaderContent>
+
+        <ChildContent>
+            <p class="text-sm text-foreground py-4">Bạn chưa kê đơn thuốc cho bệnh nhân này. Bạn có chắc chắn muốn
+                <b>Hoàn tất khám</b> mà không cần thuốc?
+            </p>
+        </ChildContent>
+
+        <FooterContent>
+            <div class="flex justify-end gap-3 w-full">
+                <button @onclick="() => _showPrescriptionConfirm = false"
+                        class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors text-sm">
+                    Quay lại kê đơn
+                </button>
+                <button @onclick="FinishCompleteAsync"
+                        class="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors text-sm">
+                    Xác nhận hoàn tất
+                </button>
+            </div>
+        </FooterContent>
+    </Modal>
 </div>
 
 @code {
@@ -163,6 +211,8 @@
     private string _diagnosis = "";
     private string _treatmentPlan = "";
     private string _notes = "";
+    private bool _hasPendingLabs = false;
+    private bool _showPrescriptionConfirm = false;
 
     private bool _isLoading = true;
     private string? _errorMessage;
@@ -174,6 +224,7 @@
         try
         {
             _patient = await PatientService.GetPatientByIdAsync(PatientId);
+            _hasPendingLabs = await LabService.HasPendingLabOrdersAsync(TicketId);
 
             if (_patient == null)
             {
@@ -200,12 +251,18 @@
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR loading patient: {ex.Message}");
-            _errorMessage = $"Lỗi khi tải thông tin bệnh nhân: {ex.Message}";
+            _errorMessage = "Không thể tải hồ sơ bệnh nhân. Vui lòng liên hệ bộ phận kỹ thuật hoặc thử lại sau.";
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    private async Task CheckPendingLabsAsync()
+    {
+        _hasPendingLabs = await LabService.HasPendingLabOrdersAsync(TicketId);
+        StateHasChanged();
     }
 
     private async Task SaveMedicalRecordAsync()
@@ -239,12 +296,74 @@
 
     private async Task CompleteExaminationAsync()
     {
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Completing examination for TicketId={TicketId}");
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Starting complete check for TicketId={TicketId}");
 
-        // Final save for record
-        if (!string.IsNullOrWhiteSpace(_diagnosis))
+        // Check if any prescription exists (with at least one medicine)
+        using (var context = DbFactory.CreateDbContext())
         {
-            await SaveMedicalRecordAsync();
+            var hasPrescription = await context.Prescriptions
+                .AnyAsync(p => p.TicketId == TicketId && p.PrescriptionDetails.Any());
+
+            if (!hasPrescription && !_showPrescriptionConfirm)
+            {
+                _showPrescriptionConfirm = true;
+                StateHasChanged();
+                return;
+            }
+        }
+
+        await FinishCompleteAsync();
+    }
+
+    private async Task FinishCompleteAsync()
+    {
+        _showPrescriptionConfirm = false;
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Finishing completion for TicketId={TicketId}");
+
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            var ticket = await context.QueueTickets
+                .Include(t => t.LabOrders)
+                    .ThenInclude(lo => lo.LabOrderDetails)
+                .FirstOrDefaultAsync(t => t.Id == TicketId);
+
+            if (ticket != null)
+            {
+                // 1. Consultation fee (mặc định 300k)
+                decimal total = 300000;
+
+                // 2. Lab Fees
+                var labTotal = ticket.LabOrders
+                    .SelectMany(lo => lo.LabOrderDetails)
+                    .Sum(lod => lod.UnitPrice);
+                total += labTotal;
+
+                // 3. Medicine Fees (lấy từ bảng Prescription liên kết với TicketId)
+                var prescription = await context.Prescriptions
+                    .FirstOrDefaultAsync(p => p.TicketId == TicketId);
+
+                if (prescription != null)
+                {
+                    total += prescription.TotalAmount ?? 0;
+                }
+
+                // Update Ticket
+                ticket.TotalAmount = total;
+                ticket.Status = "Completed";
+                ticket.Diagnosis = _diagnosis;
+                ticket.TreatmentPlan = _treatmentPlan;
+                ticket.AdditionalNotes = _notes;
+
+                await context.SaveChangesAsync();
+                ToastService.ShowSuccess($"Hoàn tất khám! Tổng quát: {total:N0} VNĐ");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ [Examination] Complete error: {ex.Message}");
+            ToastService.ShowError("Lỗi hệ thống khi hoàn tất khám. Vui lòng đảm bảo các xét nghiệm và đơn thuốc đã được chốt.");
+            return;
         }
 
         System.Diagnostics.Debug.WriteLine($"✅ [Examination] Examination completed");

@@ -1,6 +1,7 @@
 @page "/lab"
 @using SmartClinic.Models
 @using SmartClinic.Services
+@using SmartClinic.Components.Common
 @using SmartClinic.Components.Common.Lab
 @using Microsoft.AspNetCore.SignalR.Client
 @using Blazored.Toast.Services
@@ -33,7 +34,7 @@
         <div
             class="flex-1 flex items-center bg-background border border-border rounded-lg px-3 focus-within:ring-2 focus-within:ring-primary/50 transition-all">
             <i class="ph ph-magnifying-glass text-muted-foreground text-lg"></i>
-            <input type="text" @bind="_searchTerm" @bind:event="oninput"
+            <input type="text" @bind="SearchTerm" @bind:event="oninput"
                    class="flex-1 bg-transparent border-none py-2.5 px-3 text-sm focus:outline-none text-foreground"
                    placeholder="Tìm bệnh nhân hoặc số phiếu..." />
         </div>
@@ -42,7 +43,7 @@
             @* ── Workplace Selection (Station) ── *@
             <div class="flex items-center gap-2 mr-4 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
                 <i class="ph ph-hospital text-muted-foreground"></i>
-                <select @bind="_selectedStationId"
+                <select @bind="SelectedStationId"
                         class="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer text-foreground p-0">
                     <option value="0">Tất cả Trạm</option>
                     @foreach (var station in _stations)
@@ -53,16 +54,16 @@
             </div>
 
             <div class="flex bg-muted/40 p-1 rounded-lg border border-border gap-0.5">
-                <button @onclick='() => _filterStatus = "All"'
-                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(_filterStatus == "All" ? "bg-card text-primary shadow" : "text-muted-foreground hover:text-foreground")'>
+                <button @onclick='() => FilterStatus = "All"'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "All" ? "bg-card text-primary shadow" : "text-muted-foreground hover:text-foreground")'>
                     Tất cả
                 </button>
-                <button @onclick='() => _filterStatus = "Pending"'
-                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(_filterStatus == "Pending" ? "bg-card text-amber-600 shadow" : "text-muted-foreground hover:text-foreground")'>
+                <button @onclick='() => FilterStatus = "Pending"'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "Pending" ? "bg-card text-amber-600 shadow" : "text-muted-foreground hover:text-foreground")'>
                     Đang chờ
                 </button>
-                <button @onclick='() => _filterStatus = "Done"'
-                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(_filterStatus == "Done" ? "bg-card text-green-600 shadow" : "text-muted-foreground hover:text-foreground")'>
+                <button @onclick='() => FilterStatus = "Done"'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "Done" ? "bg-card text-green-600 shadow" : "text-muted-foreground hover:text-foreground")'>
                     Hoàn tất
                 </button>
             </div>
@@ -97,11 +98,15 @@
     else
     {
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            @foreach (var order in FilteredOrders)
+            @foreach (var order in PagedOrders)
             {
                 <LabOrderCard Order="order" OnOrderUpdated="LoadDataAsync" SelectedStationId="_selectedStationId" />
             }
         </div>
+
+        @* ── Phân trang ── *@
+        <Pagination CurrentPage="_currentPage" TotalItems="FilteredOrders.Count()" PageSize="_pageSize"
+                    OnPageChanged="(p) => { _currentPage = p; StateHasChanged(); }" />
     }
 </div>
 
@@ -109,10 +114,32 @@
     private List<LabOrder>? _labOrders;
     private List<Room> _stations = new();
     private bool _isLoading = true;
-    private string _searchTerm = "";
-    private string _filterStatus = "Pending"; // "All", "Pending", "Done"
-    private int _selectedStationId = 0;
     private HubConnection? _hubConnection;
+
+    // Pagination & Filters
+    private int _currentPage = 1;
+    private int _pageSize = 6;
+
+    private string _searchTerm = "";
+    private string SearchTerm
+    {
+        get => _searchTerm;
+        set { if (_searchTerm != value) { _searchTerm = value; _currentPage = 1; } }
+    }
+
+    private string _filterStatus = "Pending";
+    private string FilterStatus
+    {
+        get => _filterStatus;
+        set { if (_filterStatus != value) { _filterStatus = value; _currentPage = 1; } }
+    }
+
+    private int _selectedStationId = 0;
+    private int SelectedStationId
+    {
+        get => _selectedStationId;
+        set { if (_selectedStationId != value) { _selectedStationId = value; _currentPage = 1; } }
+    }
 
     private IEnumerable<LabOrder> FilteredOrders => _labOrders?
         .Where(o => (string.IsNullOrWhiteSpace(_searchTerm) ||
@@ -121,6 +148,10 @@
         .Where(o => _filterStatus == "All" || o.Status == _filterStatus)
         .Where(o => _selectedStationId == 0 || o.LabOrderDetails.Any(d => d.LabTest?.DefaultRoomId == _selectedStationId))
         ?? Enumerable.Empty<LabOrder>();
+
+    private IEnumerable<LabOrder> PagedOrders => FilteredOrders
+        .Skip((_currentPage - 1) * _pageSize)
+        .Take(_pageSize);
 
 
     protected override async Task OnInitializedAsync()
