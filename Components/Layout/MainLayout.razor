@@ -11,12 +11,50 @@
 @inject NotificationService Notification
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="flex h-screen bg-background">
+    <aside class="w-64 bg-sidebar border-r border-border flex flex-col fixed h-full z-50">
+        <!-- HEADER: Logo -->
+        <div class="p-6 border-b border-border">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-hospital text-white text-sm"></i>
+                </div>
+                <h1 class="text-xl font-bold text-foreground">SmartClinic</h1>
+            </div>
+        </div>
 
-    <main class="flex-1 overflow-auto">
+        <!-- HEADER: User Profile -->
+        <div class="p-6 border-b border-border">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold shrink-0">
+                    @_userInitial
+                </div>
+                <div>
+                    <p class="font-semibold text-foreground text-sm line-clamp-1" title="@_userName">@_userName</p>
+                    <p class="text-xs text-muted-foreground line-clamp-1" title="@_userRole">@_userRole</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAVIGATION -->
+        <nav class="flex-1 overflow-y-auto">
+            <NavMenu />
+        </nav>
+
+        <!-- FOOTER: Logout -->
+        <div class="p-4 border-t border-border mt-auto">
+            <form action="/logout" method="post">
+                <AntiforgeryToken />
+                <button type="submit"
+                        class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-red-50 transition font-medium">
+                    <i class="ph-bold ph-sign-out text-lg"></i>
+                    <span>Đăng xuất</span>
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <main class="flex-1 ml-64 overflow-auto relative">
         <div class="min-h-screen bg-background">
             @Body
         </div>
@@ -41,6 +79,11 @@
     private int _doctorId;
     private System.Threading.Timer? _shiftCheckTimer;
 
+    // Header Profile vars
+    private string _userName = "Vô danh";
+    private string _userInitial = "U";
+    private string _userRole = "Khách";
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -48,9 +91,27 @@
 
         if (user?.Identity?.IsAuthenticated != true) return;
 
-        // Chỉ Doctor mới cần theo dõi Room auto-detect
+        // Populate User Info
+        _userName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value 
+                    ?? user.Identity.Name ?? "Bạn";
+        _userInitial = _userName.Trim().Length > 0 ? _userName.Trim().Substring(0, 1).ToUpper() : "U";
+
         var roleMaskClaim = user.FindFirst("RoleMask")?.Value;
-        if (!int.TryParse(roleMaskClaim, out int roleMask) || (roleMask & 2) != 2)
+        if (int.TryParse(roleMaskClaim, out int roleMask))
+        {
+            var roleNames = new List<string>();
+            if ((roleMask & 16) == 16) roleNames.Add("Admin");
+            if ((roleMask & 2) == 2) roleNames.Add("Bác sĩ");
+            if ((roleMask & 8) == 8) roleNames.Add("Thu ngân");
+            if ((roleMask & 32) == 32) roleNames.Add("Xét nghiệm");
+            if ((roleMask & 4) == 4) roleNames.Add("Dược sĩ");
+            if ((roleMask & 1) == 1) roleNames.Add("Lễ tân");
+
+            _userRole = roleNames.Any() ? string.Join(", ", roleNames) : "User";
+        }
+
+        // Chỉ Doctor mới cần theo dõi Room auto-detect
+        if (!int.TryParse(roleMaskClaim, out int doctorRoleMask) || (doctorRoleMask & 2) != 2)
         {
             System.Diagnostics.Debug.WriteLine($"[MainLayout] ℹ️ Not a Doctor (RoleMask={roleMaskClaim}) — skipping JoinRoom");
             return;

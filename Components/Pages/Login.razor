@@ -130,8 +130,12 @@ authProperties);
                     {
                         redirectUrl = "/lab";
                     }
-                    
+                    else if ((roleMask & 8) == 8) // Cashier (RoleMask: 8)
+                    {
+                        redirectUrl = "/cashier/payments";
+                    }
 
+                    
                 }
 
                 NavigationManager.NavigateTo(redirectUrl, forceLoad: true);

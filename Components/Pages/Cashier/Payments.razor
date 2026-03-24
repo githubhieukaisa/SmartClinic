@@ -1,11 +1,10 @@
-﻿@page "/cashier/payments"
+@page "/cashier/payments"
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.DTOs
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
 @using Blazored.Toast.Services
 @rendermode InteractiveServer
-@layout CashierLayout
 @attribute [Authorize(Policy = "CashierPolicy")]
 @inject ICashierService CashierService
 @inject IToastService ToastService

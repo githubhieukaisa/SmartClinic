@@ -4,9 +4,7 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
 
-<BlazoredToasts Position="ToastPosition.BottomRight"
-                Timeout="5"
-                IconType="IconType.Blazored"
+<BlazoredToasts Position="ToastPosition.BottomRight" Timeout="5" IconType="IconType.Blazored"
                 @rendermode="InteractiveServer" />
 
 <CashierToastHandler @rendermode="InteractiveServer" />
@@ -24,7 +22,8 @@
 
         <div class="p-6 border-b border-border">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold">
+                <div
+                    class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold">
                     T
                 </div>
                 <div>

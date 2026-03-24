@@ -5,7 +5,7 @@
 @using SmartClinic.DTOs
 @using SmartClinic.Models
 @using SmartClinic.Services
-@layout AdminLayout
+
 @attribute [Authorize(Policy = "AdminPolicy")]
 
 @inject IUserService UserService
@@ -76,322 +76,329 @@ else
                             <td class="px-6 py-3 text-center">
                                 @if (user.IsActive == true)
                                 {
-                                    <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">Hoạt động</span>
-                                }
+                                    <span
+                                        class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">Hoạt
+                                        động</span>
+                                    }
                                 else
-                                {
-                                    <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Đã tắt</span>
-                                }
-                            </td>
-                            <td class="px-6 py-3 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button @onclick="() => OpenEditModal(user)"
-                                            class="px-3 py-1 text-xs font-medium text-teal-700 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors">
-                                        Sửa
-                                    </button>
-                                    <button @onclick="() => HandleToggleActive(user.Id)"
-                                            class="px-3 py-1 text-xs font-medium @(user.IsActive == true ? "text-red-700 bg-red-50 hover:bg-red-100" : "text-green-700 bg-green-50 hover:bg-green-100") rounded-lg transition-colors">
-                                        @(user.IsActive == true ? "Vô hiệu hóa" : "Kích hoạt")
-                                    </button>
-                                    <button @onclick="() => OpenResetPasswordModal(user)"
-                                            class="px-3 py-1 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
-                                        Đặt lại MK
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                }
-                else
-                {
-                    <tr>
-                        <td colspan="8" class="px-6 py-12 text-center text-slate-400">Chưa có tài khoản nào.</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
-
-<!-- ═══════════ MODAL TẠO / SỬA USER ═══════════ -->
-@if (showModal)
-{
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <!-- Header Modal -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                <h3 class="text-lg font-bold text-slate-800">
-                    @(isEditMode ? "Chỉnh sửa tài khoản" : "Tạo tài khoản mới")
-                </h3>
-                <button @onclick="CloseModal" class="text-slate-400 hover:text-slate-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Body Modal — Form -->
-            <div class="px-6 py-4">
-                @if (!string.IsNullOrEmpty(modalError))
-                {
-                    <div class="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">@modalError</div>
-                }
-
-                @if (!isEditMode)
-                {
-                    <!-- ──── FORM TẠO MỚI ──── -->
-                    <EditForm Model="@createDto" OnValidSubmit="HandleCreate" FormName="createUserForm">
-                        <DataAnnotationsValidator />
-
-                        @* Username + Password (chỉ khi tạo mới) *@
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập <span class="text-red-500">*</span></label>
-                                <InputText @bind-Value="createDto.Username"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                <ValidationMessage For="@(() => createDto.Username)" class="text-xs text-red-500 mt-1" />
-                            </div>
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu <span class="text-red-500">*</span></label>
-                                <InputText type="password" @bind-Value="createDto.Password"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                <ValidationMessage For="@(() => createDto.Password)" class="text-xs text-red-500 mt-1" />
-                            </div>
-                        </div>
-
-                        @* Thông tin cá nhân *@
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Họ tên <span class="text-red-500">*</span></label>
-                                <InputText @bind-Value="createDto.FullName"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                <ValidationMessage For="@(() => createDto.FullName)" class="text-xs text-red-500 mt-1" />
-                            </div>
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Email</label>
-                                <InputText @bind-Value="createDto.Email"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                <ValidationMessage For="@(() => createDto.Email)" class="text-xs text-red-500 mt-1" />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Số điện thoại</label>
-                                <InputText @bind-Value="createDto.PhoneNumber"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                            </div>
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Giới tính</label>
-                                <InputSelect @bind-Value="createDto.Gender"
-                                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                                    <option value="">— Chọn —</option>
-                                    <option value="true">Nam</option>
-                                    <option value="false">Nữ</option>
-                                </InputSelect>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="block mb-1 text-sm font-medium text-slate-700">Địa chỉ</label>
-                            <InputText @bind-Value="createDto.Address"
-                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                        </div>
-
-                        @* ──── PHẦN QUAN TRỌNG: CHECKBOX QUYỀN BITWISE ──── *@
-                        <div class="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <label class="block mb-3 text-sm font-bold text-slate-800">Phân quyền (RoleMask: @createDto.RoleMask)</label>
-                            <div class="grid grid-cols-3 gap-3">
-                                @foreach (var role in roleDefinitions)
-                                {
-                                    var roleBit = role.Bit;
-                                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                                        <input type="checkbox"
-                                               checked="@((createDto.RoleMask & roleBit) == roleBit)"
-                                               @onchange="e => ToggleCreateRole(roleBit, (bool)(e.Value ?? false))"
-                                               class="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
-                                        <span class="text-sm text-slate-700">@role.Label</span>
-                                    </label>
-                                }
-                            </div>
-                        </div>
-
-                        @* Nếu tick Bác sĩ → hiện dropdown chọn Phòng *@
-                        @if ((createDto.RoleMask & 2) == 2)
-                        {
-                            <div class="mb-4">
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Phòng khám (cho Bác sĩ)</label>
-                                <InputSelect @bind-Value="createDto.RoomId"
-                                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                                    <option value="">— Chọn phòng —</option>
-                                    @foreach (var room in rooms)
                                     {
-                                        <option value="@room.Id">@room.Name (@room.Location)</option>
-                                    }
-                                </InputSelect>
-                            </div>
+                                        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Đã
+                                            tắt</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-3 text-center">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button @onclick="() => OpenEditModal(user)"
+                                                    class="px-3 py-1 text-xs font-medium text-teal-700 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors">
+                                                Sửa
+                                            </button>
+                                            <button @onclick="() => HandleToggleActive(user.Id)"
+                                                    class="px-3 py-1 text-xs font-medium @(user.IsActive == true ? "text-red-700 bg-red-50 hover:bg-red-100" : "text-green-700 bg-green-50 hover:bg-green-100") rounded-lg transition-colors">
+                                                @(user.IsActive == true ? "Vô hiệu hóa" : "Kích hoạt")
+                                            </button>
+                                            <button @onclick="() => OpenResetPasswordModal(user)"
+                                                    class="px-3 py-1 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+                                                Đặt lại MK
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                else
+                        {
+                            <tr>
+                                <td colspan="8" class="px-6 py-12 text-center text-slate-400">Chưa có tài khoản nào.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <!-- ═══════════ MODAL TẠO / SỬA USER ═══════════ -->
+        @if (showModal)
+        {
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <!-- Header Modal -->
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                        <h3 class="text-lg font-bold text-slate-800">
+                            @(isEditMode ? "Chỉnh sửa tài khoản" : "Tạo tài khoản mới")
+                        </h3>
+                        <button @onclick="CloseModal" class="text-slate-400 hover:text-slate-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body Modal — Form -->
+                    <div class="px-6 py-4">
+                        @if (!string.IsNullOrEmpty(modalError))
+                        {
+                            <div class="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">@modalError</div>
                         }
 
-                        <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                            <button type="button" @onclick="CloseModal"
-                                    class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
-                                Hủy
-                            </button>
-                            <button type="submit" disabled="@isSaving"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors">
-                                @(isSaving ? "Đang lưu..." : "Tạo tài khoản")
-                            </button>
-                        </div>
-                    </EditForm>
-                }
-                else
-                {
-                    <!-- ──── FORM CHỈNH SỬA ──── -->
-                    <EditForm Model="@editDto" OnValidSubmit="HandleEdit" FormName="editUserForm">
-                        <DataAnnotationsValidator />
-
-                        <div class="mb-4 p-3 bg-slate-50 rounded-lg">
-                            <span class="text-sm text-slate-500">Tài khoản:</span>
-                            <span class="text-sm font-bold text-slate-800 ml-1">@editingUsername</span>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Họ tên <span class="text-red-500">*</span></label>
-                                <InputText @bind-Value="editDto.FullName"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                <ValidationMessage For="@(() => editDto.FullName)" class="text-xs text-red-500 mt-1" />
-                            </div>
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Email</label>
-                                <InputText @bind-Value="editDto.Email"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                                <ValidationMessage For="@(() => editDto.Email)" class="text-xs text-red-500 mt-1" />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Số điện thoại</label>
-                                <InputText @bind-Value="editDto.PhoneNumber"
-                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                            </div>
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Giới tính</label>
-                                <InputSelect @bind-Value="editDto.Gender"
-                                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                                    <option value="">— Chọn —</option>
-                                    <option value="true">Nam</option>
-                                    <option value="false">Nữ</option>
-                                </InputSelect>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="block mb-1 text-sm font-medium text-slate-700">Địa chỉ</label>
-                            <InputText @bind-Value="editDto.Address"
-                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                        </div>
-
-                        @* ──── CHECKBOX QUYỀN BITWISE (EDIT MODE) ──── *@
-                        <div class="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <label class="block mb-3 text-sm font-bold text-slate-800">Phân quyền (RoleMask: @editDto.RoleMask)</label>
-                            <div class="grid grid-cols-3 gap-3">
-                                @foreach (var role in roleDefinitions)
-                                {
-                                    var roleBit = role.Bit;
-                                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                                        <input type="checkbox"
-                                               checked="@((editDto.RoleMask & roleBit) == roleBit)"
-                                               @onchange="e => ToggleEditRole(roleBit, (bool)(e.Value ?? false))"
-                                               class="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
-                                        <span class="text-sm text-slate-700">@role.Label</span>
-                                    </label>
-                                }
-                            </div>
-                        </div>
-
-                        @if ((editDto.RoleMask & 2) == 2)
+                        @if (!isEditMode)
                         {
-                            <div class="mb-4">
-                                <label class="block mb-1 text-sm font-medium text-slate-700">Phòng khám (cho Bác sĩ)</label>
-                                <InputSelect @bind-Value="editDto.RoomId"
-                                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                                    <option value="">— Chọn phòng —</option>
-                                    @foreach (var room in rooms)
-                                    {
-                                        <option value="@room.Id">@room.Name (@room.Location)</option>
-                                    }
-                                </InputSelect>
-                            </div>
-                        }
+                            <!-- ──── FORM TẠO MỚI ──── -->
+                            <EditForm Model="@createDto" OnValidSubmit="HandleCreate" FormName="createUserForm">
+                                <DataAnnotationsValidator />
 
-                        <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                            <button type="button" @onclick="CloseModal"
-                                    class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
-                                Hủy
-                            </button>
-                            <button type="submit" disabled="@isSaving"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors">
-                                @(isSaving ? "Đang lưu..." : "Lưu thay đổi")
-                            </button>
-                        </div>
-                    </EditForm>
-                }
-            </div>
-        </div>
-    </div>
-}
+                                @* Username + Password (chỉ khi tạo mới) *@
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập <span
+                                            class="text-red-500">*</span></label>
+                                            <InputText @bind-Value="createDto.Username"
+                                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                            <ValidationMessage For="@(() => createDto.Username)" class="text-xs text-red-500 mt-1" />
+                                        </div>
+                                        <div>
+                                            <label class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu <span
+                                                class="text-red-500">*</span></label>
+                                                <InputText type="password" @bind-Value="createDto.Password"
+                                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                <ValidationMessage For="@(() => createDto.Password)" class="text-xs text-red-500 mt-1" />
+                                            </div>
+                                        </div>
 
-<!-- ═══════════ MODAL RESET MẬT KHẨU ═══════════ -->
-@if (showResetPasswordModal)
-{
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                <h3 class="text-lg font-bold text-slate-800">Đặt lại mật khẩu</h3>
-                <button @onclick="() => showResetPasswordModal = false" class="text-slate-400 hover:text-slate-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <div class="px-6 py-4">
-                <p class="text-sm text-slate-600 mb-4">
-                    Đặt lại mật khẩu cho tài khoản <strong>@resetPasswordUsername</strong>
-                </p>
-                <div class="mb-4">
-                    <label class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu mới</label>
-                    <input type="password" @bind="newPassword"
-                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                           placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)..." />
-                </div>
-                @if (!string.IsNullOrEmpty(resetPasswordError))
-                {
-                    <div class="mb-4 p-2 text-sm text-red-600 bg-red-50 rounded">@resetPasswordError</div>
-                }
-                <div class="flex justify-end gap-3">
-                    <button @onclick="() => showResetPasswordModal = false"
-                            class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
-                        Hủy
-                    </button>
-                    <button @onclick="HandleResetPassword" disabled="@isSaving"
-                            class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors">
-                        @(isSaving ? "Đang xử lý..." : "Đặt lại mật khẩu")
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+                                        @* Thông tin cá nhân *@
+                                        <div class="grid grid-cols-2 gap-4 mb-4">
+                                            <div>
+                                                <label class="block mb-1 text-sm font-medium text-slate-700">Họ tên <span
+                                                    class="text-red-500">*</span></label>
+                                                    <InputText @bind-Value="createDto.FullName"
+                                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                    <ValidationMessage For="@(() => createDto.FullName)" class="text-xs text-red-500 mt-1" />
+                                                </div>
+                                                <div>
+                                                    <label class="block mb-1 text-sm font-medium text-slate-700">Email</label>
+                                                    <InputText @bind-Value="createDto.Email"
+                                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                    <ValidationMessage For="@(() => createDto.Email)" class="text-xs text-red-500 mt-1" />
+                                                </div>
+                                            </div>
 
-<!-- ═══════════ TOAST THÔNG BÁO ═══════════ -->
-@if (!string.IsNullOrEmpty(successMessage))
-{
-    <div class="fixed bottom-5 right-5 z-50 px-6 py-3 bg-teal-600 text-white rounded-lg shadow-lg font-medium text-sm">
-        ✅ @successMessage
-    </div>
-}
+                                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                                <div>
+                                                    <label class="block mb-1 text-sm font-medium text-slate-700">Số điện thoại</label>
+                                                    <InputText @bind-Value="createDto.PhoneNumber"
+                                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                </div>
+                                                <div>
+                                                    <label class="block mb-1 text-sm font-medium text-slate-700">Giới tính</label>
+                                                    <InputSelect @bind-Value="createDto.Gender"
+                                                                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                                        <option value="">— Chọn —</option>
+                                                        <option value="true">Nam</option>
+                                                        <option value="false">Nữ</option>
+                                                    </InputSelect>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-4">
+                                                <label class="block mb-1 text-sm font-medium text-slate-700">Địa chỉ</label>
+                                                <InputText @bind-Value="createDto.Address"
+                                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                            </div>
+
+                                            @* ──── PHẦN QUAN TRỌNG: CHECKBOX QUYỀN BITWISE ──── *@
+                                            <div class="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                                <label class="block mb-3 text-sm font-bold text-slate-800">Phân quyền (RoleMask:
+                                                    @createDto.RoleMask)</label>
+                                                    <div class="grid grid-cols-3 gap-3">
+                                                        @foreach (var role in roleDefinitions)
+                                                        {
+                                                            var roleBit = role.Bit;
+                                                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                                                <input type="checkbox" checked="@((createDto.RoleMask & roleBit) == roleBit)"
+                                                                       @onchange="e => ToggleCreateRole(roleBit, (bool)(e.Value ?? false))"
+                                                                       class="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                                                                <span class="text-sm text-slate-700">@role.Label</span>
+                                                            </label>
+                                                        }
+                                                    </div>
+                                                </div>
+
+                                                @* Nếu tick Bác sĩ → hiện dropdown chọn Phòng *@
+                                                @if ((createDto.RoleMask & 2) == 2)
+                                                {
+                                                    <div class="mb-4">
+                                                        <label class="block mb-1 text-sm font-medium text-slate-700">Phòng khám (cho Bác sĩ)</label>
+                                                        <InputSelect @bind-Value="createDto.RoomId"
+                                                                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                                            <option value="">— Chọn phòng —</option>
+                                                            @foreach (var room in rooms)
+                                                            {
+                                                                <option value="@room.Id">@room.Name (@room.Location)</option>
+                                                            }
+                                                        </InputSelect>
+                                                    </div>
+                                                }
+
+                                                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                                                    <button type="button" @onclick="CloseModal"
+                                                            class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                                                        Hủy
+                                                    </button>
+                                                    <button type="submit" disabled="@isSaving"
+                                                            class="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                                                        @(isSaving ? "Đang lưu..." : "Tạo tài khoản")
+                                                    </button>
+                                                </div>
+                                            </EditForm>
+                                        }
+                else
+                                        {
+                                            <!-- ──── FORM CHỈNH SỬA ──── -->
+                                            <EditForm Model="@editDto" OnValidSubmit="HandleEdit" FormName="editUserForm">
+                                                <DataAnnotationsValidator />
+
+                                                <div class="mb-4 p-3 bg-slate-50 rounded-lg">
+                                                    <span class="text-sm text-slate-500">Tài khoản:</span>
+                                                    <span class="text-sm font-bold text-slate-800 ml-1">@editingUsername</span>
+                                                </div>
+
+                                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                                    <div>
+                                                        <label class="block mb-1 text-sm font-medium text-slate-700">Họ tên <span
+                                                            class="text-red-500">*</span></label>
+                                                            <InputText @bind-Value="editDto.FullName"
+                                                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                            <ValidationMessage For="@(() => editDto.FullName)" class="text-xs text-red-500 mt-1" />
+                                                        </div>
+                                                        <div>
+                                                            <label class="block mb-1 text-sm font-medium text-slate-700">Email</label>
+                                                            <InputText @bind-Value="editDto.Email"
+                                                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                            <ValidationMessage For="@(() => editDto.Email)" class="text-xs text-red-500 mt-1" />
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="grid grid-cols-2 gap-4 mb-4">
+                                                        <div>
+                                                            <label class="block mb-1 text-sm font-medium text-slate-700">Số điện thoại</label>
+                                                            <InputText @bind-Value="editDto.PhoneNumber"
+                                                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                        </div>
+                                                        <div>
+                                                            <label class="block mb-1 text-sm font-medium text-slate-700">Giới tính</label>
+                                                            <InputSelect @bind-Value="editDto.Gender"
+                                                                         class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                                                <option value="">— Chọn —</option>
+                                                                <option value="true">Nam</option>
+                                                                <option value="false">Nữ</option>
+                                                            </InputSelect>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-4">
+                                                        <label class="block mb-1 text-sm font-medium text-slate-700">Địa chỉ</label>
+                                                        <InputText @bind-Value="editDto.Address"
+                                                                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                                                    </div>
+
+                                                    @* ──── CHECKBOX QUYỀN BITWISE (EDIT MODE) ──── *@
+                                                    <div class="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                                        <label class="block mb-3 text-sm font-bold text-slate-800">Phân quyền (RoleMask:
+                                                            @editDto.RoleMask)</label>
+                                                            <div class="grid grid-cols-3 gap-3">
+                                                                @foreach (var role in roleDefinitions)
+                                                                {
+                                                                    var roleBit = role.Bit;
+                                                                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                                                                        <input type="checkbox" checked="@((editDto.RoleMask & roleBit) == roleBit)"
+                                                                               @onchange="e => ToggleEditRole(roleBit, (bool)(e.Value ?? false))"
+                                                                               class="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                                                                        <span class="text-sm text-slate-700">@role.Label</span>
+                                                                    </label>
+                                                                }
+                                                            </div>
+                                                        </div>
+
+                                                        @if ((editDto.RoleMask & 2) == 2)
+                                                        {
+                                                            <div class="mb-4">
+                                                                <label class="block mb-1 text-sm font-medium text-slate-700">Phòng khám (cho Bác sĩ)</label>
+                                                                <InputSelect @bind-Value="editDto.RoomId"
+                                                                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                                                    <option value="">— Chọn phòng —</option>
+                                                                    @foreach (var room in rooms)
+                                                                    {
+                                                                        <option value="@room.Id">@room.Name (@room.Location)</option>
+                                                                    }
+                                                                </InputSelect>
+                                                            </div>
+                                                        }
+
+                                                        <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                                                            <button type="button" @onclick="CloseModal"
+                                                                    class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                                                                Hủy
+                                                            </button>
+                                                            <button type="submit" disabled="@isSaving"
+                                                                    class="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                                                                @(isSaving ? "Đang lưu..." : "Lưu thay đổi")
+                                                            </button>
+                                                        </div>
+                                                    </EditForm>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                <!-- ═══════════ MODAL RESET MẬT KHẨU ═══════════ -->
+                                @if (showResetPasswordModal)
+                                {
+                                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                                        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                                            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                                                <h3 class="text-lg font-bold text-slate-800">Đặt lại mật khẩu</h3>
+                                                <button @onclick="() => showResetPasswordModal = false" class="text-slate-400 hover:text-slate-600">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <div class="px-6 py-4">
+                                                <p class="text-sm text-slate-600 mb-4">
+                                                    Đặt lại mật khẩu cho tài khoản <strong>@resetPasswordUsername</strong>
+                                                </p>
+                                                <div class="mb-4">
+                                                    <label class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu mới</label>
+                                                    <input type="password" @bind="newPassword"
+                                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                                           placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)..." />
+                                                </div>
+                                                @if (!string.IsNullOrEmpty(resetPasswordError))
+                                                {
+                                                    <div class="mb-4 p-2 text-sm text-red-600 bg-red-50 rounded">@resetPasswordError</div>
+                                                }
+                                                <div class="flex justify-end gap-3">
+                                                    <button @onclick="() => showResetPasswordModal = false"
+                                                            class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                                                        Hủy
+                                                    </button>
+                                                    <button @onclick="HandleResetPassword" disabled="@isSaving"
+                                                            class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors">
+                                                        @(isSaving ? "Đang xử lý..." : "Đặt lại mật khẩu")
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                <!-- ═══════════ TOAST THÔNG BÁO ═══════════ -->
+                                @if (!string.IsNullOrEmpty(successMessage))
+                                {
+                                    <div class="fixed bottom-5 right-5 z-50 px-6 py-3 bg-teal-600 text-white rounded-lg shadow-lg font-medium text-sm">
+                                        ✅ @successMessage
+                                    </div>
+                                }
 
 @code {
     // ──────── STATE ────────
@@ -422,11 +429,11 @@ else
     // Ví dụ: user có RoleMask = 18 = 10010 (nhị phân) → có bit 2 (Bác sĩ) + bit 16 (Admin).
     private readonly List<RoleDefinition> roleDefinitions = new()
     {
-        new(1,  "Lễ tân",     "bg-blue-100 text-blue-700"),
-        new(2,  "Bác sĩ",     "bg-emerald-100 text-emerald-700"),
-        new(4,  "Dược sĩ",    "bg-purple-100 text-purple-700"),
-        new(8,  "Thu ngân",    "bg-orange-100 text-orange-700"),
-        new(16, "Admin",       "bg-red-100 text-red-700"),
+        new(1, "Lễ tân", "bg-blue-100 text-blue-700"),
+        new(2, "Bác sĩ", "bg-emerald-100 text-emerald-700"),
+        new(4, "Dược sĩ", "bg-purple-100 text-purple-700"),
+        new(8, "Thu ngân", "bg-orange-100 text-orange-700"),
+        new(16, "Admin", "bg-red-100 text-red-700"),
         new(32, "Xét nghiệm", "bg-cyan-100 text-cyan-700"),
     };
 
@@ -497,9 +504,9 @@ else
     private void ToggleCreateRole(int bit, bool isChecked)
     {
         if (isChecked)
-            createDto.RoleMask |= bit;   // BẬT bit: 0000 | 0010 = 0010
+            createDto.RoleMask |= bit; // BẬT bit: 0000 | 0010 = 0010
         else
-            createDto.RoleMask &= ~bit;  // TẮT bit: 0010 & 1101 = 0000
+            createDto.RoleMask &= ~bit; // TẮT bit: 0010 & 1101 = 0000
     }
 
     private void ToggleEditRole(int bit, bool isChecked)
