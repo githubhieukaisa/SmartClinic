@@ -1,10 +1,9 @@
 @using Microsoft.AspNetCore.Components.Authorization
-@using SmartClinic.Services
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavManager
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-	<nav class="flex flex-col gap-1 px-3 py-4 mx-auto w-full">
+<div class="w-full">
+	<nav class="flex flex-col gap-2 px-4 py-6 w-full">
 
 		@* Đăng Nhập *@
 		<AuthorizeView>
@@ -66,28 +65,42 @@
 			</Authorized>
 		</AuthorizeView>
 
-		@* Admin Links *@
-		<AuthorizeView Policy="AdminPolicy">
+		@* Cashier Links *@
+		<AuthorizeView Policy="CashierPolicy">
 			<Authorized>
-				<NavLink class="@baseClass" href="hangfire">
-					<i class="ph ph-gear text-lg"></i>
-					<span>HangFire</span>
+				<NavLink class="@baseClass" href="/cashier/payments" Match="NavLinkMatch.All">
+					<i class="ph ph-money text-lg"></i>
+					<span>Thanh toán</span>
 				</NavLink>
 			</Authorized>
 		</AuthorizeView>
 
-		@* Đăng Xuất *@
-		<AuthorizeView>
+		@* Admin Links *@
+		<AuthorizeView Policy="AdminPolicy">
 			<Authorized>
-				<form action="/logout" method="post" class="w-full">
-					<AntiforgeryToken />
-					<button type="submit" class="@baseClass">
-						<i class="ph ph-sign-out text-lg"></i>
-						<span>Đăng Xuất</span>
-					</button>
-				</form>
+				<NavLink class="@baseClass" href="/admin/users" Match="NavLinkMatch.All">
+					<i class="ph ph-users text-lg"></i>
+					<span>Tài khoản</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="/admin/medicines" Match="NavLinkMatch.All">
+					<i class="ph ph-pill text-lg"></i>
+					<span>Kho Thuốc</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="hangfire">
+					<i class="ph ph-gear text-lg"></i>
+					<span>HangFire</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="/admin/test">
+					<i class="ph ph-flask text-lg"></i>
+					<span>Xét nghiệm</span>
+				</NavLink>
 			</Authorized>
 		</AuthorizeView>
+
+		@* Đăng Xuất được chuyển sang MainLayout *@
 
 	</nav>
 </div>

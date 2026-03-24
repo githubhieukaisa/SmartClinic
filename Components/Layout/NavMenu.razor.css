@@ -17,16 +17,17 @@
 }
 
 /* ===== Default Font Color ===== */
-.nav-scrollable ::deep a,
-.nav-scrollable ::deep button {
+::deep a,
+::deep button {
     color: var(--foreground);
 }
 
 /* ===== Active NavLink — highlight with primary color ===== */
-.nav-scrollable ::deep a.active,
-.nav-scrollable ::deep a.active:hover {
-    background-color: var(--primary) !important;
-    color: var(--primary-foreground) !important;
+::deep a.active,
+::deep a.active:hover {
+    background-color: #4f46e5 !important;
+    /* bg-indigo-600 */
+    color: white !important;
     font-weight: 500;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }

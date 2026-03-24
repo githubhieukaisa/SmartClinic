@@ -1,0 +1,394 @@
+@page "/admin/test"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using SmartClinic.Models
+@using SmartClinic.Components.Common
+@using SmartClinic.Components.Common.Examination
+@attribute [Authorize(Policy = "AdminPolicy")]
+@inject SmartClinicDbContext DbContext
+@rendermode InteractiveServer
+
+<PageTitle>Quản lý Xét Nghiệm</PageTitle>
+
+<div class="p-8">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Quản lý Xét Nghiệm</h1>
+            <p class="text-slate-500 mt-1">Quản lý danh mục xét nghiệm và chẩn đoán hình ảnh.</p>
+        </div>
+        <button @onclick="ShowCreate"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition active:scale-95 shadow-sm font-medium text-sm">
+        <i class="ph ph-plus text-base"></i>
+        <span>Thêm mới</span>
+    </button>
+    </div>
+
+    @* Bảng tính năng, tìm kiếm *@
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div
+           class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center gap-4">
+            <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-3 focus-within:ring-2 focus-within:ring-emerald-500/50 transition-all w-full sm:max-w-md">
+                <i class="ph ph-magnifying-glass text-slate-400 text-lg"></i>
+                <input type="text" @bind="searchTerm" @bind:event="oninput" @onkeyup="ApplyFilter"
+                       placeholder="Tìm kiếm xét nghiệm..."
+                       class="flex-1 bg-transparent border-none py-2 px-3 text-sm focus:outline-none text-slate-700 placeholder:text-slate-400" />
+            </div>
+        </div>
+
+        @* Bảng dữ liệu *@
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-slate-700 font-medium border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3">Mã</th>
+                        <th class="px-6 py-3">Tên Xét Nghiệm</th>
+                        <th class="px-6 py-3">Giá (VNĐ)</th>
+                        <th class="px-6 py-3">Đơn vị</th>
+                        <th class="px-6 py-3">Phòng thực hiện</th>
+                        <th class="px-6 py-3 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (isLoading)
+                    {
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                                <i class="ph ph-spinner animate-spin text-2xl mb-2"></i>
+                                <p>Đang tải dữ liệu...</p>
+                            </td>
+                        </tr>
+                    }
+                    else if (!viewList.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                                Không tìm thấy dữ liệu.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in viewList)
+                        {
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="px-6 py-3 font-medium text-slate-700">@item.Id</td>
+                                <td class="px-6 py-3">
+                                    <div class="font-medium text-slate-800">@item.Name</div>
+                                    @if (!string.IsNullOrEmpty(item.Description))
+                                    {
+                                        <div class="text-xs text-slate-500 mt-0.5">@item.Description</div>
+                                    }
+                                </td>
+                                <td class="px-6 py-3 font-medium text-amber-600">
+                                    @item.Price.ToString("N0")
+                                </td>
+                                <td class="px-6 py-3">@item.Unit</td>
+                                <td class="px-6 py-3">
+                                    @(item.DefaultRoom?.Name ?? "-- Chưa chọn --")
+                                </td>
+                                <td class="px-6 py-3 text-right">
+                                    <button @onclick="() => ShowEdit(item)"
+                                            class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition ml-1"
+                                            title="Sửa">
+                                        <i class="ph ph-pencil-simple text-lg"></i>
+                                    </button>
+                                    <button @onclick="() => ShowDelete(item)"
+                                            class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition ml-1"
+                                            title="Xóa">
+                                        <i class="ph ph-trash text-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @* Phân trang *@
+        @if (totalPages > 1)
+        {
+            <div class="border-t border-slate-100 pt-4">
+                <SmartClinic.Components.Common.Pagination CurrentPage="currentPage" TotalItems="totalRecords"
+                                                          PageSize="pageSize" OnPageChanged="ChangePage" />
+            </div>
+        }
+    </div>
+</div>
+
+@* Modal Create/Edit *@
+<Modal IsVisible="@isShowModal" OnClose="CloseModal" Size="Modal.ModalSize.Lg">
+    <HeaderContent>
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <i class="ph ph-flask text-xl"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-slate-800">@modalTitle</h3>
+            </div>
+        </div>
+    </HeaderContent>
+
+    <ChildContent>
+        <EditForm EditContext="@editContext">
+            <DataAnnotationsValidator />
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Tên xét nghiệm <span
+                        class="text-rose-500">*</span></label>
+                        <InputText @bind-Value="currentModel.Name"
+                                   class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                                   placeholder="Nhập tên..." />
+                        <ValidationMessage For="@(() => currentModel.Name)" class="text-xs text-rose-500 mt-1" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Giá (VNĐ) <span
+                                class="text-rose-500">*</span></label>
+                                <InputNumber @bind-Value="currentModel.Price"
+                                             class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition" />
+                                <ValidationMessage For="@(() => currentModel.Price)" class="text-xs text-rose-500 mt-1" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Đơn vị</label>
+                                <InputText @bind-Value="currentModel.Unit"
+                                           class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                                           placeholder="Lần, Gói..." />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Phòng thực hiện mặc định</label>
+                            <InputSelect @bind-Value="currentModel.DefaultRoomId"
+                                         class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition">
+                                <option value="">-- Chọn phòng --</option>
+                                @foreach (var r in rooms)
+                                {
+                                    <option value="@r.Id">@r.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Mô tả</label>
+                            <InputTextArea @bind-Value="currentModel.Description" rows="3"
+                                           class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                                           placeholder="Chi tiết..."></InputTextArea>
+                        </div>
+                    </div>
+                </EditForm>
+            </ChildContent>
+
+            <FooterContent>
+                <div class="flex justify-end w-full mt-2">
+                    <div class="grid grid-cols-2 gap-3 w-full max-w-sm">
+                        <button type="button" @onclick="CloseModal"
+                                class="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors text-sm flex items-center justify-center">
+                            Hủy
+                        </button>
+                        <SaveActionButton OnClick="SaveItem" Label="Lưu thông tin" LoadingLabel="Đang lưu..."
+                                          Icon="ph-floppy-disk" Variant="solid" ExtraCssClass="w-full justify-center !py-2 !text-sm" />
+                    </div>
+                </div>
+            </FooterContent>
+        </Modal>
+
+        @* Modal Delete Confirmation *@
+        <Modal IsVisible="@isDeleteModal" OnClose="CloseDeleteModal">
+            <HeaderContent>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                        <i class="ph ph-warning text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800">Xác nhận xóa</h3>
+                    </div>
+                </div>
+            </HeaderContent>
+            <ChildContent>
+                <p class="text-sm text-slate-600 mt-2 mb-4">Bạn có chắc chắn muốn xóa xét nghiệm <strong
+                    class="text-rose-600 font-semibold">@currentModel?.Name</strong>? Hành động này không thể hoàn tác.</p>
+                </ChildContent>
+                <FooterContent>
+                    <div class="flex justify-end w-full mt-2">
+                        <div class="grid grid-cols-2 gap-3 w-full max-w-sm">
+                            <button @onclick="CloseDeleteModal"
+                                    class="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors text-sm flex items-center justify-center">
+                                Hủy
+                            </button>
+                            <SaveActionButton OnClick="ConfirmDelete" Label="Xóa Xét Nghiệm" LoadingLabel="Đang xóa..."
+                                              Icon="ph-trash" Variant="solid"
+                                              ExtraCssClass="w-full justify-center !py-2 !text-sm !bg-rose-600 hover:!bg-rose-700 !text-white !border-transparent" />
+                        </div>
+                    </div>
+                </FooterContent>
+            </Modal>
+
+@code {
+    private List<LabTest> viewList = new();
+    private List<Room> rooms = new();
+
+    // Pagination & Filter
+    private bool isLoading = true;
+    private string searchTerm = "";
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalRecords = 0;
+    private int totalPages = 1;
+
+    // Modal state
+    private LabTest currentModel = new();
+    private EditContext? editContext;
+    private bool isShowModal = false;
+    private bool isDeleteModal = false;
+    private string modalTitle = "Thêm mới";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoomsAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task LoadRoomsAsync()
+    {
+        // Get Lab Rooms only
+        rooms = await DbContext.Rooms
+            .Where(r => r.IsLab && r.IsActive)
+            .OrderBy(r => r.Name)
+            .ToListAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+
+        var query = DbContext.LabTests
+                    .Include(l => l.DefaultRoom)
+                    .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lowerSearch = searchTerm.ToLower();
+            query = query.Where(l => l.Name.ToLower().Contains(lowerSearch));
+        }
+
+        totalRecords = await query.CountAsync();
+        totalPages = Math.Max(1, (int)Math.Ceiling((double)totalRecords / pageSize));
+
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        viewList = await query
+            .OrderBy(l => l.Id)
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task ApplyFilter()
+    {
+        currentPage = 1;
+        await LoadDataAsync();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page >= 1 && page <= totalPages && page != currentPage)
+        {
+            currentPage = page;
+            await LoadDataAsync();
+        }
+    }
+
+    private void ShowCreate()
+    {
+        currentModel = new LabTest();
+        editContext = new EditContext(currentModel);
+        modalTitle = "Thêm xét nghiệm mới";
+        isShowModal = true;
+    }
+
+    private void ShowEdit(LabTest item)
+    {
+        // Clone object to avoid tracking issues if cancelled
+        currentModel = new LabTest
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Price = item.Price,
+            Unit = item.Unit,
+            Description = item.Description,
+            DefaultRoomId = item.DefaultRoomId
+        };
+        editContext = new EditContext(currentModel);
+        modalTitle = "Chỉnh sửa xét nghiệm";
+        isShowModal = true;
+    }
+
+    private async Task SaveItem()
+    {
+        if (editContext == null || !editContext.Validate())
+        {
+            return;
+        }
+
+        if (currentModel.Id == 0)
+        {
+            DbContext.LabTests.Add(currentModel);
+        }
+        else
+        {
+            var dbItem = await DbContext.LabTests.FindAsync(currentModel.Id);
+            if (dbItem != null)
+            {
+                dbItem.Name = currentModel.Name;
+                dbItem.Price = currentModel.Price;
+                dbItem.Unit = currentModel.Unit;
+                dbItem.Description = currentModel.Description;
+                dbItem.DefaultRoomId = currentModel.DefaultRoomId;
+                DbContext.LabTests.Update(dbItem);
+            }
+        }
+
+        await DbContext.SaveChangesAsync();
+        CloseModal();
+        await LoadDataAsync();
+    }
+
+    private void CloseModal()
+    {
+        isShowModal = false;
+        currentModel = new LabTest();
+    }
+
+    private void ShowDelete(LabTest item)
+    {
+        currentModel = item;
+        isDeleteModal = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (currentModel != null)
+        {
+            var dbItem = await DbContext.LabTests.FindAsync(currentModel.Id);
+            if (dbItem != null)
+            {
+                DbContext.LabTests.Remove(dbItem);
+                await DbContext.SaveChangesAsync();
+            }
+        }
+        CloseDeleteModal();
+        await LoadDataAsync();
+    }
+
+    private void CloseDeleteModal()
+    {
+        isDeleteModal = false;
+        currentModel = new LabTest();
+    }
+}

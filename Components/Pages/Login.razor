@@ -111,34 +111,32 @@ authProperties);
                 var roleMaskClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "RoleMask")?.Value;
                 string redirectUrl = "/";
 
-				if (int.TryParse(roleMaskClaim, out int roleMask))
-				{
-					// Kiểm tra role theo thứ tự (Doctor > Reception > Admin)
-					if ((roleMask & 2) == 2) // Doctor (RoleMask: 2)
-					{
-						redirectUrl = "/doctor/dashboard";
-					}
-					else if ((roleMask & 1) == 1) // Reception (RoleMask: 1)
-					{
-						redirectUrl = "/checkin";
-					}
-					else if ((roleMask & 16) == 16) // Admin (RoleMask: 16)
-					{
-						redirectUrl = "/hangfire";
-					}
-					else if ((roleMask & 4) == 4)   // Pharmacist 
-					{
-						redirectUrl = "/pharmacist/prescriptions";
-					}
-					else if ((roleMask & 8) == 8)   // Cashier    
-					{
-						redirectUrl = "/cashier/payments";
-					}else if ((roleMask & 32) == 32) // Lab Tech (RoleMask: 32)
+                if (int.TryParse(roleMaskClaim, out int roleMask))
+                {
+                    if ((roleMask & 16) == 16)
+                    {
+                        redirectUrl = "/admin/users";
+                    }
+                    // Kiểm tra role theo thứ tự (Doctor > Reception > Admin)
+                    else if ((roleMask & 2) == 2) // Doctor (RoleMask: 2)
+                    {
+                        redirectUrl = "/doctor/dashboard";
+                    }
+                    else if ((roleMask & 1) == 1) // Reception (RoleMask: 1)
+                    {
+                        redirectUrl = "/checkin";
+                    }
+                    else if ((roleMask & 32) == 32) // Lab Tech (RoleMask: 32)
                     {
                         redirectUrl = "/lab";
                     }
+                    else if ((roleMask & 8) == 8) // Cashier (RoleMask: 8)
+                    {
+                        redirectUrl = "/cashier/payments";
+                    }
 
-				}
+                    
+                }
 
                 NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
             }
