@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.DTOs;
 using SmartClinic.Hubs;
@@ -21,31 +21,33 @@ namespace SmartClinic.Services
             _vnpay = vnpay;
         }
 
+        // ─── Query ────────────────────────────────────────────────────────────────
+
         public async Task<List<PrescriptionQueueDto>> GetDispensedPrescriptionsAsync()
         {
-            var prescriptions = await _context.Prescriptions
+            var tickets = await _context.QueueTickets
                 .AsNoTracking()
-                .Include(p => p.Ticket)
-                    .ThenInclude(t => t!.Patient)
-                .Include(p => p.Ticket)
-                    .ThenInclude(t => t!.Doctor)
-                .Include(p => p.PrescriptionDetails)
-                    .ThenInclude(d => d.Medicine)
-                .Where(p => p.Status == "Dispensed")
-                .OrderBy(p => p.CreatedAt)
+                .Include(t => t.Patient)
+                .Include(t => t.Doctor)
+                .Include(t => t.Prescription)
+                    .ThenInclude(p => p!.PrescriptionDetails)
+                        .ThenInclude(d => d.Medicine)
+                .Where(t => t.Status == "Completed")
+                .OrderBy(t => t.CreatedAt)
                 .ToListAsync();
 
-            return prescriptions.Select(MapToDto).ToList();
+            return tickets.Select(MapToDto).ToList();
         }
 
-        // ─── Cash payment ────────────────────────────────────────────────────────
+        // ─── Cash payment ─────────────────────────────────────────────────────────
 
         public async Task<(bool Success, string ErrorMessage)> ProcessPaymentAsync(int prescriptionId)
         {
+            // prescriptionId here is actually the TicketId (mapped in DTO)
             return await FinalizePaymentAsync(prescriptionId, "Cash");
         }
 
-        // ─── VNPay ───────────────────────────────────────────────────────────────
+        // ─── VNPay ────────────────────────────────────────────────────────────────
 
         public string CreateVNPayUrl(int prescriptionId, decimal amount, string patientName)
         {
@@ -60,47 +62,47 @@ namespace SmartClinic.Services
             if (!isSuccess)
                 return (false, $"VNPay payment failed. Code: {query["vnp_ResponseCode"]}");
 
-            // txnRef format: "{prescriptionId}_{timestamp}"
+            // txnRef format: "{ticketId}_{timestamp}"
             var parts = txnRef.Split('_');
-            if (!int.TryParse(parts[0], out var prescriptionId))
+            if (!int.TryParse(parts[0], out var ticketId))
                 return (false, "Invalid transaction reference.");
 
-            return await FinalizePaymentAsync(prescriptionId, "VNPay");
+            return await FinalizePaymentAsync(ticketId, "VNPay");
         }
 
-        // ─── Shared finalization ─────────────────────────────────────────────────
+        // ─── Shared finalization ──────────────────────────────────────────────────
 
         private async Task<(bool Success, string ErrorMessage)> FinalizePaymentAsync(
-            int prescriptionId, string paymentMethod)
+            int ticketId, string paymentMethod)
         {
             System.Diagnostics.Debug.WriteLine(
-                $"[CashierService] Finalizing payment ({paymentMethod}) for #{prescriptionId}");
+                $"[CashierService] Finalizing payment ({paymentMethod}) for ticket #{ticketId}");
             try
             {
-                var prescription = await _context.Prescriptions
-                    .Include(p => p.Ticket)
-                        .ThenInclude(t => t!.Patient)
-                    .FirstOrDefaultAsync(p => p.Id == prescriptionId);
+                var ticket = await _context.QueueTickets
+                    .Include(t => t.Patient)
+                    .Include(t => t.Prescription)
+                    .FirstOrDefaultAsync(t => t.Id == ticketId);
 
-                if (prescription == null)
-                    return (false, "Prescription not found.");
+                if (ticket == null)
+                    return (false, "Queue ticket not found.");
 
-                if (prescription.Status != "Dispensed")
-                    return (false, $"Prescription is '{prescription.Status}', cannot process payment.");
+                if (ticket.Status != "Completed")
+                    return (false, $"Ticket is '{ticket.Status}', cannot process payment.");
 
-                prescription.Status = "Paid";
+                ticket.Status = "Paid";
 
-                if (prescription.Ticket != null)
-                    prescription.Ticket.Status = "Done";
+                if (ticket.Prescription != null)
+                    ticket.Prescription.Status = "Paid";
 
                 await _context.SaveChangesAsync();
 
                 await _hubContext.Clients.All.SendAsync("PaymentCompleted", new
                 {
-                    prescriptionId,
+                    prescriptionId = ticketId,
                     paymentMethod,
-                    ticketNumber = prescription.Ticket?.TicketNumber,
-                    patientName = prescription.Ticket?.Patient?.FullName
+                    ticketNumber = ticket.TicketNumber,
+                    patientName = ticket.Patient?.FullName
                 });
 
                 return (true, "");
@@ -112,30 +114,34 @@ namespace SmartClinic.Services
             }
         }
 
-        // ─── Helper ──────────────────────────────────────────────────────────────
+        // ─── Helper ───────────────────────────────────────────────────────────────
 
-        private static PrescriptionQueueDto MapToDto(Prescription p) => new()
+        private static PrescriptionQueueDto MapToDto(QueueTicket t) => new()
         {
-            PrescriptionId = p.Id,
-            TicketId = p.TicketId ?? 0,
-            TicketNumber = p.Ticket?.TicketNumber ?? 0,
-            PatientName = p.Ticket?.Patient?.FullName ?? "—",
-            DoctorName = p.Ticket?.Doctor?.FullName ?? "Not assigned",
-            DoctorNote = p.DoctorNote,
-            Status = p.Status ?? "Dispensed",
-            TotalAmount = p.TotalAmount ?? p.PrescriptionDetails
-                                 .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : d.Medicine?.Price ?? 0) * d.Quantity),
-            CreatedAt = p.CreatedAt,
-            Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto
+            // PrescriptionId is mapped to TicketId so the UI's payment callbacks work correctly
+            PrescriptionId = t.Id,
+            TicketId       = t.Id,
+            TicketNumber   = t.TicketNumber,
+            PatientName    = t.Patient?.FullName ?? "—",
+            DoctorName     = t.Doctor?.FullName ?? "Not assigned",
+            DoctorNote     = t.Prescription?.DoctorNote,
+            Status         = t.Status,
+            // TotalAmount from QueueTicket (includes consultation + medicines + lab)
+            TotalAmount    = t.TotalAmount ?? t.Prescription?.TotalAmount
+                             ?? t.Prescription?.PrescriptionDetails
+                                  .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : d.Medicine?.Price ?? 0) * d.Quantity)
+                             ?? 0,
+            CreatedAt      = t.CreatedAt,
+            Details        = t.Prescription?.PrescriptionDetails.Select(d => new PrescriptionDetailDto
             {
-                DetailId = d.Id,
-                MedicineId = d.MedicineId ?? 0,
-                MedicineName = d.Medicine?.Name ?? "—",
-                Unit = d.Medicine?.Unit,
-                Quantity = d.Quantity,
-                UnitPrice = d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.Price ?? 0),
+                DetailId         = d.Id,
+                MedicineId       = d.MedicineId ?? 0,
+                MedicineName     = d.Medicine?.Name ?? "—",
+                Unit             = d.Medicine?.Unit,
+                Quantity         = d.Quantity,
+                UnitPrice        = d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.Price ?? 0),
                 UsageInstruction = d.UsageInstruction
-            }).ToList()
+            }).ToList() ?? new()
         };
     }
 }
