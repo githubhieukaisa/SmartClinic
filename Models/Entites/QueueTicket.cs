@@ -10,8 +10,6 @@ public partial class QueueTicket : BaseEntity
 
     public int TicketNumber { get; set; }
 
-    public string Status { get; set; } = null!;
-
     public TicketStatus StatusEnum { get; set; } = TicketStatus.Waiting;
 
     public string? ClinicalDiagnosis { get; set; }

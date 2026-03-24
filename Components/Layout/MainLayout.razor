@@ -1,6 +1,7 @@
 @using Blazored.Toast
 @using Blazored.Toast.Configuration
 @using SmartClinic.Components.Common
+@using SmartClinic.Constant
 @using SmartClinic.Services
 @using SmartClinic.Models
 @using Microsoft.EntityFrameworkCore
@@ -148,7 +149,7 @@ TimeSpan.FromSeconds(15));
             // Lấy CA TRỰC ĐANG ACTIVE (Status == Active)
             var activeShift = await dbContext.DoctorShifts
                 .Where(s => s.DoctorId == _doctorId
-                         && s.Status == "Active"
+                         && s.StatusEnum == DoctorShiftStatus.Active
                          && s.StartTime <= now
                          && (s.EndTime == null || s.EndTime >= now))
                 .OrderByDescending(s => s.StartTime)

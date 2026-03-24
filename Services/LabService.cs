@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
 
@@ -58,7 +59,7 @@ public class LabService : ILabService
             context.LabOrderDetails.Add(detail);
         }
 
-        ticket.Status = "Testing";
+        ticket.StatusEnum = TicketStatus.Testing;
         await context.SaveChangesAsync();
 
         await _labHubContext.Clients.Group("LabTechnicians").SendAsync("LabOrderCreated", labOrder.Id);
@@ -118,7 +119,7 @@ public class LabService : ILabService
             bool allOrdersDone = allOrdersForTicket.All(lo => lo.Status == "Done");
             if (allOrdersDone)
             {
-                detail.LabOrder.QueueTicket.Status = "Examining";
+                detail.LabOrder.QueueTicket.StatusEnum = TicketStatus.Examinating;
                 await context.SaveChangesAsync();
             }
         }

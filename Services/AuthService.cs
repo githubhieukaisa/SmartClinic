@@ -1,6 +1,7 @@
 ﻿using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SmartClinic.Constant;
 using SmartClinic.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -113,7 +114,7 @@ namespace SmartClinic.Services
         {
             var activeShift = await _context.DoctorShifts
                 .Include(s => s.Room)
-                .FirstOrDefaultAsync(s => s.DoctorId == user.Id && s.Status == "Active");
+                .FirstOrDefaultAsync(s => s.DoctorId == user.Id && s.StatusEnum == DoctorShiftStatus.Active);
 
             if (activeShift is not null)
             {

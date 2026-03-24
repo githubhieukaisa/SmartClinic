@@ -1,5 +1,7 @@
 ﻿namespace SmartClinic.Models
 {
+    using SmartClinic.Constant;
+
     public class DoctorShift : BaseEntity
     {
         public int DoctorId { get; set; }
@@ -12,6 +14,6 @@
         public DateTime? EndTime { get; set; } // Null nghĩa là ca trực đang diễn ra
 
         // Trạng thái: "Active" (Đang trực), "Completed" (Đã nghỉ)
-        public string Status { get; set; } = "Active";
+        public DoctorShiftStatus StatusEnum { get; set; } = DoctorShiftStatus.Active;
     }
 }

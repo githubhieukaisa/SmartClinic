@@ -25,7 +25,7 @@ namespace SmartClinic.Services
             await using var context = await _dbFactory.CreateDbContextAsync();
             // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
             var activeShift = await context.DoctorShifts
-                .Where(s => s.RoomId == roomId && s.Status == "Active")
+                .Where(s => s.RoomId == roomId && s.StatusEnum == DoctorShiftStatus.Active)
                 .Select(s => new
                 {
                     DoctorName = s.Doctor.FullName,

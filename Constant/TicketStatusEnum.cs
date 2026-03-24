@@ -8,6 +8,7 @@
         Examinating = 3,
         Completed = 4,
         Cancelled = 5,
-        NoShow = 6
+        Done = 6,
+        Testing = 7
     }
 }

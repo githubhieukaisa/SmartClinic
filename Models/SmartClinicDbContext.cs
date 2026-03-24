@@ -134,9 +134,6 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
-            entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .HasDefaultValueSql("'Waiting'::character varying");
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone");
 
@@ -219,6 +216,23 @@ public partial class SmartClinicDbContext : DbContext
             entity.HasOne(d => d.LabTest).WithMany(p => p.LabOrderDetails)
                 .HasForeignKey(d => d.LabTestId)
                 .HasConstraintName("LabOrderDetails_LabTestId_fkey");
+        });
+
+        modelBuilder.Entity<DoctorShift>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("DoctorShifts_pkey");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorShifts)
+                .HasForeignKey(d => d.DoctorId)
+                .HasConstraintName("DoctorShifts_DoctorId_fkey");
+
+            entity.HasOne(d => d.Room).WithMany(p => p.DoctorShifts)
+                .HasForeignKey(d => d.RoomId)
+                .HasConstraintName("DoctorShifts_RoomId_fkey");
         });
 
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))

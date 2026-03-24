@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
 
@@ -118,7 +119,7 @@ namespace SmartClinic.Services
                 // STEP 1: Get doctor's current active shift and its room id
                 var doctorShift = await context.DoctorShifts
                     .AsNoTracking()
-                    .Where(ds => ds.DoctorId == doctorId && ds.Status == "Active")
+                    .Where(ds => ds.DoctorId == doctorId && ds.StatusEnum == DoctorShiftStatus.Active)
                     .OrderByDescending(ds => ds.StartTime)
                     .FirstOrDefaultAsync();
 
@@ -136,12 +137,12 @@ namespace SmartClinic.Services
                 var tickets = await context.QueueTickets
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
-                    .Where(t => t.RoomId == doctorShift.RoomId && (t.Status == "Waiting" || t.Status == "Examining" || t.Status == "Calling" || t.Status == "Testing"))
+                    .Where(t => t.RoomId == doctorShift.RoomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Testing))
                     .ToListAsync();  // Load to memory first, then sort
 
                 // Sort by priority: Examining → Testing → Calling → Waiting
                 var sortedTickets = tickets
-                    .OrderBy(t => t.Status == "Examining" ? 0 : t.Status == "Testing" ? 1 : t.Status == "Calling" ? 2 : 3)
+                    .OrderBy(t => t.StatusEnum == TicketStatus.Examinating ? 0 : t.StatusEnum == TicketStatus.Testing ? 1 : t.StatusEnum == TicketStatus.Calling ? 2 : 3)
                     .ThenByDescending(t => t.CreatedAt)
                     .ToList();
 
@@ -173,7 +174,7 @@ namespace SmartClinic.Services
                 // STEP 1: Get doctor's current active shift to find the room
                 var doctorShift = await context.DoctorShifts
                     .AsNoTracking()
-                    .Where(ds => ds.DoctorId == doctorId && ds.Status == "Active")
+                    .Where(ds => ds.DoctorId == doctorId && ds.StatusEnum == DoctorShiftStatus.Active)
                     .OrderByDescending(ds => ds.StartTime)
                     .FirstOrDefaultAsync();
 
@@ -200,7 +201,7 @@ namespace SmartClinic.Services
                     DoctorId = doctorId,
                     PatientId = patientId,
                     TicketNumber = nextTicketNumber,
-                    Status = "Waiting",
+                    StatusEnum = TicketStatus.Waiting,
                     ClinicalDiagnosis = diagnosis,
                     CreatedAt = DateTime.Now,
                     RoomId = doctorShift.RoomId  // ✅ Get room from active doctor shift
@@ -256,11 +257,11 @@ namespace SmartClinic.Services
                     throw new InvalidOperationException($"QueueTicket with ID {ticketId} not found");
                 }
 
-                string oldStatus = ticket.Status;
+                var oldStatus = ticket.StatusEnum;
                 System.Diagnostics.Debug.WriteLine($"🔵 [PatientService.UpdateQueueTicketStatusAsync] Current status: {oldStatus}");
 
                 // Update status
-                ticket.Status = newStatus;
+                ticket.StatusEnum = Enum.Parse<TicketStatus>(newStatus);
                 await context.SaveChangesAsync();
                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService.UpdateQueueTicketStatusAsync] Status updated: {oldStatus} → {newStatus}");
 
