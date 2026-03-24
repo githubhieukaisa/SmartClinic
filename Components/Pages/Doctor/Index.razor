@@ -1,4 +1,5 @@
 @page "/doctor/dashboard"
+@using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Components.Layout
 @using SmartClinic.Models
 @using SmartClinic.Services
@@ -13,6 +14,8 @@
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITicketService TicketService
+@attribute [Authorize(Policy = "DoctorPolicy")]
+
 <div class="p-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
