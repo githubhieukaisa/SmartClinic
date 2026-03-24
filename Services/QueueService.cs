@@ -92,6 +92,7 @@ namespace SmartClinic.Services
                 else
                 {
                     currentCalling.StatusEnum = TicketStatus.Waiting;
+                    currentCalling.UpdatedAt = DateTime.Now;
                     // Tìm 3 người tiếp theo đang chờ
                     var nextWaitings = await context.QueueTickets
                         .Where(t => t.StatusEnum == TicketStatus.Waiting && t.CreatedAt.Date == today && t.RoomId == roomId)
@@ -129,6 +130,7 @@ namespace SmartClinic.Services
 
             // 3. Cập nhật trạng thái người mới thành "Calling"
             nextPatient.StatusEnum = TicketStatus.Calling;
+            nextPatient.CreatedAt = today;
 
             await context.SaveChangesAsync();
 

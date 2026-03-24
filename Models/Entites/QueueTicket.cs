@@ -20,7 +20,17 @@ public partial class QueueTicket : BaseEntity
 
     public int? DoctorId { get; set; }
 
+    public int? CreatedBy { get; set; }
+
+    public int? UpdatedBy { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
     public virtual User? Doctor { get; set; }
+
+    public virtual User? CreatedByUser { get; set; }
+
+    public virtual User? UpdatedByUser { get; set; }
 
     public virtual Patient? Patient { get; set; }
 

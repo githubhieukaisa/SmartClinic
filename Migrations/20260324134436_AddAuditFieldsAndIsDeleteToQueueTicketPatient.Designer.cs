@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260324134436_AddAuditFieldsAndIsDeleteToQueueTicketPatient")]
+    partial class AddAuditFieldsAndIsDeleteToQueueTicketPatient
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

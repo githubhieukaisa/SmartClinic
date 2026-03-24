@@ -30,7 +30,7 @@ namespace SmartClinic.Services
                 .FirstOrDefaultAsync(p => p.Phone == phone.Trim());
         }
 
-        public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId)
+        public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId = null)
         {
             Patient patient = null;
             patientPhone = patientPhone?.Trim();
@@ -98,7 +98,9 @@ namespace SmartClinic.Services
                     StatusEnum = TicketStatus.Waiting,
                     RoomId = selectedRoomInfo.Room.Id,
                     CreatedAt = DateTime.UtcNow,
-                    Room = selectedRoomInfo.Room
+                    Room = selectedRoomInfo.Room,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedBy = userId,
                 };
 
                 _context.QueueTickets.Add(ticket);

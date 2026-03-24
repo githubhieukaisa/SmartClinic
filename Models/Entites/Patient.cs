@@ -15,5 +15,7 @@ public partial class Patient : BaseEntity
 
     public string? Address { get; set; }
 
+    public bool IsDelete { get; set; } = false;
+
     public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
 }
