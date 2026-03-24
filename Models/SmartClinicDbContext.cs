@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 
 namespace SmartClinic.Models;
 
@@ -86,7 +87,6 @@ public partial class SmartClinicDbContext : DbContext
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.Phone).HasMaxLength(20);
-            entity.Property(e => e.IsDelete).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<Prescription>(entity =>
@@ -246,9 +246,9 @@ public partial class SmartClinicDbContext : DbContext
         );
 
         modelBuilder.Entity<Room>().HasData(
-            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
-            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
-            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, IsActive = true, IsLab = true }
+            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab },
+            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab },
+            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab }
         );
 
         modelBuilder.Entity<LabTest>().HasData(
