@@ -5,7 +5,7 @@
 @using SmartClinic.Components.Common
 @using SmartClinic.Components.Common.Examination
 @attribute [Authorize(Policy = "AdminPolicy")]
-@inject SmartClinicDbContext DbContext
+@inject IDbContextFactory<SmartClinicDbContext> DbContextFactory
 @rendermode InteractiveServer
 
 <PageTitle>Quản lý Xét Nghiệm</PageTitle>
@@ -16,45 +16,63 @@
             <h1 class="text-2xl font-semibold text-slate-800">Quản lý Xét Nghiệm</h1>
             <p class="text-slate-500 mt-1">Quản lý danh mục xét nghiệm và chẩn đoán hình ảnh.</p>
         </div>
-        <button @onclick="ShowCreate"
-            class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition active:scale-95 shadow-sm font-medium text-sm">
-        <i class="ph ph-plus text-base"></i>
-        <span>Thêm mới</span>
-    </button>
+        <div class="flex items-center gap-3">
+            @if (isLoading)
+            {
+                <div
+                    class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium transition">
+                    <span class="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+                    Đang lấy dữ liệu...
+                </div>
+            }
+            <button @onclick="ShowCreate"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition active:scale-95 shadow-sm font-medium text-sm">
+                <i class="ph ph-plus text-base"></i>
+                <span>Thêm mới</span>
+            </button>
+        </div>
     </div>
 
     @* Bảng tính năng, tìm kiếm *@
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div
-           class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center gap-4">
-            <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-3 focus-within:ring-2 focus-within:ring-emerald-500/50 transition-all w-full sm:max-w-md">
-                <i class="ph ph-magnifying-glass text-slate-400 text-lg"></i>
-                <input type="text" @bind="searchTerm" @bind:event="oninput" @onkeyup="ApplyFilter"
-                       placeholder="Tìm kiếm xét nghiệm..."
-                       class="flex-1 bg-transparent border-none py-2 px-3 text-sm focus:outline-none text-slate-700 placeholder:text-slate-400" />
+        <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center gap-4">
+            <div class="flex items-center gap-2 w-full sm:max-w-md">
+                <div
+                    class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-3 focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+                    <i class="ph ph-magnifying-glass text-slate-400 text-lg"></i>
+                    <input type="text" @bind="searchTerm" @onkeyup="HandleSearchKeyUp"
+                           placeholder="Nhập và nhấn Enter..."
+                           class="flex-1 bg-transparent border-none py-2 px-3 text-sm focus:outline-none text-slate-700 placeholder:text-slate-400" />
+                </div>
+                <button @onclick="ApplyFilter"
+                        class="flex-shrink-0 px-4 py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg text-sm font-medium transition inline-flex items-center gap-2">
+                    <i class="ph ph-magnifying-glass"></i> Tìm
+                </button>
             </div>
         </div>
 
         @* Bảng dữ liệu *@
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-600">
+            <table class="w-full text-center text-sm text-slate-600">
                 <thead class="bg-slate-50 text-slate-700 font-medium border-b border-slate-200">
                     <tr>
-                        <th class="px-6 py-3">Mã</th>
-                        <th class="px-6 py-3">Tên Xét Nghiệm</th>
-                        <th class="px-6 py-3">Giá (VNĐ)</th>
-                        <th class="px-6 py-3">Đơn vị</th>
-                        <th class="px-6 py-3">Phòng thực hiện</th>
-                        <th class="px-6 py-3 text-right">Thao tác</th>
+                        <th class="px-6 py-3 text-center">Mã</th>
+                        <th class="px-6 py-3 text-center">Tên Xét Nghiệm</th>
+                        <th class="px-6 py-3 text-center">Giá (VNĐ)</th>
+                        <th class="px-6 py-3 text-center">Đơn vị</th>
+                        <th class="px-6 py-3 text-center">Phòng thực hiện</th>
+                        <th class="px-6 py-3 text-center">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @if (isLoading)
                     {
                         <tr>
-                            <td colspan="6" class="px-6 py-8 text-center text-slate-500">
-                                <i class="ph ph-spinner animate-spin text-2xl mb-2"></i>
-                                <p>Đang tải dữ liệu...</p>
+                            <td colspan="6" class="py-16">
+                                <div class="flex items-center justify-center gap-3 text-slate-500">
+                                    <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
+                                    <span class="text-sm">Đang tải dữ liệu...</span>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -79,21 +97,21 @@
                                         <div class="text-xs text-slate-500 mt-0.5">@item.Description</div>
                                     }
                                 </td>
-                                <td class="px-6 py-3 font-medium text-amber-600">
+                                <td class="px-6 py-3 font-medium text-primary">
                                     @item.Price.ToString("N0")
                                 </td>
                                 <td class="px-6 py-3">@item.Unit</td>
                                 <td class="px-6 py-3">
                                     @(item.DefaultRoom?.Name ?? "-- Chưa chọn --")
                                 </td>
-                                <td class="px-6 py-3 text-right">
+                                <td class="px-6 py-3">
                                     <button @onclick="() => ShowEdit(item)"
-                                            class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition ml-1"
+                                            class="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded transition mx-1"
                                             title="Sửa">
                                         <i class="ph ph-pencil-simple text-lg"></i>
                                     </button>
                                     <button @onclick="() => ShowDelete(item)"
-                                            class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition ml-1"
+                                            class="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded transition mx-1"
                                             title="Xóa">
                                         <i class="ph ph-trash text-lg"></i>
                                     </button>
@@ -227,7 +245,7 @@
             </Modal>
 
 @code {
-    private List<LabTest> viewList = new();
+    private List<LabTestDto> viewList = new();
     private List<Room> rooms = new();
 
     // Pagination & Filter
@@ -239,7 +257,7 @@
     private int totalPages = 1;
 
     // Modal state
-    private LabTest currentModel = new();
+    private LabTestDto currentModel = new();
     private EditContext? editContext;
     private bool isShowModal = false;
     private bool isDeleteModal = false;
@@ -253,8 +271,9 @@
 
     private async Task LoadRoomsAsync()
     {
+        using var context = await DbContextFactory.CreateDbContextAsync();
         // Get Lab Rooms only
-        rooms = await DbContext.Rooms
+        rooms = await context.Rooms
             .Where(r => r.IsLab && r.IsActive)
             .OrderBy(r => r.Name)
             .ToListAsync();
@@ -264,7 +283,8 @@
     {
         isLoading = true;
 
-        var query = DbContext.LabTests
+        using var context = await DbContextFactory.CreateDbContextAsync();
+        var query = context.LabTests
                     .Include(l => l.DefaultRoom)
                     .AsQueryable();
 
@@ -279,11 +299,23 @@
 
         if (currentPage > totalPages) currentPage = totalPages;
 
-        viewList = await query
+        var dbTests = await query
             .OrderBy(l => l.Id)
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        var now = System.DateTime.Now;
+        viewList = dbTests.Select(t => new LabTestDto
+        {
+            Id = t.Id,
+            Name = t.Name,
+            Description = t.Description,
+            Unit = t.Unit,
+            DefaultRoomId = t.DefaultRoomId,
+            DefaultRoom = t.DefaultRoom,
+            Price = t.LabPrices?.Where(p => p.EffectiveDate <= now).OrderByDescending(p => p.EffectiveDate).Select(p => p.Price).FirstOrDefault() ?? 0
+        }).ToList();
 
         isLoading = false;
         StateHasChanged();
@@ -293,6 +325,15 @@
     {
         currentPage = 1;
         await LoadDataAsync();
+    }
+
+    private async Task HandleSearchKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" || e.Code == "Enter")
+        {
+            currentPage = 1;
+            await LoadDataAsync();
+        }
     }
 
     private async Task ChangePage(int page)
@@ -306,16 +347,16 @@
 
     private void ShowCreate()
     {
-        currentModel = new LabTest();
+        currentModel = new LabTestDto();
         editContext = new EditContext(currentModel);
         modalTitle = "Thêm xét nghiệm mới";
         isShowModal = true;
     }
 
-    private void ShowEdit(LabTest item)
+    private void ShowEdit(LabTestDto item)
     {
         // Clone object to avoid tracking issues if cancelled
-        currentModel = new LabTest
+        currentModel = new LabTestDto
         {
             Id = item.Id,
             Name = item.Name,
@@ -336,25 +377,44 @@
             return;
         }
 
+        using var context = await DbContextFactory.CreateDbContextAsync();
+
         if (currentModel.Id == 0)
         {
-            DbContext.LabTests.Add(currentModel);
+            var newTest = new LabTest
+            {
+                Name = currentModel.Name,
+                Unit = currentModel.Unit,
+                Description = currentModel.Description,
+                DefaultRoomId = currentModel.DefaultRoomId,
+                LabPrices = new List<LabPrice> 
+                { 
+                    new LabPrice { Price = currentModel.Price, EffectiveDate = System.DateTime.Now } 
+                }
+            };
+            context.LabTests.Add(newTest);
         }
         else
         {
-            var dbItem = await DbContext.LabTests.FindAsync(currentModel.Id);
+            var dbItem = await context.LabTests.Include(t => t.LabPrices).FirstOrDefaultAsync(t => t.Id == currentModel.Id);
             if (dbItem != null)
             {
                 dbItem.Name = currentModel.Name;
-                dbItem.Price = currentModel.Price;
                 dbItem.Unit = currentModel.Unit;
                 dbItem.Description = currentModel.Description;
                 dbItem.DefaultRoomId = currentModel.DefaultRoomId;
-                DbContext.LabTests.Update(dbItem);
+
+                var now = System.DateTime.Now;
+                var currentPrice = dbItem.LabPrices.Where(p => p.EffectiveDate <= now).OrderByDescending(p => p.EffectiveDate).Select(p => p.Price).FirstOrDefault();
+                if (currentPrice != currentModel.Price)
+                {
+                    dbItem.LabPrices.Add(new LabPrice { Price = currentModel.Price, EffectiveDate = now });
+                }
+                context.LabTests.Update(dbItem);
             }
         }
 
-        await DbContext.SaveChangesAsync();
+        await context.SaveChangesAsync();
         CloseModal();
         await LoadDataAsync();
     }
@@ -362,10 +422,10 @@
     private void CloseModal()
     {
         isShowModal = false;
-        currentModel = new LabTest();
+        currentModel = new LabTestDto();
     }
 
-    private void ShowDelete(LabTest item)
+    private void ShowDelete(LabTestDto item)
     {
         currentModel = item;
         isDeleteModal = true;
@@ -375,11 +435,12 @@
     {
         if (currentModel != null)
         {
-            var dbItem = await DbContext.LabTests.FindAsync(currentModel.Id);
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            var dbItem = await context.LabTests.FindAsync(currentModel.Id);
             if (dbItem != null)
             {
-                DbContext.LabTests.Remove(dbItem);
-                await DbContext.SaveChangesAsync();
+                context.LabTests.Remove(dbItem);
+                await context.SaveChangesAsync();
             }
         }
         CloseDeleteModal();
@@ -389,6 +450,6 @@
     private void CloseDeleteModal()
     {
         isDeleteModal = false;
-        currentModel = new LabTest();
+        currentModel = new LabTestDto();
     }
 }
