@@ -1,4 +1,4 @@
-﻿@page "/doctor/my-patients"
+@page "/doctor/my-patients"
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Constant
@@ -165,7 +165,7 @@
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Bệnh nhân</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Tuổi</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Số điện thoại</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chẩn đoán</th>
+                            @* <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chẩn đoán</th> *@
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chờ đợi</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Trạng thái</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Thao tác</th>
@@ -445,20 +445,26 @@
     private static string GetStatusClass(TicketStatus status) => status switch
     {
         TicketStatus.Done => "bg-green-100 text-green-700",
+        TicketStatus.Completed => "bg-teal-100 text-teal-700",
         TicketStatus.Examinating => "bg-cyan-100 text-cyan-700",
         TicketStatus.Calling => "bg-orange-100 text-orange-700",
         TicketStatus.Waiting => "bg-amber-100 text-amber-700",
         TicketStatus.Testing => "bg-purple-100 text-purple-700",
+        TicketStatus.Missed => "bg-red-100 text-red-700",
+        TicketStatus.Cancelled => "bg-slate-100 text-slate-700",
         _ => "bg-gray-100 text-gray-700"
     };
 
     private static string GetRowBgClass(TicketStatus status) => status switch
     {
         TicketStatus.Done => "bg-green-50",
+        TicketStatus.Completed => "bg-teal-50",
         TicketStatus.Examinating => "bg-cyan-50",
         TicketStatus.Calling => "bg-orange-50",
         TicketStatus.Waiting => "bg-amber-50",
         TicketStatus.Testing => "bg-purple-50",
+        TicketStatus.Missed => "bg-red-50",
+        TicketStatus.Cancelled => "bg-slate-50",
         _ => ""
     };
 
@@ -468,7 +474,10 @@
         TicketStatus.Calling => "Đang gọi",
         TicketStatus.Examinating => "Đang khám",
         TicketStatus.Testing => "Đang xét nghiệm",
+        TicketStatus.Completed => "Đã khám xong",
         TicketStatus.Done => "Hoàn tất",
+        TicketStatus.Missed => "Trễ hẹn",
+        TicketStatus.Cancelled => "Đã hủy",
         _ => status.ToString()
     };
 

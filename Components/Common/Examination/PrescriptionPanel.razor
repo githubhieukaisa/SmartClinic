@@ -203,7 +203,9 @@
         var existingPrescription = await context.Prescriptions
             .Include(p => p.PrescriptionDetails)
                 .ThenInclude(d => d.Medicine)
-            .FirstOrDefaultAsync(p => p.TicketId == TicketId);
+            .Where(p => p.TicketId == TicketId && p.Status != PrescriptionStatus.Cancelled)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
 
         if (existingPrescription != null)
         {
@@ -259,16 +261,24 @@
                 Status = PrescriptionStatus.Pending,
             };
 
+            decimal totalAmount = 0;
+
             foreach (var med in _prescribedMedicines)
             {
+                var selectedMed = _availableMedicines.FirstOrDefault(m => m.Id == med.MedicineId);
+                var unitPrice = selectedMed?.Price ?? 0;
+                totalAmount += unitPrice * med.Quantity;
+
                 prescription.PrescriptionDetails.Add(new PrescriptionDetail
                 {
                     MedicineId = med.MedicineId,
                     Quantity = med.Quantity,
-                    UnitPrice = 0,
+                    UnitPrice = unitPrice,
                     UsageInstruction = med.Dosage,
                 });
             }
+
+            prescription.TotalAmount = totalAmount;
 
             using var context = DbFactory.CreateDbContext();
             context.Prescriptions.Add(prescription);
