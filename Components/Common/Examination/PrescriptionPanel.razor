@@ -197,6 +197,7 @@
     {
         using var context = DbFactory.CreateDbContext();
         _availableMedicines = await context.Medicines
+            .Include(m => m.MedicinePrices)
             .OrderBy(m => m.Name)
             .ToListAsync();
 
@@ -266,7 +267,11 @@
             foreach (var med in _prescribedMedicines)
             {
                 var selectedMed = _availableMedicines.FirstOrDefault(m => m.Id == med.MedicineId);
-                var unitPrice = selectedMed?.Price ?? 0;
+                var unitPrice = selectedMed?.MedicinePrices?
+                    .Where(mp => mp.EffectiveFrom <= DateTime.Now)
+                    .OrderByDescending(mp => mp.EffectiveFrom)
+                    .Select(mp => mp.Price)
+                    .FirstOrDefault() ?? 0;
                 totalAmount += unitPrice * med.Quantity;
 
                 prescription.PrescriptionDetails.Add(new PrescriptionDetail
