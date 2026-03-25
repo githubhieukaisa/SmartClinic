@@ -1,0 +1,234 @@
+@page "/pharmacist/medicines"
+@using Microsoft.AspNetCore.Authorization
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using SmartClinic.Components.Layout
+@using Blazored.Toast.Services
+@rendermode InteractiveServer
+
+@attribute [Authorize(Policy = "PharmacistPolicy")]
+@inject IPharmacyService PharmacyService
+@inject IToastService ToastService
+
+<div class="p-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Medicine Inventory</h1>
+            <p class="text-muted-foreground mt-1">View medicines and toggle availability</p>
+        </div>
+        <div class="text-right">
+            <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+            <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Total Medicines</h4>
+                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-pill text-xl text-primary"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-primary">@(_medicines?.Count ?? 0)</p>
+            <div class="mt-4 bg-primary/10 rounded-full h-2">
+                <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Low Stock (For Sale)</h4>
+                <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-warning text-xl text-amber-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-amber-600">@(_medicines?.Count(m => m.IsForSale && m.PhysicalStock < 20) ?? 0)</p>
+            <div class="mt-4 bg-amber-100 rounded-full h-2">
+                <div class="bg-amber-500 h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Inventory Value</h4>
+                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-currency-circle-dollar text-xl text-green-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-green-600">
+                @((_medicines?.Where(m => m.IsForSale)
+                    .Sum(m => GetCurrentPrice(m) * m.PhysicalStock) ?? 0).ToString("N0"))đ
+            </p>
+            <div class="mt-4 bg-green-100 rounded-full h-2">
+                <div class="bg-green-600 h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Medicine Table -->
+    <div class="bg-card rounded-xl border border-border shadow-sm">
+        <div class="flex items-center justify-between p-6 border-b border-border">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-pill text-xl text-foreground"></i>
+                <h2 class="text-xl font-bold text-foreground">All Medicines</h2>
+            </div>
+            <div class="relative">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"></i>
+                <input @bind="_search" @bind:event="oninput"
+                       placeholder="Search medicines..."
+                       class="pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-56" />
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            @if (_medicines == null)
+            {
+                <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
+                    <span class="text-sm">Loading...</span>
+                </div>
+            }
+            else if (!FilteredMedicines.Any())
+            {
+                <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph ph-pill text-4xl"></i>
+                    <p class="text-sm font-medium">No medicines found</p>
+                </div>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border bg-muted/30">
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">ID</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Name</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Unit</th>
+                            <th class="text-right py-3 px-5 font-semibold text-muted-foreground">Price</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Stock</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Status</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Toggle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in FilteredMedicines)
+                        {
+                            <tr class="border-b border-border hover:bg-muted/20 transition">
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
+                                        @m.Id
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5">
+                                    <p class="font-medium text-foreground">@m.Name</p>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                        @(m.Unit ?? "—")
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5 text-right font-semibold text-foreground">
+                                    @GetCurrentPrice(m).ToString("N0")đ
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @(m.IsForSale && m.PhysicalStock < 20 ? "bg-red-100 text-red-700" : m.IsForSale && m.PhysicalStock < 50 ? "bg-amber-100 text-amber-700" : m.IsForSale ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500")">
+                                        @m.PhysicalStock
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    @if (m.IsForSale)
+                                    {
+                                        <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            For Sale
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
+                                            Not for Sale
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <button @onclick="() => ToggleForSaleAsync(m)"
+                                            disabled="@_togglingId.Contains(m.Id)"
+                                            class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition mx-auto
+                                                   @(m.IsForSale
+                                                       ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                                       : "bg-green-50 text-green-700 hover:bg-green-100")
+                                                   disabled:opacity-50">
+                                        @if (_togglingId.Contains(m.Id))
+                                        {
+                                            <i class="ph ph-spinner-gap animate-spin"></i>
+                                        }
+                                        else if (m.IsForSale)
+                                        {
+                                            <i class="ph ph-toggle-right"></i>
+                                            <span>Deactivate</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="ph ph-toggle-left"></i>
+                                            <span>Activate</span>
+                                        }
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Medicine>? _medicines;
+    private string _search = "";
+    private HashSet<int> _togglingId = new();
+
+    private IEnumerable<Medicine> FilteredMedicines =>
+        string.IsNullOrWhiteSpace(_search)
+            ? (_medicines ?? Enumerable.Empty<Medicine>())
+            : (_medicines ?? Enumerable.Empty<Medicine>())
+                .Where(m => m.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                         || (m.Unit ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+        => await LoadAsync();
+
+    private async Task LoadAsync()
+        => _medicines = await PharmacyService.GetAllMedicinesAsync();
+
+    private decimal GetCurrentPrice(Medicine m)
+        => m.MedicinePrices
+            .OrderByDescending(p => p.EffectiveFrom)
+            .FirstOrDefault()?.Price ?? 0m;
+
+    private async Task ToggleForSaleAsync(Medicine m)
+    {
+        if (_togglingId.Contains(m.Id)) return;
+        _togglingId.Add(m.Id);
+        try
+        {
+            var (ok, err) = await PharmacyService.ToggleMedicineForSaleAsync(m.Id);
+            if (ok)
+            {
+                // Flip locally so UI updates instantly without reload
+                m.StockQuantity = ~m.StockQuantity;
+                ToastService.ShowSuccess($"'{m.Name}' is now {(m.IsForSale ? "for sale" : "not for sale")}.");
+            }
+            else
+            {
+                ToastService.ShowError(err);
+            }
+        }
+        finally
+        {
+            _togglingId.Remove(m.Id);
+        }
+    }
+}

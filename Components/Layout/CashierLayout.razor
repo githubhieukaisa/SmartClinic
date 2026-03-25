@@ -1,8 +1,10 @@
 ﻿@using Blazored.Toast
 @using Blazored.Toast.Configuration
 @using SmartClinic.Components.Common
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <BlazoredToasts Position="ToastPosition.BottomRight" Timeout="5" IconType="IconType.Blazored"
                 @rendermode="InteractiveServer" />
@@ -11,15 +13,18 @@
 
 <div class="flex h-screen bg-background">
     <aside class="w-64 bg-sidebar border-r border-border flex flex-col fixed h-full">
+
+        <!-- Logo block -->
         <div class="p-6 border-b border-border">
             <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                     <i class="ph ph-currency-circle-dollar text-white text-sm"></i>
                 </div>
-                <h1 class="text-xl font-bold text-foreground">SmartClinic</h1>
+                <h1 class="text-xl font-bold text-foreground">Smart Clinic</h1>
             </div>
         </div>
 
+        <!-- User info block -->
         <div class="p-6 border-b border-border">
             <div class="flex items-center gap-3">
                 <div
@@ -27,32 +32,34 @@
                     T
                 </div>
                 <div>
-                    <p class="font-semibold text-foreground text-sm">Thu ngân</p>
+                    <p class="font-semibold text-foreground text-sm">@(_cashierName ?? "Loading...")</p>
                     <p class="text-xs text-muted-foreground">Cashier</p>
                 </div>
             </div>
+            <div class="bg-primary/10 rounded-lg p-2 text-center">
+                <span class="text-xs font-medium text-primary">On Duty</span>
+            </div>
         </div>
 
+        <!-- Navigation -->
         <nav class="flex-1 px-4 py-6">
             <ul class="space-y-2">
                 <li>
                     <NavLink href="/cashier/payments" class="@NavClass("/cashier/payments")">
                         <i class="ph ph-money text-lg"></i>
-                        <span>Thanh toán</span>
+                        <span>Payment Queue</span>
                     </NavLink>
                 </li>
             </ul>
         </nav>
 
+        <!-- Sign out -->
         <div class="p-4 border-t border-border">
-            <form action="/logout" method="post">
-                <AntiforgeryToken />
-                <button type="submit"
-                        class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-red-50 transition font-medium">
-                    <i class="ph-bold ph-sign-out text-lg"></i>
-                    <span>Đăng xuất</span>
-                </button>
-            </form>
+            <button @onclick="HandleLogout"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-red-50 transition font-medium">
+                <i class="ph-bold ph-sign-out text-lg"></i>
+                <span>Sign Out</span>
+            </button>
         </div>
     </aside>
 
@@ -64,12 +71,38 @@
 </div>
 
 @code {
+    private string? _cashierName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            _cashierName = user.FindFirst("FullName")?.Value ?? "Cashier";
+        }
+    }
+
+    private void HandleLogout()
+    {
+        Nav.NavigateTo("/logout-action", forceLoad: true);
+    }
+
     private string NavClass(string href)
     {
         var currentPath = new Uri(Nav.Uri).AbsolutePath;
         var isActive = currentPath.StartsWith(href, StringComparison.OrdinalIgnoreCase);
         return isActive
-            ? "flex items-center gap-3 px-4 py-3 rounded-lg bg-indigo-600 text-white font-medium transition"
+            ? "flex items-center gap-3 px-4 py-3 rounded-lg bg-primary text-primary-foreground font-medium transition"
             : "flex items-center gap-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition";
+    }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
     }
 }

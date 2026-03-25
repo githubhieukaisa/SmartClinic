@@ -70,6 +70,21 @@
 			</Authorized>
 		</AuthorizeView>
 
+		@* Pharmacist Links *@
+		<AuthorizeView Policy="PharmacistPolicy">
+			<Authorized>
+				<NavLink class="@baseClass" href="/pharmacist/prescriptions" Match="NavLinkMatch.All">
+					<i class="ph ph-receipt text-lg"></i>
+					<span>Đơn Thuốc</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="/pharmacist/medicines" Match="NavLinkMatch.All">
+					<i class="ph ph-pill text-lg"></i>
+					<span>Kho Thuốc</span>
+				</NavLink>
+			</Authorized>
+		</AuthorizeView>
+
 		@* Admin Links *@
 		<AuthorizeView Policy="AdminPolicy">
 			<Authorized>

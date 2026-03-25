@@ -78,7 +78,11 @@ namespace SmartClinic
                 context.Response.Cookies.Delete("refresh_token");
                 return Results.Redirect("/login");
             });
-
+            app.MapGet("/logout-action", async (HttpContext context) =>
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return Results.Redirect("/login");
+            });
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 

@@ -18,6 +18,8 @@ public partial class SmartClinicDbContext : DbContext
 
     public virtual DbSet<Medicine> Medicines { get; set; }
 
+    public virtual DbSet<MedicinePrice> MedicinePrices { get; set; }
+
     public virtual DbSet<Patient> Patients { get; set; }
 
     public virtual DbSet<Prescription> Prescriptions { get; set; }
@@ -73,9 +75,30 @@ public partial class SmartClinicDbContext : DbContext
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.Price).HasPrecision(10, 2);
             entity.Property(e => e.StockQuantity).HasDefaultValue(0);
             entity.Property(e => e.Unit).HasMaxLength(20);
+
+            // Computed properties không map vào DB
+            entity.Ignore(e => e.IsForSale);
+            entity.Ignore(e => e.PhysicalStock);
+        });
+
+        modelBuilder.Entity<MedicinePrice>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("MedicinePrices_pkey");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.EffectiveFrom)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Price).HasPrecision(10, 2);
+
+            entity.HasOne(e => e.Medicine)
+                .WithMany(m => m.MedicinePrices)
+                .HasForeignKey(e => e.MedicineId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("MedicinePrices_MedicineId_fkey");
         });
 
         modelBuilder.Entity<Patient>(entity =>
