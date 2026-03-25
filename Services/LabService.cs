@@ -24,11 +24,23 @@ public class LabService : ILabService
         _environment = environment;
     }
 
-    public async Task<List<LabTest>> GetAllLabTestsAsync()
+    public async Task<List<LabTestDto>> GetAllLabTestsAsync()
     {
         using var context = _dbFactory.CreateDbContext();
+        var now = System.DateTime.Now;
         return await context.LabTests
             .Include(t => t.DefaultRoom)
+            .Include(t => t.LabPrices)
+            .Select(t => new LabTestDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Description = t.Description,
+                Unit = t.Unit,
+                DefaultRoomId = t.DefaultRoomId,
+                DefaultRoom = t.DefaultRoom,
+                Price = t.LabPrices.Where(p => p.EffectiveDate <= now).OrderByDescending(p => p.EffectiveDate).Select(p => p.Price).FirstOrDefault()
+            })
             .ToListAsync();
     }
 
@@ -41,19 +53,30 @@ public class LabService : ILabService
         var labOrder = new LabOrder
         {
             TicketId = ticketId,
-            Status = "Pending"
+            Status = LabOrderStatus.Pending
         };
         context.LabOrders.Add(labOrder);
         await context.SaveChangesAsync(); 
 
-        var labTests = await context.LabTests.Where(lt => labTestIds.Contains(lt.Id)).ToListAsync();
+        var labTests = await context.LabTests
+            .Include(lt => lt.LabPrices)
+            .Where(lt => labTestIds.Contains(lt.Id))
+            .ToListAsync();
+            
+        var now = System.DateTime.Now;
         foreach (var test in labTests)
         {
+            var testPrice = test.LabPrices
+                .Where(p => p.EffectiveDate <= now)
+                .OrderByDescending(p => p.EffectiveDate)
+                .Select(p => p.Price)
+                .FirstOrDefault();
+
             var detail = new LabOrderDetail
             {
                 LabOrderId = labOrder.Id,
                 LabTestId = test.Id,
-                UnitPrice = test.Price
+                UnitPrice = testPrice
             };
             context.LabOrderDetails.Add(detail);
         }
@@ -73,7 +96,7 @@ public class LabService : ILabService
             .ThenInclude(qt => qt.Patient)
             .Include(lo => lo.LabOrderDetails)
             .ThenInclude(lod => lod.LabTest)
-            .Where(lo => lo.Status == "Pending")
+            .Where(lo => lo.Status == LabOrderStatus.Pending)
             .OrderBy(lo => lo.CreatedAt)
             .ToListAsync();
     }
@@ -107,7 +130,7 @@ public class LabService : ILabService
         bool allDetailsDone = orderDetails.All(lod => !string.IsNullOrEmpty(lod.ResultNotes));
         if (allDetailsDone)
         {
-            detail.LabOrder.Status = "Done";
+            detail.LabOrder.Status = LabOrderStatus.Completed;
             await context.SaveChangesAsync();
 
             var allOrdersForTicket = await context.LabOrders
@@ -115,7 +138,7 @@ public class LabService : ILabService
                 .ToListAsync();
 
             // Check if all lab orders for this patient are done
-            bool allOrdersDone = allOrdersForTicket.All(lo => lo.Status == "Done");
+            bool allOrdersDone = allOrdersForTicket.All(lo => lo.Status == LabOrderStatus.Completed);
             if (allOrdersDone)
             {
                 detail.LabOrder.QueueTicket.Status = "Examining";
@@ -128,7 +151,7 @@ public class LabService : ILabService
     {
         using var context = _dbFactory.CreateDbContext();
         return await context.LabOrders
-            .AnyAsync(lo => lo.TicketId == ticketId && lo.Status != "Done");
+            .AnyAsync(lo => lo.TicketId == ticketId && lo.Status != LabOrderStatus.Completed);
     }
 
     public async Task<List<LabOrder>> GetLabOrdersByTicketAsync(int ticketId)
@@ -187,5 +210,19 @@ public class LabService : ILabService
             System.Diagnostics.Debug.WriteLine($"❌ [LabService] Upload error: {ex.Message}");
             throw;
         }
+    }
+
+    public async Task<decimal?> GetCurrentLabTestPriceAsync(int labTestId)
+    {
+        using var context = _dbFactory.CreateDbContext();
+        var currentDate = System.DateTime.Now;
+
+        var currentPrice = await context.LabPrices
+            .Where(p => p.LabTestId == labTestId && p.EffectiveDate <= currentDate)
+            .OrderByDescending(p => p.EffectiveDate)
+            .Select(p => p.Price)
+            .FirstOrDefaultAsync();
+
+        return currentPrice == 0 ? null : currentPrice;
     }
 }

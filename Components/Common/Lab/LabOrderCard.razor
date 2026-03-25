@@ -23,8 +23,8 @@
         </div>
         <div class="flex flex-col items-end gap-2">
             <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
-                @(Order.Status == "Done" ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600")">
-                @(Order.Status == "Done" ? "Hoàn Thành" : "Đang Chờ")
+                @(Order.Status == LabOrderStatus.Completed ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600")">
+                @(Order.Status == LabOrderStatus.Completed ? "Hoàn Thành" : "Đang Chờ")
             </span>
         </div>
     </div>

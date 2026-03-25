@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.DTOs;
 using SmartClinic.Hubs;
@@ -34,7 +34,7 @@ namespace SmartClinic.Services
                     .ThenInclude(t => t!.Doctor)
                 .Include(p => p.PrescriptionDetails)
                     .ThenInclude(d => d.Medicine)
-                .Where(p => p.Status == "Dispensed")
+                .Where(p => p.Status == PrescriptionStatus.Dispensed)
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
 
@@ -55,11 +55,11 @@ namespace SmartClinic.Services
                 if (prescription == null)
                     return (false, "Không tìm thấy đơn thuốc.");
 
-                if (prescription.Status != "Dispensed")
+                if (prescription.Status != PrescriptionStatus.Dispensed)
                     return (false, $"Đơn thuốc đang ở trạng thái '{prescription.Status}', chưa thể thanh toán.");
 
                 // 1. Đánh dấu đã thanh toán
-                prescription.Status = "Paid";
+                prescription.Status = PrescriptionStatus.Paid;
 
                 // 2. Kết thúc queue ticket
                 if (prescription.Ticket != null)
@@ -95,7 +95,7 @@ namespace SmartClinic.Services
             PatientName = p.Ticket?.Patient?.FullName ?? "—",
             DoctorName = p.Ticket?.Doctor?.FullName ?? "—",
             DoctorNote = p.DoctorNote,
-            Status = p.Status ?? "Dispensed",
+            Status = p.Status.ToString(),
             TotalAmount = p.TotalAmount ?? 0,
             CreatedAt = p.CreatedAt,
             Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto

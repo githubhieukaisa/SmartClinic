@@ -67,9 +67,9 @@
                             @foreach (var medicine in _prescribedMedicines)
                             {
                                 <tr class="border-b border-border hover:bg-muted/20 transition">
-                                     <td class="py-3 px-4 text-foreground text-center">@medicine.MedicineName</td>
-                                     <td class="py-3 px-4 text-center text-foreground">@medicine.Quantity</td>
-                                     <td class="py-3 px-4 text-center text-foreground">@medicine.Dosage</td>
+                                    <td class="py-3 px-4 text-foreground text-center">@medicine.MedicineName</td>
+                                    <td class="py-3 px-4 text-center text-foreground">@medicine.Quantity</td>
+                                    <td class="py-3 px-4 text-center text-foreground">@medicine.Dosage</td>
                                     <td class="py-3 px-4">
                                         <div class="flex justify-center">
                                             <Button Variant="Button.ButtonVariant.Danger" IsFullWidth="false"
@@ -146,21 +146,21 @@
                 <div class="rounded-xl border border-border overflow-hidden">
                     <table class="w-full text-xs text-left">
                         <thead class="bg-muted text-muted-foreground uppercase font-bold text-[10px]">
-                             <tr>
-                                 <th class="px-4 py-2 text-center">Tên thuốc</th>
-                                 <th class="px-4 py-2 text-center">SL</th>
-                                 <th class="px-4 py-2 text-center">Liều dùng</th>
-                             </tr>
+                            <tr>
+                                <th class="px-4 py-2 text-center">Tên thuốc</th>
+                                <th class="px-4 py-2 text-center">SL</th>
+                                <th class="px-4 py-2 text-center">Liều dùng</th>
+                            </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                             @foreach (var med in _prescribedMedicines)
-                             {
-                                 <tr>
-                                     <td class="px-4 py-2 font-medium text-slate-800 text-center">@med.MedicineName</td>
-                                     <td class="px-4 py-2 text-center text-slate-600">@med.Quantity</td>
-                                     <td class="px-4 py-2 text-slate-500 italic text-center">@med.Dosage</td>
-                                 </tr>
-                             }
+                            @foreach (var med in _prescribedMedicines)
+                            {
+                                <tr>
+                                    <td class="px-4 py-2 font-medium text-slate-800 text-center">@med.MedicineName</td>
+                                    <td class="px-4 py-2 text-center text-slate-600">@med.Quantity</td>
+                                    <td class="px-4 py-2 text-slate-500 italic text-center">@med.Dosage</td>
+                                </tr>
+                            }
                         </tbody>
                     </table>
                 </div>
@@ -256,7 +256,7 @@
             var prescription = new Prescription
             {
                 TicketId = TicketId,
-                Status = "Pending",
+                Status = PrescriptionStatus.Pending,
             };
 
             foreach (var med in _prescribedMedicines)
@@ -305,10 +305,10 @@
                 {
                     context.PrescriptionDetails.RemoveRange(existingPrescription.PrescriptionDetails);
                 }
-                
+
                 context.Prescriptions.Remove(existingPrescription);
                 await context.SaveChangesAsync();
-                
+
                 _prescriptionSaved = false;
                 _prescribedMedicines.Clear();
                 ToastService.ShowInfo("Đã xóa hoàn toàn đơn thuốc và chi tiết để test lại.");
