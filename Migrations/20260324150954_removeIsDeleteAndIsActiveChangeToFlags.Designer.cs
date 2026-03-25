@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260324150954_removeIsDeleteAndIsActiveChangeToFlags")]
+    partial class removeIsDeleteAndIsActiveChangeToFlags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(685),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1597),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
                 });
@@ -83,7 +86,9 @@ namespace SmartClinic.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<int>("DoctorId")
                         .HasColumnType("integer");
@@ -97,11 +102,11 @@ namespace SmartClinic.Migrations
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<byte>("StatusEnum")
+                        .HasColumnType("smallint");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("DoctorShifts_pkey");
 
                     b.HasIndex("DoctorId");
 
@@ -123,10 +128,12 @@ namespace SmartClinic.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<short>("Status")
+                    b.Property<string>("Status")
+                        .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((short)0);
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValueSql("'Pending'::character varying");
 
                     b.Property<int>("TicketId")
                         .HasColumnType("integer");
@@ -173,34 +180,6 @@ namespace SmartClinic.Migrations
                     b.ToTable("LabOrderDetails");
                 });
 
-            modelBuilder.Entity("SmartClinic.Models.LabPrice", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime>("EffectiveDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("LabTestId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("numeric");
-
-                    b.HasKey("Id")
-                        .HasName("LabPrices_pkey");
-
-                    b.HasIndex("LabTestId");
-
-                    b.ToTable("LabPrices");
-                });
-
             modelBuilder.Entity("SmartClinic.Models.LabTest", b =>
                 {
                     b.Property<int>("Id")
@@ -220,13 +199,14 @@ namespace SmartClinic.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<string>("Unit")
                         .HasMaxLength(50)
@@ -243,61 +223,61 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(854),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1835),
                             DefaultRoomId = 9,
                             Description = "Xét nghiệm máu cơ bản",
-                            IsDeleted = false,
                             Name = "Tổng phân tích tế bào máu",
+                            Price = 150000m,
                             Unit = "Lần"
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(858),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1841),
                             DefaultRoomId = 9,
                             Description = "Kiểm tra tiểu đường",
-                            IsDeleted = false,
                             Name = "Đường huyết mao mạch",
+                            Price = 50000m,
                             Unit = "Lần"
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(860),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1843),
                             DefaultRoomId = 9,
                             Description = "AST, ALT, Creatinin, Ure...",
-                            IsDeleted = false,
                             Name = "Sinh hóa máu (Chức năng Gan/Thận)",
+                            Price = 250000m,
                             Unit = "Lần"
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(863),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1844),
                             DefaultRoomId = 10,
                             Description = "Siêu âm màu",
-                            IsDeleted = false,
                             Name = "Siêu âm ổ bụng tổng quát",
+                            Price = 200000m,
                             Unit = "Lần"
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(865),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1846),
                             DefaultRoomId = 10,
                             Description = "Siêu âm màu",
-                            IsDeleted = false,
                             Name = "Siêu âm tuyến giáp",
+                            Price = 150000m,
                             Unit = "Lần"
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(866),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1848),
                             DefaultRoomId = 11,
                             Description = "Chụp X-quang phổi",
-                            IsDeleted = false,
                             Name = "X-Quang ngực thẳng",
+                            Price = 120000m,
                             Unit = "Lần"
                         });
                 });
@@ -359,13 +339,18 @@ namespace SmartClinic.Migrations
                     b.Property<DateOnly?>("DoB")
                         .HasColumnType("date");
 
+                    b.Property<short>("Flags")
+                        .HasColumnType("smallint");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<bool>("Gender")
-                        .HasColumnType("boolean");
+                    b.Property<bool>("IsDelete")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Phone")
                         .HasMaxLength(20)
@@ -393,10 +378,11 @@ namespace SmartClinic.Migrations
                     b.Property<string>("DoctorNote")
                         .HasColumnType("text");
 
-                    b.Property<short>("Status")
+                    b.Property<string>("Status")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((short)0);
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValueSql("'Pending'::character varying");
 
                     b.Property<int?>("TicketId")
                         .HasColumnType("integer");
@@ -423,9 +409,6 @@ namespace SmartClinic.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("MedicineId")
                         .HasColumnType("integer");
@@ -473,6 +456,9 @@ namespace SmartClinic.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Diagnosis")
                         .HasColumnType("text");
 
@@ -488,12 +474,8 @@ namespace SmartClinic.Migrations
                     b.Property<int>("RoomId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValueSql("'Waiting'::character varying");
+                    b.Property<byte>("StatusEnum")
+                        .HasColumnType("smallint");
 
                     b.Property<int>("TicketNumber")
                         .HasColumnType("integer");
@@ -504,14 +486,24 @@ namespace SmartClinic.Migrations
                     b.Property<string>("TreatmentPlan")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id")
                         .HasName("QueueTickets_pkey");
+
+                    b.HasIndex("CreatedBy");
 
                     b.HasIndex("DoctorId");
 
                     b.HasIndex("PatientId");
 
                     b.HasIndex("RoomId");
+
+                    b.HasIndex("UpdatedBy");
 
                     b.ToTable("QueueTickets");
                 });
@@ -554,7 +546,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(825),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1809),
                             DepartmentId = 8,
                             IsActive = true,
                             IsLab = true,
@@ -564,7 +556,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(829),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1813),
                             DepartmentId = 8,
                             IsActive = true,
                             IsLab = true,
@@ -574,7 +566,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 11,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(832),
+                            CreatedAt = new DateTime(2026, 3, 24, 22, 9, 53, 688, DateTimeKind.Local).AddTicks(1815),
                             DepartmentId = 8,
                             IsActive = true,
                             IsLab = true,
@@ -655,16 +647,18 @@ namespace SmartClinic.Migrations
             modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
                 {
                     b.HasOne("SmartClinic.Models.User", "Doctor")
-                        .WithMany()
+                        .WithMany("DoctorShifts")
                         .HasForeignKey("DoctorId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("DoctorShifts_DoctorId_fkey");
 
                     b.HasOne("SmartClinic.Models.Room", "Room")
                         .WithMany("DoctorShifts")
                         .HasForeignKey("RoomId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("DoctorShifts_RoomId_fkey");
 
                     b.Navigation("Doctor");
 
@@ -700,18 +694,6 @@ namespace SmartClinic.Migrations
                         .HasConstraintName("LabOrderDetails_LabTestId_fkey");
 
                     b.Navigation("LabOrder");
-
-                    b.Navigation("LabTest");
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.LabPrice", b =>
-                {
-                    b.HasOne("SmartClinic.Models.LabTest", "LabTest")
-                        .WithMany("LabPrices")
-                        .HasForeignKey("LabTestId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("LabPrices_LabTestId_fkey");
 
                     b.Navigation("LabTest");
                 });
@@ -759,6 +741,12 @@ namespace SmartClinic.Migrations
 
             modelBuilder.Entity("SmartClinic.Models.QueueTicket", b =>
                 {
+                    b.HasOne("SmartClinic.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("QueueTickets_CreatedBy_fkey");
+
                     b.HasOne("SmartClinic.Models.User", "Doctor")
                         .WithMany("QueueTickets")
                         .HasForeignKey("DoctorId")
@@ -777,11 +765,21 @@ namespace SmartClinic.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SmartClinic.Models.User", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("QueueTickets_UpdatedBy_fkey");
+
+                    b.Navigation("CreatedByUser");
+
                     b.Navigation("Doctor");
 
                     b.Navigation("Patient");
 
                     b.Navigation("Room");
+
+                    b.Navigation("UpdatedByUser");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.Room", b =>
@@ -818,8 +816,6 @@ namespace SmartClinic.Migrations
             modelBuilder.Entity("SmartClinic.Models.LabTest", b =>
                 {
                     b.Navigation("LabOrderDetails");
-
-                    b.Navigation("LabPrices");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.Medicine", b =>
@@ -853,6 +849,8 @@ namespace SmartClinic.Migrations
 
             modelBuilder.Entity("SmartClinic.Models.User", b =>
                 {
+                    b.Navigation("DoctorShifts");
+
                     b.Navigation("QueueTickets");
                 });
 #pragma warning restore 612, 618

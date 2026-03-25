@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 
 namespace SmartClinic.Models;
 
@@ -32,6 +33,7 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<LabTest> LabTests { get; set; }
     public virtual DbSet<LabOrder> LabOrders { get; set; }
     public virtual DbSet<LabOrderDetail> LabOrderDetails { get; set; }
+    public virtual DbSet<LabPrice> LabPrices { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
@@ -98,8 +100,9 @@ public partial class SmartClinicDbContext : DbContext
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .HasDefaultValueSql("'Pending'::character varying");
+                .HasConversion<short>()
+                .HasColumnType("smallint")
+                .HasDefaultValue(PrescriptionStatus.Pending);
             entity.Property(e => e.TotalAmount)
                 .HasPrecision(12, 2)
                 .HasDefaultValueSql("0");
@@ -133,9 +136,8 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
-            entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .HasDefaultValueSql("'Waiting'::character varying");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("timestamp without time zone");
 
             entity.HasOne(d => d.Doctor).WithMany(p => p.QueueTickets)
                 .HasForeignKey(d => d.DoctorId)
@@ -144,6 +146,16 @@ public partial class SmartClinicDbContext : DbContext
             entity.HasOne(d => d.Patient).WithMany(p => p.QueueTickets)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("QueueTickets_PatientId_fkey");
+
+            entity.HasOne(d => d.CreatedByUser).WithMany()
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("QueueTickets_CreatedBy_fkey")
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.UpdatedByUser).WithMany()
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("QueueTickets_UpdatedBy_fkey")
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<User>(entity =>
@@ -165,11 +177,11 @@ public partial class SmartClinicDbContext : DbContext
         modelBuilder.Entity<LabTest>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("LabTests_pkey");
+            entity.HasQueryFilter(e => !e.IsDeleted);
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Price).HasPrecision(10, 2);
             entity.Property(e => e.Unit).HasMaxLength(50);
 
             entity.HasOne(d => d.DefaultRoom)
@@ -181,12 +193,15 @@ public partial class SmartClinicDbContext : DbContext
         modelBuilder.Entity<LabOrder>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("LabOrders_pkey");
+
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
+
             entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .HasDefaultValueSql("'Pending'::character varying");
+                .HasConversion<short>()
+                .HasColumnType("smallint")
+                .HasDefaultValue(LabOrderStatus.Pending);
 
             entity.HasOne(d => d.QueueTicket).WithMany(p => p.LabOrders)
                 .HasForeignKey(d => d.TicketId)
@@ -208,6 +223,34 @@ public partial class SmartClinicDbContext : DbContext
                 .HasConstraintName("LabOrderDetails_LabTestId_fkey");
         });
 
+        modelBuilder.Entity<DoctorShift>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("DoctorShifts_pkey");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorShifts)
+                .HasForeignKey(d => d.DoctorId)
+                .HasConstraintName("DoctorShifts_DoctorId_fkey");
+
+            entity.HasOne(d => d.Room).WithMany(p => p.DoctorShifts)
+                .HasForeignKey(d => d.RoomId)
+                .HasConstraintName("DoctorShifts_RoomId_fkey");
+        });
+
+        modelBuilder.Entity<LabPrice>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("LabPrices_pkey");
+
+            entity.HasOne(e => e.LabTest)
+                .WithMany(t => t.LabPrices)
+                .HasForeignKey(e => e.LabTestId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("LabPrices_LabTestId_fkey");
+        });
+
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
         {
             relationship.DeleteBehavior = DeleteBehavior.Restrict;
@@ -219,18 +262,18 @@ public partial class SmartClinicDbContext : DbContext
         );
 
         modelBuilder.Entity<Room>().HasData(
-            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
-            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
-            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, IsActive = true, IsLab = true }
+            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab },
+            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab },
+            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab }
         );
 
         modelBuilder.Entity<LabTest>().HasData(
-            new LabTest { Id = 1, Name = "Tổng phân tích tế bào máu", Price = 150000, Unit = "Lần", Description = "Xét nghiệm máu cơ bản", DefaultRoomId = 9 },
-            new LabTest { Id = 2, Name = "Đường huyết mao mạch", Price = 50000, Unit = "Lần", Description = "Kiểm tra tiểu đường", DefaultRoomId = 9 },
-            new LabTest { Id = 3, Name = "Sinh hóa máu (Chức năng Gan/Thận)", Price = 250000, Unit = "Lần", Description = "AST, ALT, Creatinin, Ure...", DefaultRoomId = 9 },
-            new LabTest { Id = 4, Name = "Siêu âm ổ bụng tổng quát", Price = 200000, Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
-            new LabTest { Id = 5, Name = "Siêu âm tuyến giáp", Price = 150000, Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
-            new LabTest { Id = 6, Name = "X-Quang ngực thẳng", Price = 120000, Unit = "Lần", Description = "Chụp X-quang phổi", DefaultRoomId = 11 }
+            new LabTest { Id = 1, Name = "Tổng phân tích tế bào máu", Unit = "Lần", Description = "Xét nghiệm máu cơ bản", DefaultRoomId = 9 },
+            new LabTest { Id = 2, Name = "Đường huyết mao mạch", Unit = "Lần", Description = "Kiểm tra tiểu đường", DefaultRoomId = 9 },
+            new LabTest { Id = 3, Name = "Sinh hóa máu (Chức năng Gan/Thận)", Unit = "Lần", Description = "AST, ALT, Creatinin, Ure...", DefaultRoomId = 9 },
+            new LabTest { Id = 4, Name = "Siêu âm ổ bụng tổng quát", Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
+            new LabTest { Id = 5, Name = "Siêu âm tuyến giáp", Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
+            new LabTest { Id = 6, Name = "X-Quang ngực thẳng", Unit = "Lần", Description = "Chụp X-quang phổi", DefaultRoomId = 11 }
         );
 
         OnModelCreatingPartial(modelBuilder);

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 using SmartClinic.DTOs;
 using SmartClinic.Hubs;
 using SmartClinic.Models;

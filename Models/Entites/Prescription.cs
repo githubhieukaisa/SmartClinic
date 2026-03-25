@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartClinic.Models;
@@ -11,7 +11,7 @@ public partial class Prescription : BaseEntity
 
     public decimal? TotalAmount { get; set; }
 
-    public string? Status { get; set; }
+    public PrescriptionStatus Status { get; set; } = PrescriptionStatus.Pending;
 
     public virtual ICollection<PrescriptionDetail> PrescriptionDetails { get; set; } = new List<PrescriptionDetail>();
 

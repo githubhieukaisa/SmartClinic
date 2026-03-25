@@ -1,16 +1,32 @@
-namespace SmartClinic.Models
+﻿namespace SmartClinic.Models
 {
+    using SmartClinic.Constant;
+
     public class Room : BaseEntity
     {
         public string Name { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
-        public bool IsActive { get; set; } = true;
-        public bool IsLab { get; set; } = false;
+
+        public RoomFlags Flags { get; set; } = RoomFlags.IsActive;
 
         public int DepartmentId { get; set; }
         public virtual Department Department { get; set; } = null!;
 
         public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
         public virtual ICollection<DoctorShift> DoctorShifts { get; set; } = new List<DoctorShift>();
+
+        // Helper properties để dễ sử dụng
+        public bool IsActive
+        {
+            get => (Flags & RoomFlags.IsActive) != 0;
+            set => Flags = value ? (Flags | RoomFlags.IsActive) : (Flags & ~RoomFlags.IsActive);
+        }
+
+        public bool IsLab
+        {
+            get => (Flags & RoomFlags.IsLab) != 0;
+            set => Flags = value ? (Flags | RoomFlags.IsLab) : (Flags & ~RoomFlags.IsLab);
+        }
     }
 }
+

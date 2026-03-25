@@ -1,5 +1,6 @@
 @page "/checkin"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @attribute [Authorize(Policy = "ReceptionPolicy")]
 @using Blazored.Toast.Services
 @using SmartClinic.Components.Common
@@ -107,6 +108,8 @@
 </div>
 
 @code {
+	[CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
 	private string patientName = string.Empty;
 	private string patientPhone = string.Empty;
 	private bool isExistingPatient = false;
@@ -115,12 +118,24 @@
 	private List<Department> departments = new();
 	private int selectedDepartmentId;
 	private bool isLoadingDepts = false;
+	private int? currentUserId;
 
 	protected override async Task OnInitializedAsync()
 	{
 		isLoadingDepts = true;
 		departments = await DepartmentService.GetAllDepartmentsAsync();
 		isLoadingDepts = false;
+
+		// Lấy userId từ AuthenticationState
+		if (AuthenticationStateTask is not null)
+		{
+			var authState = await AuthenticationStateTask;
+			var userIdClaim = authState.User.FindFirst("UserId")?.Value;
+			if (int.TryParse(userIdClaim, out var userId))
+			{
+				currentUserId = userId;
+			}
+		}
 	}
 
 	private async Task HandleGetTicket()
@@ -142,7 +157,7 @@
 
 		try
 		{
-			generatedTicket = await TicketService.GenerateTicketAsync(patientName, patientPhone, selectedDepartmentId);
+			generatedTicket = await TicketService.GenerateTicketAsync(patientName, patientPhone, selectedDepartmentId, currentUserId);
 
 			ToastService.ShowSuccess($"Cấp số thành công cho bệnh nhân {patientName}!");
 		}
@@ -150,13 +165,13 @@
 		{
 			// Lỗi business logic - an toàn để hiển thị cho user
 			ToastService.ShowError(bex.Message);
-			Logger.LogWarning(bex, "Business error when generating ticket for patient: {PatientName}, Phone: {Phone}, DeptId: {DeptId}", patientName, patientPhone, selectedDepartmentId);
+			Logger.LogWarning(bex, "Business error when generating ticket for patient: {PatientName}, Phone: {Phone}, DeptId: {DeptId}, UserId: {UserId}", patientName, patientPhone, selectedDepartmentId, currentUserId);
 		}
 		catch (Exception ex)
 		{
 			// Lỗi hệ thống - không hiển thị chi tiết
-			Logger.LogError(ex, "System error when generating ticket for patient: {PatientName}, Phone: {Phone}, DeptId: {DeptId}", 
-				patientName, patientPhone, selectedDepartmentId);
+			Logger.LogError(ex, "System error when generating ticket for patient: {PatientName}, Phone: {Phone}, DeptId: {DeptId}, UserId: {UserId}", 
+				patientName, patientPhone, selectedDepartmentId, currentUserId);
 
 			ToastService.ShowError("Đã xảy ra sự cố trong quá trình cấp số. Vui lòng thử lại sau hoặc liên hệ bộ phận IT.");
 		}

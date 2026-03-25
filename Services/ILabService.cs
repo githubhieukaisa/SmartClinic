@@ -7,7 +7,7 @@ namespace SmartClinic.Services;
 
 public interface ILabService
 {
-    Task<List<LabTest>> GetAllLabTestsAsync();
+    Task<List<LabTestDto>> GetAllLabTestsAsync();
     Task CreateLabOrderAsync(int ticketId, List<int> labTestIds);
     Task<List<LabOrder>> GetPendingLabOrdersAsync();
     Task<List<LabOrder>> GetTodayLabOrdersAsync();
@@ -16,4 +16,5 @@ public interface ILabService
     Task<bool> HasPendingLabOrdersAsync(int ticketId);
     Task<List<LabOrder>> GetLabOrdersByTicketAsync(int ticketId);
     Task<string> UploadFileAsync(IBrowserFile file);
+    Task<decimal?> GetCurrentLabTestPriceAsync(int labTestId);
 }

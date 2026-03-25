@@ -1,11 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartClinic.Models;
 
-public partial class PrescriptionDetail
+public partial class PrescriptionDetail : BaseEntity
 {
-    public int Id { get; set; }
 
     public int? PrescriptionId { get; set; }
 

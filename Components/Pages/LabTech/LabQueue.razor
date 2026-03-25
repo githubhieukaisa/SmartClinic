@@ -54,16 +54,16 @@
             </div>
 
             <div class="flex bg-muted/40 p-1 rounded-lg border border-border gap-0.5">
-                <button @onclick='() => FilterStatus = "All"'
-                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "All" ? "bg-card text-primary shadow" : "text-muted-foreground hover:text-foreground")'>
+                <button @onclick='() => FilterStatus = null'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == null ? "bg-card text-primary shadow" : "text-muted-foreground hover:text-foreground")'>
                     Tất cả
                 </button>
-                <button @onclick='() => FilterStatus = "Pending"'
-                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "Pending" ? "bg-card text-amber-600 shadow" : "text-muted-foreground hover:text-foreground")'>
+                <button @onclick='() => FilterStatus = LabOrderStatus.Pending'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == LabOrderStatus.Pending ? "bg-card text-amber-600 shadow" : "text-muted-foreground hover:text-foreground")'>
                     Đang chờ
                 </button>
-                <button @onclick='() => FilterStatus = "Done"'
-                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == "Done" ? "bg-card text-green-600 shadow" : "text-muted-foreground hover:text-foreground")'>
+                <button @onclick='() => FilterStatus = LabOrderStatus.Completed'
+                        class='px-3 py-1.5 rounded-md text-xs font-bold transition-all @(FilterStatus == LabOrderStatus.Completed ? "bg-card text-green-600 shadow" : "text-muted-foreground hover:text-foreground")'>
                     Hoàn tất
                 </button>
             </div>
@@ -127,8 +127,8 @@
         set { if (_searchTerm != value) { _searchTerm = value; _currentPage = 1; } }
     }
 
-    private string _filterStatus = "Pending";
-    private string FilterStatus
+    private LabOrderStatus? _filterStatus = LabOrderStatus.Pending;
+    private LabOrderStatus? FilterStatus
     {
         get => _filterStatus;
         set { if (_filterStatus != value) { _filterStatus = value; _currentPage = 1; } }
@@ -145,7 +145,7 @@
         .Where(o => (string.IsNullOrWhiteSpace(_searchTerm) ||
                     (o.QueueTicket?.Patient?.FullName?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (o.QueueTicket?.TicketNumber.ToString().Contains(_searchTerm) ?? false)))
-        .Where(o => _filterStatus == "All" || o.Status == _filterStatus)
+        .Where(o => !_filterStatus.HasValue || o.Status == _filterStatus.Value)
         .Where(o => _selectedStationId == 0 || o.LabOrderDetails.Any(d => d.LabTest?.DefaultRoomId == _selectedStationId))
         ?? Enumerable.Empty<LabOrder>();
 

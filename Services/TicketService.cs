@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
 using SmartClinic.Services.Exceptions;
@@ -29,7 +30,7 @@ namespace SmartClinic.Services
                 .FirstOrDefaultAsync(p => p.Phone == phone.Trim());
         }
 
-        public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId)
+        public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId = null)
         {
             Patient patient = null;
             patientPhone = patientPhone?.Trim();
@@ -73,7 +74,7 @@ namespace SmartClinic.Services
                         Room = r,
                         WaitingCount = _context.QueueTickets.Count(t =>
                             t.RoomId == r.Id &&
-                            t.Status == "Waiting" &&
+                            t.StatusEnum == TicketStatus.Waiting &&
                             t.CreatedAt >= today)
                     })
                     .OrderBy(x => x.WaitingCount)
@@ -94,10 +95,12 @@ namespace SmartClinic.Services
                 {
                     PatientId = patient.Id,
                     TicketNumber = nextTicketNumber,
-                    Status = "Waiting",
+                    StatusEnum = TicketStatus.Waiting,
                     RoomId = selectedRoomInfo.Room.Id,
                     CreatedAt = DateTime.UtcNow,
-                    Room = selectedRoomInfo.Room
+                    Room = selectedRoomInfo.Room,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedBy = userId,
                 };
 
                 _context.QueueTickets.Add(ticket);
