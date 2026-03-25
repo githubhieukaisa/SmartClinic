@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SmartClinic.Constant;
 
 namespace SmartClinic.Models;
 
@@ -9,7 +10,7 @@ public partial class QueueTicket : BaseEntity
 
     public int TicketNumber { get; set; }
 
-    public string Status { get; set; } = null!;
+    public TicketStatus StatusEnum { get; set; } = TicketStatus.Waiting;
 
     public string? ClinicalDiagnosis { get; set; }
     public decimal? TotalAmount { get; set; }
@@ -17,7 +18,17 @@ public partial class QueueTicket : BaseEntity
 
     public int? DoctorId { get; set; }
 
+    public int? CreatedBy { get; set; }
+
+    public int? UpdatedBy { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
     public virtual User? Doctor { get; set; }
+
+    public virtual User? CreatedByUser { get; set; }
+
+    public virtual User? UpdatedByUser { get; set; }
 
     public virtual Patient? Patient { get; set; }
 

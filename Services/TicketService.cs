@@ -1,5 +1,7 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
+using SmartClinic.DTOs;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
 using SmartClinic.Services.Exceptions;
@@ -29,7 +31,17 @@ namespace SmartClinic.Services
                 .FirstOrDefaultAsync(p => p.Phone == phone.Trim());
         }
 
-        public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId)
+        public async Task<QueueTicket> GenerateTicketAsync(GenerateTicketRequest request)
+        {
+            return await GenerateTicketAsync(request.PatientName, request.PatientPhone, request.DepartmentId, request.UserId, request.PatientGender);
+        }
+
+        public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId = null)
+        {
+            return await GenerateTicketAsync(patientName, patientPhone, departmentId, userId, true);
+        }
+
+        private async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId, bool patientGender)
         {
             Patient patient = null;
             patientPhone = patientPhone?.Trim();
@@ -40,6 +52,7 @@ namespace SmartClinic.Services
                 if (patient != null && patient.FullName != patientName)
                 {
                     patient.FullName = patientName;
+                    patient.Gender = patientGender;
                     await _context.SaveChangesAsync();
                 }
             }
@@ -49,7 +62,8 @@ namespace SmartClinic.Services
                 patient = new Patient
                 {
                     FullName = patientName,
-                    Phone = string.IsNullOrEmpty(patientPhone) ? null : patientPhone
+                    Phone = string.IsNullOrEmpty(patientPhone) ? null : patientPhone,
+                    Gender = patientGender
                 };
                 _context.Patients.Add(patient);
                 await _context.SaveChangesAsync(); // Lưu luôn để có patient.Id
@@ -66,14 +80,14 @@ namespace SmartClinic.Services
                 // 2. Tìm phòng trống nhất
                 var selectedRoomInfo = await _context.Rooms
                     .Where(r => r.DepartmentId == departmentId 
-                        && r.IsActive 
+                        && (r.Flags & RoomFlags.IsActive) != 0
                         && r.DoctorShifts.Any(ds => ds.StartTime <= today && (ds.EndTime == null || ds.EndTime >= today)))
                     .Select(r => new
                     {
                         Room = r,
                         WaitingCount = _context.QueueTickets.Count(t =>
                             t.RoomId == r.Id &&
-                            t.Status == "Waiting" &&
+                            t.StatusEnum == TicketStatus.Waiting &&
                             t.CreatedAt >= today)
                     })
                     .OrderBy(x => x.WaitingCount)
@@ -94,10 +108,12 @@ namespace SmartClinic.Services
                 {
                     PatientId = patient.Id,
                     TicketNumber = nextTicketNumber,
-                    Status = "Waiting",
+                    StatusEnum = TicketStatus.Waiting,
                     RoomId = selectedRoomInfo.Room.Id,
                     CreatedAt = DateTime.UtcNow,
-                    Room = selectedRoomInfo.Room
+                    Room = selectedRoomInfo.Room,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedBy = userId,
                 };
 
                 _context.QueueTickets.Add(ticket);
@@ -134,6 +150,5 @@ namespace SmartClinic.Services
                 throw;
             }
         }
-
     }
 }

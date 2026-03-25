@@ -1,5 +1,6 @@
 @page "/doctor/examination/{TicketId:int}/{PatientId:int}"
 @using Microsoft.AspNetCore.Authorization
+@using SmartClinic.Constant
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
@@ -350,7 +351,7 @@
 
                 // Update Ticket
                 ticket.TotalAmount = total;
-                ticket.Status = "Completed";
+                ticket.StatusEnum = TicketStatus.Completed;
                 ticket.Diagnosis = _diagnosis;
                 ticket.TreatmentPlan = _treatmentPlan;
                 ticket.AdditionalNotes = _notes;

@@ -1,6 +1,7 @@
 ﻿@page "/doctor/my-patients"
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
+@using SmartClinic.Constant
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
@@ -173,7 +174,7 @@
                     <tbody>
                         @foreach (var ticket in PagedTickets)
                         {
-                            <tr class="border-b border-border transition @GetRowBgClass(ticket.Status)">
+                            <tr class="border-b border-border transition @GetRowBgClass(ticket.StatusEnum)">
                                 <td class="py-3 px-5 text-center">
                                     <span
                                         class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
@@ -212,12 +213,12 @@
                                 </td>
                                 <td class="py-3 px-5 text-center">
                                     <span
-                                        class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.Status)">
-                                        @TranslateStatus(ticket.Status)
+                                        class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.StatusEnum)">
+                                        @TranslateStatus(ticket.StatusEnum)
                                     </span>
                                 </td>
                                 <td class="py-3 px-5 flex items-center justify-center gap-2">
-                                    @if (ticket.Status == "Calling")
+                                    @if (ticket.StatusEnum == TicketStatus.Calling)
                                     {
                                         <button @onclick="() => StartExaminationAsync(ticket.Id)"
                                                 class="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium shadow-md hover:shadow-lg transition">
@@ -225,7 +226,7 @@
                                             Bắt đầu khám
                                         </button>
                                     }
-                                    else if (ticket.Status == "Examining" || ticket.Status == "Testing")
+                                    else if (ticket.StatusEnum == TicketStatus.Examinating || ticket.StatusEnum == TicketStatus.Testing)
                                     {
                                         <button @onclick="() => OnExaminePatientAsync(ticket.Id, ticket.PatientId)"
                                                 class="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition">
@@ -268,8 +269,8 @@
     }
 
     private int TotalCount => _queueTickets?.Count ?? 0;
-    private int WaitingCount => _queueTickets?.Count(t => t.Status == "Waiting" || t.Status == "Calling") ?? 0;
-    private int InProgressCount => _queueTickets?.Count(t => t.Status == "Examining" || t.Status == "Testing") ?? 0;
+    private int WaitingCount => _queueTickets?.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) ?? 0;
+    private int InProgressCount => _queueTickets?.Count(t => t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing) ?? 0;
     private int WaitingPct => TotalCount > 0 ? WaitingCount * 100 / TotalCount : 0;
     private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
 
@@ -441,34 +442,34 @@
         return $"{(int)elapsed.TotalMinutes} phút";
     }
 
-    private static string GetStatusClass(string status) => status switch
+    private static string GetStatusClass(TicketStatus status) => status switch
     {
-        "Done" => "bg-green-100 text-green-700",
-        "Examining" => "bg-cyan-100 text-cyan-700",
-        "Calling" => "bg-orange-100 text-orange-700",
-        "Waiting" => "bg-amber-100 text-amber-700",
-        "Testing" => "bg-purple-100 text-purple-700",
+        TicketStatus.Done => "bg-green-100 text-green-700",
+        TicketStatus.Examinating => "bg-cyan-100 text-cyan-700",
+        TicketStatus.Calling => "bg-orange-100 text-orange-700",
+        TicketStatus.Waiting => "bg-amber-100 text-amber-700",
+        TicketStatus.Testing => "bg-purple-100 text-purple-700",
         _ => "bg-gray-100 text-gray-700"
     };
 
-    private static string GetRowBgClass(string status) => status switch
+    private static string GetRowBgClass(TicketStatus status) => status switch
     {
-        "Done" => "bg-green-50",
-        "Examining" => "bg-cyan-50",
-        "Calling" => "bg-orange-50",
-        "Waiting" => "bg-amber-50",
-        "Testing" => "bg-purple-50",
+        TicketStatus.Done => "bg-green-50",
+        TicketStatus.Examinating => "bg-cyan-50",
+        TicketStatus.Calling => "bg-orange-50",
+        TicketStatus.Waiting => "bg-amber-50",
+        TicketStatus.Testing => "bg-purple-50",
         _ => ""
     };
 
-    private static string TranslateStatus(string status) => status switch
+    private static string TranslateStatus(TicketStatus status) => status switch
     {
-        "Waiting" => "Chờ khám",
-        "Calling" => "Đang gọi",
-        "Examining" => "Đang khám",
-        "Testing" => "Đang xét nghiệm",
-        "Done" => "Hoàn tất",
-        _ => status
+        TicketStatus.Waiting => "Chờ khám",
+        TicketStatus.Calling => "Đang gọi",
+        TicketStatus.Examinating => "Đang khám",
+        TicketStatus.Testing => "Đang xét nghiệm",
+        TicketStatus.Done => "Hoàn tất",
+        _ => status.ToString()
     };
 
     private async Task AddTestQueueTicketAsync()
@@ -519,7 +520,7 @@
                 return;
             }
 
-            ticket.Status = "Examining";
+            ticket.StatusEnum = TicketStatus.Examinating;
             DbContext.QueueTickets.Update(ticket);
             await DbContext.SaveChangesAsync();
             StateHasChanged();

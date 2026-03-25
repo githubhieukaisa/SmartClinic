@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 using SmartClinic.DTOs;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -64,7 +65,7 @@ namespace SmartClinic.Services
                 // 2. Kết thúc queue ticket
                 if (prescription.Ticket != null)
                 {
-                    prescription.Ticket.Status = "Done";
+                    prescription.Ticket.StatusEnum = TicketStatus.Done;
                 }
 
                 await _context.SaveChangesAsync();

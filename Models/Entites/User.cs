@@ -14,7 +14,7 @@ public partial class User : BaseEntity
     public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Address { get; set; }
-    public bool? Gender {  get; set; }
+    public bool? Gender { get; set; }
     public int RoleMask { get; set; }
 
     public bool? IsActive { get; set; }
@@ -23,4 +23,5 @@ public partial class User : BaseEntity
     public int? RoomId { get; set; }
     public virtual Room? Room { get; set; }
     public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
+    public virtual ICollection<DoctorShift> DoctorShifts { get; set; } = new List<DoctorShift>();
 }
