@@ -33,7 +33,7 @@ namespace SmartClinic.Services
                 .Include(t => t.Prescription)
                     .ThenInclude(p => p!.PrescriptionDetails)
                         .ThenInclude(d => d.Medicine)
-                .Where(t => t.Status == "Completed")
+                .Where(t => t.StatusEnum == TicketStatus.Completed)
                 .OrderBy(t => t.CreatedAt)
                 .ToListAsync();
 
@@ -88,13 +88,13 @@ namespace SmartClinic.Services
                 if (ticket == null)
                     return (false, "Queue ticket not found.");
 
-                if (ticket.Status != "Completed")
-                    return (false, $"Ticket is '{ticket.Status}', cannot process payment.");
+                if (ticket.StatusEnum != TicketStatus.Completed)
+                    return (false, $"Ticket is '{ticket.StatusEnum}', cannot process payment.");
 
-                ticket.Status = "Paid";
+                ticket.StatusEnum = TicketStatus.Done;
 
                 if (ticket.Prescription != null)
-                    ticket.Prescription.Status = "Paid";
+                    ticket.Prescription.Status = PrescriptionStatus.Paid;
 
                 await _context.SaveChangesAsync();
 
@@ -126,11 +126,11 @@ namespace SmartClinic.Services
             PatientName    = t.Patient?.FullName ?? "—",
             DoctorName     = t.Doctor?.FullName ?? "Not assigned",
             DoctorNote     = t.Prescription?.DoctorNote,
-            Status         = t.Status,
+            Status         = t.StatusEnum.ToString(),
             // TotalAmount from QueueTicket (includes consultation + medicines + lab)
             TotalAmount    = t.TotalAmount ?? t.Prescription?.TotalAmount
                              ?? t.Prescription?.PrescriptionDetails
-                                  .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : d.Medicine?.Price ?? 0) * d.Quantity)
+                                  .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity)
                              ?? 0,
             CreatedAt      = t.CreatedAt,
             Details        = t.Prescription?.PrescriptionDetails.Select(d => new PrescriptionDetailDto
@@ -140,7 +140,7 @@ namespace SmartClinic.Services
                 MedicineName     = d.Medicine?.Name ?? "—",
                 Unit             = d.Medicine?.Unit,
                 Quantity         = d.Quantity,
-                UnitPrice        = d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.Price ?? 0),
+                UnitPrice        = d.UnitPrice > 0 ? d.UnitPrice : 0,
                 UsageInstruction = d.UsageInstruction
             }).ToList() ?? new()
         };

@@ -18,5 +18,6 @@ namespace SmartClinic.Services
         Task<Medicine> CreateMedicineAsync(Medicine medicine);
         Task<(bool Success, string Error)> UpdateMedicineAsync(Medicine medicine);
         Task<(bool Success, string Error)> DeleteMedicineAsync(int id);
+        Task<(bool Success, string Error)> ToggleMedicineForSaleAsync(int id);
     }
 }

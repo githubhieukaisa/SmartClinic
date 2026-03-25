@@ -26,7 +26,7 @@ namespace SmartClinic.Services
                 .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
                 .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
-                .Where(p => p.Status == "Pending")
+                .Where(p => p.Status == PrescriptionStatus.Pending)
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
 
@@ -56,12 +56,14 @@ namespace SmartClinic.Services
                 var prescription = await _context.Prescriptions
                     .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
                     .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
-                    .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
+                    .Include(p => p.PrescriptionDetails)
+                        .ThenInclude(d => d.Medicine)
+                            .ThenInclude(m => m!.MedicinePrices)
                     .FirstOrDefaultAsync(p => p.Id == prescriptionId);
 
                 if (prescription == null)
                     return (false, "Prescription not found.");
-                if (prescription.Status != "Pending")
+                if (prescription.Status != PrescriptionStatus.Pending)
                     return (false, $"Prescription is '{prescription.Status}', cannot dispense.");
 
                 decimal total = 0;
@@ -70,21 +72,33 @@ namespace SmartClinic.Services
                 {
                     if (detail.Medicine == null) continue;
 
-                    if (detail.Medicine.StockQuantity < detail.Quantity)
+                    // Kiểm tra thuốc đang bán và đủ số lượng
+                    if (!detail.Medicine.IsForSale)
+                    {
+                        await tx.RollbackAsync();
+                        return (false, $"'{detail.Medicine.Name}' is currently not for sale.");
+                    }
+
+                    if (detail.Medicine.PhysicalStock < detail.Quantity)
                     {
                         await tx.RollbackAsync();
                         return (false, $"'{detail.Medicine.Name}' insufficient stock " +
-                                       $"(have {detail.Medicine.StockQuantity}, need {detail.Quantity}).");
+                                       $"(have {detail.Medicine.PhysicalStock}, need {detail.Quantity}).");
                     }
 
-                    // Gán giá + trừ kho
-                    detail.UnitPrice = detail.Medicine.Price;
-                    detail.Medicine.StockQuantity -= detail.Quantity;
-                    total += detail.Medicine.Price * detail.Quantity;
+                    // Lấy giá mới nhất từ MedicinePrice
+                    var currentPrice = detail.Medicine.MedicinePrices
+                        .OrderByDescending(p => p.EffectiveFrom)
+                        .FirstOrDefault()?.Price ?? 0m;
+
+                    // Gán giá snapshot + trừ kho
+                    detail.UnitPrice = currentPrice;
+                    detail.Medicine.StockQuantity -= detail.Quantity; // giảm signed int
+                    total += currentPrice * detail.Quantity;
                 }
 
                 prescription.TotalAmount = total;
-                prescription.Status = "Dispensed";
+                prescription.Status = PrescriptionStatus.Dispensed;
 
                 // SaveChanges sẽ persist tất cả: UnitPrice, StockQuantity, Status, TotalAmount
                 await _context.SaveChangesAsync();
@@ -113,7 +127,10 @@ namespace SmartClinic.Services
         // ─── MEDICINE CRUD ───────────────────────────────────────────────────────
 
         public async Task<List<Medicine>> GetAllMedicinesAsync()
-            => await _context.Medicines.OrderBy(m => m.Name).ToListAsync();
+            => await _context.Medicines
+                    .Include(m => m.MedicinePrices)
+                    .OrderBy(m => m.Name)
+                    .ToListAsync();
 
         public async Task<Medicine?> GetMedicineByIdAsync(int id)
             => await _context.Medicines.FindAsync(id);
@@ -131,7 +148,6 @@ namespace SmartClinic.Services
             if (existing == null) return (false, "Medicine not found.");
             existing.Name = medicine.Name;
             existing.Unit = medicine.Unit;
-            existing.Price = medicine.Price;
             existing.StockQuantity = medicine.StockQuantity;
             await _context.SaveChangesAsync();
             return (true, "");
@@ -142,6 +158,16 @@ namespace SmartClinic.Services
             var medicine = await _context.Medicines.FindAsync(id);
             if (medicine == null) return (false, "Medicine not found.");
             _context.Medicines.Remove(medicine);
+            await _context.SaveChangesAsync();
+            return (true, "");
+        }
+
+        public async Task<(bool Success, string Error)> ToggleMedicineForSaleAsync(int id)
+        {
+            var medicine = await _context.Medicines.FindAsync(id);
+            if (medicine == null) return (false, "Medicine not found.");
+            // Đảo bit: dương ↔ âm, giữ nguyên số lượng vật lý
+            medicine.StockQuantity = ~medicine.StockQuantity;
             await _context.SaveChangesAsync();
             return (true, "");
         }
@@ -185,9 +211,9 @@ namespace SmartClinic.Services
             PatientName = p.Ticket?.Patient?.FullName ?? "—",
             DoctorName = p.Ticket?.Doctor?.FullName ?? "Not assigned",
             DoctorNote = p.DoctorNote,
-            Status = p.Status ?? "Pending",
+            Status = p.Status.ToString(),
             TotalAmount = p.TotalAmount ?? p.PrescriptionDetails
-                                .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : d.Medicine?.Price ?? 0) * d.Quantity),
+                                .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity),
             CreatedAt = p.CreatedAt,
             Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto
             {
@@ -196,7 +222,7 @@ namespace SmartClinic.Services
                 MedicineName = d.Medicine?.Name ?? "—",
                 Unit = d.Medicine?.Unit,
                 Quantity = d.Quantity,
-                UnitPrice = d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.Price ?? 0),
+                UnitPrice = d.UnitPrice > 0 ? d.UnitPrice : 0,
                 UsageInstruction = d.UsageInstruction
             }).ToList()
         };
