@@ -25,7 +25,7 @@ namespace SmartClinic.Services
                 .AsNoTracking()
                 .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
-                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
+                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine).ThenInclude(m => m!.MedicinePrices)
                 .Where(p => p.Status == PrescriptionStatus.Pending)
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
@@ -39,7 +39,7 @@ namespace SmartClinic.Services
                 .AsNoTracking()
                 .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
-                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
+                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine).ThenInclude(m => m!.MedicinePrices)
                 .FirstOrDefaultAsync(p => p.Id == prescriptionId);
             return p == null ? null : MapToDto(p);
         }
@@ -180,7 +180,7 @@ namespace SmartClinic.Services
                 .AsNoTracking()
                 .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
-                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine)
+                .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine).ThenInclude(m => m!.MedicinePrices)
                 .FirstOrDefaultAsync(p => p.Id == prescriptionId);
             if (p == null) return;
 
@@ -192,7 +192,7 @@ namespace SmartClinic.Services
                     PatientName = p.Ticket?.Patient?.FullName ?? "Unknown",
                     DoctorName = p.Ticket?.Doctor?.FullName ?? "Unknown",
                     MedicineCount = p.PrescriptionDetails.Count,
-                    TotalAmount = p.TotalAmount ?? 0
+                    TotalAmount = p.TotalAmount ?? p.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.MedicinePrices.OrderByDescending(x => x.EffectiveFrom).FirstOrDefault()?.Price ?? 0m)) * d.Quantity)
                 });
         }
 
@@ -213,7 +213,7 @@ namespace SmartClinic.Services
             DoctorNote = p.DoctorNote,
             Status = p.Status.ToString(),
             TotalAmount = p.TotalAmount ?? p.PrescriptionDetails
-                                .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity),
+                                .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.MedicinePrices.OrderByDescending(x => x.EffectiveFrom).FirstOrDefault()?.Price ?? 0m)) * d.Quantity),
             CreatedAt = p.CreatedAt,
             Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto
             {
@@ -222,7 +222,7 @@ namespace SmartClinic.Services
                 MedicineName = d.Medicine?.Name ?? "—",
                 Unit = d.Medicine?.Unit,
                 Quantity = d.Quantity,
-                UnitPrice = d.UnitPrice > 0 ? d.UnitPrice : 0,
+                UnitPrice = d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.MedicinePrices.OrderByDescending(x => x.EffectiveFrom).FirstOrDefault()?.Price ?? 0m),
                 UsageInstruction = d.UsageInstruction
             }).ToList()
         };

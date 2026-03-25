@@ -1,4 +1,4 @@
-﻿@page "/pharmacist/prescriptions"
+@page "/pharmacist/prescriptions"
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.DTOs
 @using SmartClinic.Services
@@ -6,7 +6,7 @@
 @using SmartClinic.Components.Common
 @using Blazored.Toast.Services
 @rendermode InteractiveServer
-@layout PharmacistLayout
+
 @attribute [Authorize(Policy = "PharmacistPolicy")]
 @inject IPharmacyService PharmacyService
 @inject IToastService ToastService

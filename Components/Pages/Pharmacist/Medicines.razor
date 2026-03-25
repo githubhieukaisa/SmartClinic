@@ -5,7 +5,7 @@
 @using SmartClinic.Components.Layout
 @using Blazored.Toast.Services
 @rendermode InteractiveServer
-@layout PharmacistLayout
+
 @attribute [Authorize(Policy = "PharmacistPolicy")]
 @inject IPharmacyService PharmacyService
 @inject IToastService ToastService
