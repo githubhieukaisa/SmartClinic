@@ -148,10 +148,14 @@
 		if (AuthenticationStateTask is not null)
 		{
 			var authState = await AuthenticationStateTask;
-			var userIdClaim = authState.User.FindFirst("UserId")?.Value;
+			var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 			if (int.TryParse(userIdClaim, out var userId))
 			{
 				currentUserId = userId;
+			}
+			else
+			{
+				Logger.LogWarning("Unable to parse UserId claim. Value: {UserIdClaim}", userIdClaim);
 			}
 		}
 	}
