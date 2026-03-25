@@ -1,6 +1,7 @@
 @page "/doctor/dashboard"
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Components.Layout
+@using SmartClinic.Constant
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using Blazored.Toast.Services
@@ -299,12 +300,12 @@
 
             // 1. Lấy tất cả ca trực đang diễn ra và ĐÓNG lại (Completed)
             var currentShifts = await DbContext.DoctorShifts
-                .Where(s => s.DoctorId == _currentDoctorId && s.Status == "Active")
+                .Where(s => s.DoctorId == _currentDoctorId && s.StatusEnum == DoctorShiftStatus.Active)
                 .ToListAsync();
 
             foreach (var shift in currentShifts)
             {
-                shift.Status = "Completed";
+                shift.StatusEnum = DoctorShiftStatus.Completed;
                 if (shift.EndTime == null || shift.EndTime > now)
                 {
                     shift.EndTime = now; // Ép kết thúc tại thời điểm hiện tại
@@ -322,7 +323,7 @@
                 RoomId = 6, // Nếu DB bạn đang ko có Room 6, báo lỗi foreign key. Bạn có thể sửa tên mã này.
                 StartTime = now.AddSeconds(15), // Đúng 60 giây nữa bắt đầu tính ca
                 EndTime = now.AddHours(4),
-                Status = "Active"
+                StatusEnum = DoctorShiftStatus.Active
             };
             DbContext.DoctorShifts.Add(fakeShift);
             await DbContext.SaveChangesAsync();

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using SmartClinic.Constant;
 
 namespace SmartClinic.Models;
 
@@ -133,9 +134,8 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
-            entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .HasDefaultValueSql("'Waiting'::character varying");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("timestamp without time zone");
 
             entity.HasOne(d => d.Doctor).WithMany(p => p.QueueTickets)
                 .HasForeignKey(d => d.DoctorId)
@@ -144,6 +144,16 @@ public partial class SmartClinicDbContext : DbContext
             entity.HasOne(d => d.Patient).WithMany(p => p.QueueTickets)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("QueueTickets_PatientId_fkey");
+
+            entity.HasOne(d => d.CreatedByUser).WithMany()
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("QueueTickets_CreatedBy_fkey")
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.UpdatedByUser).WithMany()
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("QueueTickets_UpdatedBy_fkey")
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<User>(entity =>
@@ -208,6 +218,23 @@ public partial class SmartClinicDbContext : DbContext
                 .HasConstraintName("LabOrderDetails_LabTestId_fkey");
         });
 
+        modelBuilder.Entity<DoctorShift>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("DoctorShifts_pkey");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorShifts)
+                .HasForeignKey(d => d.DoctorId)
+                .HasConstraintName("DoctorShifts_DoctorId_fkey");
+
+            entity.HasOne(d => d.Room).WithMany(p => p.DoctorShifts)
+                .HasForeignKey(d => d.RoomId)
+                .HasConstraintName("DoctorShifts_RoomId_fkey");
+        });
+
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
         {
             relationship.DeleteBehavior = DeleteBehavior.Restrict;
@@ -219,9 +246,9 @@ public partial class SmartClinicDbContext : DbContext
         );
 
         modelBuilder.Entity<Room>().HasData(
-            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
-            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, IsActive = true, IsLab = true },
-            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, IsActive = true, IsLab = true }
+            new Room { Id = 9, Name = "Phòng Lấy Máu", Location = "Tầng 2", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab },
+            new Room { Id = 10, Name = "Phòng Siêu Âm", Location = "Tầng 2", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab },
+            new Room { Id = 11, Name = "Phòng X-Quang", Location = "Tầng 1", DepartmentId = 8, Flags = RoomFlags.IsActive | RoomFlags.IsLab }
         );
 
         modelBuilder.Entity<LabTest>().HasData(
