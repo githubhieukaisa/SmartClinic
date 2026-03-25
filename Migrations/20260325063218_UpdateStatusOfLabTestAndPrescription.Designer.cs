@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325063218_UpdateStatusOfLabTestAndPrescription")]
+    partial class UpdateStatusOfLabTestAndPrescription
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(685),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5525),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
                 });
@@ -122,6 +125,9 @@ namespace SmartClinic.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
@@ -243,7 +249,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(854),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5691),
                             DefaultRoomId = 9,
                             Description = "Xét nghiệm máu cơ bản",
                             IsDeleted = false,
@@ -253,7 +259,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(858),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5694),
                             DefaultRoomId = 9,
                             Description = "Kiểm tra tiểu đường",
                             IsDeleted = false,
@@ -263,7 +269,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(860),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5696),
                             DefaultRoomId = 9,
                             Description = "AST, ALT, Creatinin, Ure...",
                             IsDeleted = false,
@@ -273,7 +279,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(863),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5697),
                             DefaultRoomId = 10,
                             Description = "Siêu âm màu",
                             IsDeleted = false,
@@ -283,7 +289,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(865),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5699),
                             DefaultRoomId = 10,
                             Description = "Siêu âm màu",
                             IsDeleted = false,
@@ -293,7 +299,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(866),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5700),
                             DefaultRoomId = 11,
                             Description = "Chụp X-quang phổi",
                             IsDeleted = false,
@@ -554,7 +560,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(825),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5666),
                             DepartmentId = 8,
                             IsActive = true,
                             IsLab = true,
@@ -564,7 +570,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(829),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5671),
                             DepartmentId = 8,
                             IsActive = true,
                             IsLab = true,
@@ -574,7 +580,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 11,
-                            CreatedAt = new DateTime(2026, 3, 25, 14, 15, 16, 791, DateTimeKind.Local).AddTicks(832),
+                            CreatedAt = new DateTime(2026, 3, 25, 13, 32, 17, 732, DateTimeKind.Local).AddTicks(5673),
                             DepartmentId = 8,
                             IsActive = true,
                             IsLab = true,

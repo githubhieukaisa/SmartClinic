@@ -181,7 +181,7 @@
     [Parameter] public int RoomId { get; set; }
     [Parameter] public EventCallback OnLabsUpdated { get; set; }
 
-    private List<LabTest>? _labTests;
+    private List<LabTestDto>? _labTests;
     private List<LabOrder>? _assignedOrders;
     private HashSet<int> _selectedLabTestIds = new();
     private HashSet<int> _previouslyAssignedTestIds = new();

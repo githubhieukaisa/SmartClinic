@@ -200,9 +200,11 @@
                                 <td class="py-3 px-5 text-center text-foreground">
                                     @(ticket.Patient?.Phone ?? "—")
                                 </td>
-                                <td class="py-3 px-5 text-center">
+
+                                @* <td class="py-3 px-5 text-center">
                                     <span class="text-foreground">@(ticket.ClinicalDiagnosis ?? "—")</span>
-                                </td>
+                                </td> *@
+
                                 <td class="py-3 px-5 text-center">
                                     <div class="flex items-center justify-center gap-1 text-muted-foreground">
                                         <i class="ph-bold ph-clock text-xs"></i>

@@ -1,7 +1,8 @@
-﻿namespace SmartClinic.Models
-{
-    using SmartClinic.Constant;
+﻿using SmartClinic.Constant;
+using System.ComponentModel.DataAnnotations.Schema;
 
+namespace SmartClinic.Models
+{
     public class Room : BaseEntity
     {
         public string Name { get; set; } = string.Empty;
@@ -16,12 +17,14 @@
         public virtual ICollection<DoctorShift> DoctorShifts { get; set; } = new List<DoctorShift>();
 
         // Helper properties để dễ sử dụng
+        [NotMapped]
         public bool IsActive
         {
             get => (Flags & RoomFlags.IsActive) != 0;
             set => Flags = value ? (Flags | RoomFlags.IsActive) : (Flags & ~RoomFlags.IsActive);
         }
 
+        [NotMapped]
         public bool IsLab
         {
             get => (Flags & RoomFlags.IsLab) != 0;
