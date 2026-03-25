@@ -1,4 +1,4 @@
-﻿using Hangfire;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartClinic.Components;
@@ -6,6 +6,7 @@ using SmartClinic.Hubs;
 using SmartClinic.Models;
 using SmartClinic.Security;
 using SmartClinic.Services;
+using Radzen;
 
 namespace SmartClinic
 {
@@ -27,6 +28,9 @@ namespace SmartClinic
 
             // Register business logic services
             builder.Services.AddSmartClinicServices();
+
+            // Register Radzen chart components
+            builder.Services.AddRadzenComponents();
 
             // Register Hangfire
             builder.Services.AddSmartClinicHangfire(builder.Configuration);

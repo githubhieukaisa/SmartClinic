@@ -4,9 +4,11 @@
 @using SmartClinic.Components.Layout
 @using SmartClinic.DTOs
 @using SmartClinic.Models
+@using SmartClinic.Constant
 @using SmartClinic.Services
 
 @attribute [Authorize(Policy = "AdminPolicy")]
+@rendermode InteractiveServer
 
 @inject IUserService UserService
 @inject SmartClinicDbContext DbContext
@@ -448,8 +450,10 @@ else
         isLoading = true;
         users = await UserService.GetAllUsersAsync();
         // Chỉ lấy phòng KHÔNG phải phòng Lab để gán cho Bác sĩ
+        // Dùng Flags (mapped column) thay vì IsActive/IsLab ([NotMapped])
         rooms = await DbContext.Rooms
-            .Where(r => r.IsActive && !r.IsLab)
+            .Where(r => (r.Flags & RoomFlags.IsActive) != 0
+                     && (r.Flags & RoomFlags.IsLab) == 0)
             .OrderBy(r => r.Name)
             .ToListAsync();
         isLoading = false;
