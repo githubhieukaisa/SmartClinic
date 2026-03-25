@@ -7,6 +7,7 @@
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using SmartClinic.Services.Exceptions
+@using SmartClinic.DTOs
 @inject ITicketService TicketService
 @inject IDepartmentService DepartmentService
 @inject IToastService ToastService
@@ -30,6 +31,22 @@
 					   @onblur="CheckExistingPatient"
 					   placeholder="VD: 0901234567"
 					   class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+			</div>
+
+			<div>
+				<label class="block mb-1 text-sm font-medium text-slate-700">Giới tính</label>
+				<div class="flex gap-3">
+					<button type="button"
+							@onclick="() => patientGender = true"
+							class="@GetGenderButtonClass(true)">
+						Nam
+					</button>
+					<button type="button"
+							@onclick="() => patientGender = false"
+							class="@GetGenderButtonClass(false)">
+						Nữ
+					</button>
+				</div>
 			</div>
 
 			<div>
@@ -111,6 +128,7 @@
 	[CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
 	private string patientName = string.Empty;
+	private bool patientGender = true; // true = Nam, false = Nữ
 	private string patientPhone = string.Empty;
 	private bool isExistingPatient = false;
 	private bool isLoading = false;
@@ -130,10 +148,14 @@
 		if (AuthenticationStateTask is not null)
 		{
 			var authState = await AuthenticationStateTask;
-			var userIdClaim = authState.User.FindFirst("UserId")?.Value;
+			var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 			if (int.TryParse(userIdClaim, out var userId))
 			{
 				currentUserId = userId;
+			}
+			else
+			{
+				Logger.LogWarning("Unable to parse UserId claim. Value: {UserIdClaim}", userIdClaim);
 			}
 		}
 	}
@@ -157,7 +179,16 @@
 
 		try
 		{
-			generatedTicket = await TicketService.GenerateTicketAsync(patientName, patientPhone, selectedDepartmentId, currentUserId);
+			var ticketRequest = new GenerateTicketRequest
+			{
+				PatientName = patientName,
+				PatientPhone = patientPhone,
+				DepartmentId = selectedDepartmentId,
+				PatientGender = patientGender,
+				UserId = currentUserId
+			};
+
+			generatedTicket = await TicketService.GenerateTicketAsync(ticketRequest);
 
 			ToastService.ShowSuccess($"Cấp số thành công cho bệnh nhân {patientName}!");
 		}
@@ -188,8 +219,9 @@
 		var existingPatient = await TicketService.FindPatientByPhoneAsync(patientPhone);
 		if (existingPatient != null)
 		{
-			// Auto-fill patient name
+			// Auto-fill patient name and gender
 			patientName = existingPatient.FullName;
+			patientGender = existingPatient.Gender;
 			isExistingPatient = true;
 			ToastService.ShowInfo($"Tìm thấy hồ sơ: {patientName}");
 		}
@@ -197,6 +229,7 @@
 		{
 			// Reset form
 			if (isExistingPatient) patientName = string.Empty;
+			patientGender = true; // Reset to default (Nam)
 			isExistingPatient = false;
 		}
 	}
@@ -206,8 +239,19 @@
 	{
 		patientName = string.Empty;
 		patientPhone = string.Empty;
+		patientGender = true; // Reset to default (Nam)
 		selectedDepartmentId = 0;
 		generatedTicket = null;
 		isExistingPatient = false;
+	}
+
+	private string GetGenderButtonClass(bool isMale)
+	{
+		string baseClass = "flex-1 px-4 py-2 rounded-lg font-medium transition-colors duration-200";
+		string activeClass = (isMale ? patientGender : !patientGender)
+			? "bg-blue-500 text-white shadow-md" 
+			: "bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200";
+
+		return $"{baseClass} {activeClass}";
 	}
 }
