@@ -95,6 +95,26 @@
 			</Authorized>
 		</AuthorizeView>
 
+		@* Manager Links *@
+		<AuthorizeView Policy="ManagerPolicy">
+			<Authorized>
+				<NavLink class="@baseClass" href="/admin/users" Match="NavLinkMatch.All">
+					<i class="ph ph-users text-lg"></i>
+					<span>Tài khoản</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="/admin/medicines" Match="NavLinkMatch.All">
+					<i class="ph ph-pill text-lg"></i>
+					<span>Kho Thuốc</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="/admin/test">
+					<i class="ph ph-flask text-lg"></i>
+					<span>Xét nghiệm</span>
+				</NavLink>
+			</Authorized>
+		</AuthorizeView>
+
 		@* Đăng Xuất được chuyển sang MainLayout *@
 
 	</nav>

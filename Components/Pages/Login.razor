@@ -117,6 +117,10 @@ authProperties);
                     {
                         redirectUrl = "/admin/users";
                     }
+                    else if((roleMask & 64) == 64) // Manager (RoleMask: 64)
+                    {
+                        redirectUrl = "/";
+					}
                     // Kiểm tra role theo thứ tự (Doctor > Reception > Admin)
                     else if ((roleMask & 2) == 2) // Doctor (RoleMask: 2)
                     {
@@ -134,8 +138,6 @@ authProperties);
                     {
                         redirectUrl = "/cashier/payments";
                     }
-
-                    
                 }
 
                 NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
