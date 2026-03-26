@@ -151,6 +151,7 @@ namespace SmartClinic.Services
                 options.AddPolicy("CashierPolicy", policy => policy.RequireAssertion(context => HasRole(context, 8)));
                 options.AddPolicy("AdminPolicy", policy => policy.RequireAssertion(context => HasRole(context, 16)));
                 options.AddPolicy("LabTechPolicy", policy => policy.RequireAssertion(context => HasRole(context, 32)));
+                options.AddPolicy("ManagerPolicy", policy => policy.RequireAssertion(context => HasRole(context, 64)));
             });
             return services;
         }
