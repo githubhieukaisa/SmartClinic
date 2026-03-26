@@ -70,17 +70,27 @@
 			</Authorized>
 		</AuthorizeView>
 
-		@* Admin Links *@
+		@* Admin Links (Business — Thống kê, Hệ thống) *@
 		<AuthorizeView Policy="AdminPolicy">
+			<Authorized>
+				<NavLink class="@baseClass" href="/admin/statistics" Match="NavLinkMatch.All">
+					<i class="ph ph-chart-bar text-lg"></i>
+					<span>Thống kê</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="hangfire">
+					<i class="ph ph-gear text-lg"></i>
+					<span>HangFire</span>
+				</NavLink>
+			</Authorized>
+		</AuthorizeView>
+
+		@* Manager Links (Vận hành — CRUD, Phân lịch) *@
+		<AuthorizeView Policy="ManagerPolicy">
 			<Authorized>
 				<NavLink class="@baseClass" href="/admin/users" Match="NavLinkMatch.All">
 					<i class="ph ph-users text-lg"></i>
 					<span>Tài khoản</span>
-				</NavLink>
-
-				<NavLink class="@baseClass" href="/admin/statistics" Match="NavLinkMatch.All">
-					<i class="ph ph-chart-bar text-lg"></i>
-					<span>Thống kê</span>
 				</NavLink>
 
 				<NavLink class="@baseClass" href="/admin/scheduling" Match="NavLinkMatch.All">
@@ -91,11 +101,6 @@
 				<NavLink class="@baseClass" href="/admin/medicines" Match="NavLinkMatch.All">
 					<i class="ph ph-pill text-lg"></i>
 					<span>Kho Thuốc</span>
-				</NavLink>
-
-				<NavLink class="@baseClass" href="hangfire">
-					<i class="ph ph-gear text-lg"></i>
-					<span>HangFire</span>
 				</NavLink>
 
 				<NavLink class="@baseClass" href="/admin/test">

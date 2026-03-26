@@ -7,7 +7,7 @@
 @using SmartClinic.Constant
 @using SmartClinic.Services
 
-@attribute [Authorize(Policy = "AdminPolicy")]
+@attribute [Authorize(Policy = "ManagerPolicy")]
 @rendermode InteractiveServer
 
 @inject IUserService UserService
@@ -437,6 +437,7 @@ else
         new(8, "Thu ngân", "bg-orange-100 text-orange-700"),
         new(16, "Admin", "bg-red-100 text-red-700"),
         new(32, "Xét nghiệm", "bg-cyan-100 text-cyan-700"),
+        new(64, "Manager", "bg-indigo-100 text-indigo-700"),
     };
 
     // ──────── LIFECYCLE ────────

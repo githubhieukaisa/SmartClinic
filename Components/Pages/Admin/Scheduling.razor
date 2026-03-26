@@ -4,7 +4,7 @@
 @using SmartClinic.Models
 @using SmartClinic.Constant
 
-@attribute [Authorize(Policy = "AdminPolicy")]
+@attribute [Authorize(Policy = "ManagerPolicy")]
 @rendermode InteractiveServer
 
 @inject IDoctorShiftService ShiftService

@@ -4,7 +4,7 @@
 @using SmartClinic.Models
 @using SmartClinic.Components.Common
 @using SmartClinic.Components.Common.Examination
-@attribute [Authorize(Policy = "AdminPolicy")]
+@attribute [Authorize(Policy = "ManagerPolicy")]
 @inject IDbContextFactory<SmartClinicDbContext> DbContextFactory
 @rendermode InteractiveServer
 
