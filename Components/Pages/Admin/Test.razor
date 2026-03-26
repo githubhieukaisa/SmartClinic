@@ -4,13 +4,9 @@
 @using SmartClinic.Models
 @using SmartClinic.Components.Common
 @using SmartClinic.Components.Common.Examination
-<<<<<<< HEAD
 @attribute [Authorize(Policy = "ManagerPolicy")]
-=======
 @using SmartClinic.Constant
 @using Blazored.Toast.Services
-@attribute [Authorize(Policy = "AdminPolicy")]
->>>>>>> origin/main
 @inject IDbContextFactory<SmartClinicDbContext> DbContextFactory
 @inject IToastService ToastService
 @rendermode InteractiveServer
