@@ -1,0 +1,168 @@
+@page "/doctor/medical-record/{TicketId:int}/{PatientId:int}"
+@using SmartClinic.Models
+@using SmartClinic.Components.Common.Examination
+@using SmartClinic.Components.Layout
+@using Microsoft.EntityFrameworkCore
+@layout MainLayout
+@inject IDbContextFactory<SmartClinicDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<div class="p-8">
+    <!-- Back Button: same as Examination.razor -->
+    <div class="mb-6">
+        <button @onclick="GoBack"
+                class="flex items-center gap-2 px-4 py-2 text-primary hover:bg-muted rounded-lg transition">
+            <i class="ph ph-arrow-left"></i>
+            Quay về Dashboard
+        </button>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+            <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
+            <span class="text-sm">Đang tải hồ sơ bệnh án...</span>
+        </div>
+    }
+    else if (_patient == null || _ticket == null)
+    {
+        <div class="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-6">
+            <p class="text-yellow-700">Không tìm thấy thông tin hồ sơ bệnh án.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Page Title -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-foreground">Hồ sơ Bệnh án</h1>
+            <p class="text-muted-foreground mt-1">
+                Lượt khám <span class="font-mono font-semibold text-primary">#@TicketId</span>
+                — @(_ticket.CreatedAt.ToString("dd/MM/yyyy HH:mm"))
+                — <span class="text-green-600 font-semibold">Đã hoàn tất</span>
+            </p>
+        </div>
+
+        <!-- Patient Info Card: same pattern as Examination.razor -->
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Column 1: Identity -->
+                <div class="space-y-3">
+                    <h3 class="text-lg font-semibold text-foreground">Thông tin bệnh nhân</h3>
+                    <div>
+                        <p class="text-xs text-muted-foreground">Họ và tên</p>
+                        <p class="text-foreground font-medium">@_patient.FullName</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-muted-foreground">Giới tính / Tuổi</p>
+                        <p class="text-foreground font-medium">@(_patient.Gender ? "Nam" : "Nữ") — @GetAge(_patient.DoB)
+                            tuổi</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Số điện thoại</p>
+                            <p class="text-foreground font-medium">@_patient.Phone</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Địa chỉ</p>
+                            <p class="text-foreground font-medium">@_patient.Address</p>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Clinical conclusions -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold text-foreground">Kết luận lâm sàng</h3>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Chẩn đoán</p>
+                            <p class="text-foreground font-medium whitespace-pre-line">@_ticket.Diagnosis</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Kế hoạch điều trị</p>
+                            <p class="text-foreground font-medium whitespace-pre-line">@_ticket.TreatmentPlan</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Ghi chú</p>
+                            <p class="text-muted-foreground text-sm italic">@(_ticket.AdditionalNotes ?? "Không có")</p>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Meta + Cost -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold text-foreground">Thông tin lượt khám</h3>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Bác sĩ phụ trách</p>
+                            <p class="text-foreground font-medium">@(_doctorName ?? "—")</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Phòng khám</p>
+                            <p class="text-foreground font-medium">@(_ticket.Room?.Name ?? "—")</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Hoàn tất lúc</p>
+                            <p class="text-foreground font-medium">@(_ticket.UpdatedAt?.ToString("HH:mm dd/MM/yyyy") ?? "—")</p>
+                        </div>
+                        <div class="pt-2 border-t border-border">
+                            <p class="text-xs text-muted-foreground">Tổng chi phí</p>
+                            <p class="text-2xl font-black text-red-600">
+                                @(_ticket.TotalAmount?.ToString("N0") ?? "0")
+                                <span class="text-sm font-normal text-muted-foreground ml-1">VNĐ</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lab Orders -->
+        <LabOrderPanel TicketId="TicketId" RoomId="0" IsReadOnly="true" />
+
+            <!-- Prescription -->
+        <PrescriptionPanel TicketId="TicketId" IsReadOnly="true" />
+        }
+    </div>
+
+@code {
+    [Parameter] public int TicketId { get; set; }
+    [Parameter] public int PatientId { get; set; }
+
+    private QueueTicket? _ticket;
+    private Patient? _patient;
+    private string? _doctorName;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+
+            _ticket = await context.QueueTickets
+                .AsNoTracking()
+                .Include(t => t.Doctor)
+                .Include(t => t.Room)
+                .FirstOrDefaultAsync(t => t.Id == TicketId);
+
+            _patient = await context.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == PatientId);
+
+            if (_ticket?.Doctor != null)
+                _doctorName = _ticket.Doctor.FullName;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading medical record: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/doctor/dashboard");
+
+    private static int GetAge(DateOnly? dob)
+    {
+        if (!dob.HasValue) return 0;
+        var age = DateTime.Today.Year - dob.Value.Year;
+        if (dob.Value.ToDateTime(TimeOnly.MinValue) > DateTime.Today.AddYears(-age)) age--;
+        return age;
+    }
+}

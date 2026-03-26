@@ -19,166 +19,173 @@
     {
         <div class="text-slate-500 text-sm">Đang tải danh mục xét nghiệm...</div>
     }
-    else if (!_labTests.Any())
+    else if (!IsReadOnly)
     {
-        <div class="text-slate-500 text-sm">Không có danh mục xét nghiệm nào trên hệ thống.</div>
-    }
-    else
-    {
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            @foreach (var test in _labTests)
-            {
-                bool isAssigned = _previouslyAssignedTestIds.Contains(test.Id);
-                bool isChecked = isAssigned || _selectedLabTestIds.Contains(test.Id);
-
-                <label
-                    class="flex items-center gap-4 text-sm text-slate-700 bg-slate-50 border border-slate-200 p-3 rounded transition-colors @(isAssigned ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-slate-100")">
-                    <input type="checkbox"
-                           class="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4 @(isAssigned ? "cursor-not-allowed" : "")"
-                           checked="@isChecked" disabled="@isAssigned" @onchange="@(e => ToggleLabTest(test.Id, e.Value))" />
-                    <span class="flex-1 font-medium">@test.Name</span>
-                    @if (test.DefaultRoom != null)
-                    {
-                        <span
-                            class="text-[11px] font-semibold text-primary/80 bg-primary/5 px-2 py-1 rounded border border-primary/10 uppercase tracking-tighter">
-                            @test.DefaultRoom.Name
-                        </span>
-                    }
-                </label>
-            }
-        </div>
-
-        <!-- Danh sách xét nghiệm đã chỉ định -->
-        @if (_assignedOrders != null && _assignedOrders.Any())
+        @if (!_labTests.Any())
         {
-            <div class="mt-6 border-t border-slate-100 pt-4">
-                <h4 class="text-sm font-bold text-slate-700 mb-3">Xét nghiệm đã chỉ định & Kết quả</h4>
-                <div class="overflow-x-auto rounded-lg border border-slate-200">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold">
-                            <tr>
-                                <th class="px-4 py-2 text-center">Tên Xét Nghiệm</th>
-                                <th class="px-4 py-2 text-center">Giá</th>
-                                <th class="px-4 py-2 text-center">Kết quả / Ghi chú</th>
-                                <th class="px-4 py-2 text-center">Tài liệu</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @foreach (var order in _assignedOrders)
-                            {
-                                @foreach (var detail in order.LabOrderDetails)
-                                {
-                                    <tr class="hover:bg-slate-50/50 transition-colors">
-                                        <td class="px-4 py-3 font-medium text-slate-700 text-center">@detail.LabTest?.Name</td>
-                                        <td class="px-4 py-3 text-center text-slate-600">@detail.UnitPrice.ToString("N0")</td>
-                                        <td class="px-4 py-3 text-center">
-                                            @if (!string.IsNullOrEmpty(detail.ResultNotes))
-                                            {
-                                                <span class="text-slate-800">@detail.ResultNotes</span>
-                                            }
-                                            else
-                                            {
-                                                <div class="flex items-center justify-center gap-2 text-slate-400 italic">
-                                                    <i class="ph ph-clock animate-pulse"></i>
-                                                    <span>Chờ kết quả...</span>
-                                                </div>
-                                            }
-                                        </td>
-                                        <td class="px-4 py-3 text-center">
-                                            @if (!string.IsNullOrEmpty(detail.ResultFileUrl))
-                                            {
-                                                <a href="@detail.ResultFileUrl" target="_blank"
-                                                       class="inline-flex items-center gap-1.2 text-primary font-semibold hover:underline">
-                                                    <i class="ph ph-file-pdf"></i>
-                                                    <span>Xem file</span>
-                                                </a>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-slate-300">-</span>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
-                </div>
+            <div class="text-slate-500 text-sm">Không có danh mục xét nghiệm nào trên hệ thống.</div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                @foreach (var test in _labTests)
+                {
+                    bool isAssigned = _previouslyAssignedTestIds.Contains(test.Id);
+                    bool isChecked = isAssigned || _selectedLabTestIds.Contains(test.Id);
+
+                    <label
+                        class="flex items-center gap-4 text-sm text-slate-700 bg-slate-50 border border-slate-200 p-3 rounded transition-colors @(isAssigned ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-slate-100")">
+                        <input type="checkbox"
+                               class="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4 @(isAssigned ? "cursor-not-allowed" : "")"
+                               checked="@isChecked" disabled="@isAssigned" @onchange="@(e => ToggleLabTest(test.Id, e.Value))" />
+                        <span class="flex-1 font-medium">@test.Name</span>
+                        @if (test.DefaultRoom != null)
+                        {
+                            <span
+                                class="text-[11px] font-semibold text-primary/80 bg-primary/5 px-2 py-1 rounded border border-primary/10 uppercase tracking-tighter">
+                                @test.DefaultRoom.Name
+                            </span>
+                        }
+                    </label>
+                }
             </div>
         }
+    }
 
+    <!-- Danh sách xét nghiệm đã chỉ định -->
+    @if (_assignedOrders != null && _assignedOrders.Any())
+    {
+        <div class="mt-6 border-t border-slate-100 pt-4">
+            <h4 class="text-sm font-bold text-slate-700 mb-3">Xét nghiệm đã chỉ định & Kết quả</h4>
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold">
+                        <tr>
+                            <th class="px-4 py-2 text-center">Tên Xét Nghiệm</th>
+                            <th class="px-4 py-2 text-center">Giá</th>
+                            <th class="px-4 py-2 text-center">Kết quả / Ghi chú</th>
+                            <th class="px-4 py-2 text-center">Tài liệu</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var order in _assignedOrders)
+                        {
+                            @foreach (var detail in order.LabOrderDetails)
+                            {
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-slate-700 text-center">@detail.LabTest?.Name</td>
+                                    <td class="px-4 py-3 text-center text-slate-600">@detail.UnitPrice.ToString("N0")</td>
+                                    <td class="px-4 py-3 text-center">
+                                        @if (!string.IsNullOrEmpty(detail.ResultNotes))
+                                        {
+                                            <span class="text-slate-800">@detail.ResultNotes</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="flex items-center justify-center gap-2 text-slate-400 italic">
+                                                <i class="ph ph-clock animate-pulse"></i>
+                                                <span>Chờ kết quả...</span>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        @if (!string.IsNullOrEmpty(detail.ResultFileUrl))
+                                        {
+                                            <a href="@detail.ResultFileUrl" target="_blank"
+                                                   class="inline-flex items-center gap-1.2 text-primary font-semibold hover:underline">
+                                                <i class="ph ph-file-pdf"></i>
+                                                <span>Xem file</span>
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-slate-300">-</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (!IsReadOnly)
+    {
         <div class="mt-4">
             <SaveActionButton
             OnClick="@(() => { _showLabOrderConfirm = true; StateHasChanged(); return Task.CompletedTask; })"
             Label="Gửi Chỉ Định Xét Nghiệm" LoadingLabel="Đang chuẩn bị..." Icon="ph-paper-plane-right"
             Disabled="@(!_selectedLabTestIds.Any())" />
         </div>
+    }
 
-        <Modal IsVisible="@_showLabOrderConfirm" OnClose="() => _showLabOrderConfirm = false" Size="Modal.ModalSize.Lg">
-            <HeaderContent>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <i class="ph ph-flask text-xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-primary">Xác Nhận Chỉ Định Xét Nghiệm</h3>
+    <Modal IsVisible="@_showLabOrderConfirm" OnClose="() => _showLabOrderConfirm = false" Size="Modal.ModalSize.Lg">
+        <HeaderContent>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <i class="ph ph-flask text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-primary">Xác Nhận Chỉ Định Xét Nghiệm</h3>
+                </div>
+            </div>
+        </HeaderContent>
+
+        <ChildContent>
+            <div class="mb-4">
+                <p class="text-sm text-foreground mb-3 font-medium">Bạn có chắc chắn muốn gửi các chỉ định xét nghiệm
+                    sau? <b class="text-red-500">Phiếu xét nghiệm sẽ được gửi trực tiếp đến Kỹ thuật viên.</b></p>
+                    <div class="rounded-xl border border-primary/10 overflow-hidden">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-[10px]">
+                                <tr>
+                                    <th class="px-4 py-2 text-center">Tên Xét Nghiệm</th>
+                                    <th class="px-4 py-2 text-center">Phòng thực hiện</th>
+                                    <th class="px-4 py-2 text-center">Chi phí</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach (var testId in _selectedLabTestIds)
+                                {
+                                    var testObj = _labTests?.FirstOrDefault(t => t.Id == testId);
+                                    if (testObj != null)
+                                    {
+                                        <tr>
+                                            <td class="px-4 py-3 font-medium text-slate-800 text-center">@testObj.Name</td>
+                                            <td class="px-4 py-3 text-slate-600 text-center">@(testObj.DefaultRoom?.Name ?? "-")
+                                            </td>
+                                            <td class="px-4 py-3 text-center text-slate-600">@testObj.Price.ToString("N0") VNĐ</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </HeaderContent>
+            </ChildContent>
 
-            <ChildContent>
-                <div class="mb-4">
-                    <p class="text-sm text-foreground mb-3 font-medium">Bạn có chắc chắn muốn gửi các chỉ định xét nghiệm
-                        sau? <b class="text-red-500">Phiếu xét nghiệm sẽ được gửi trực tiếp đến Kỹ thuật viên.</b></p>
-                        <div class="rounded-xl border border-primary/10 overflow-hidden">
-                            <table class="w-full text-xs text-left">
-                                <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-[10px]">
-                                    <tr>
-                                        <th class="px-4 py-2 text-center">Tên Xét Nghiệm</th>
-                                        <th class="px-4 py-2 text-center">Phòng thực hiện</th>
-                                        <th class="px-4 py-2 text-center">Chi phí</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    @foreach (var testId in _selectedLabTestIds)
-                                    {
-                                        var testObj = _labTests?.FirstOrDefault(t => t.Id == testId);
-                                        if (testObj != null)
-                                        {
-                                            <tr>
-                                                <td class="px-4 py-3 font-medium text-slate-800 text-center">@testObj.Name</td>
-                                                <td class="px-4 py-3 text-slate-600 text-center">@(testObj.DefaultRoom?.Name ?? "-")
-                                                </td>
-                                                <td class="px-4 py-3 text-center text-slate-600">@testObj.Price.ToString("N0") VNĐ</td>
-                                            </tr>
-                                        }
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+            <FooterContent>
+                <div class="flex justify-end w-full">
+                    <div class="grid grid-cols-2 gap-3 w-full max-w-sm">
+                        <button @onclick="() => _showLabOrderConfirm = false"
+                                class="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors text-sm flex items-center justify-center">
+                            Đóng lại
+                        </button>
+                        <SaveActionButton OnClick="ConfirmLabOrderAsync" Label="Xác Nhận" LoadingLabel="Đang gửi..."
+                                          Icon="ph-paper-plane-right" Variant="solid"
+                                          ExtraCssClass="w-full justify-center !py-2 !text-sm" />
                     </div>
-                </ChildContent>
-
-                <FooterContent>
-                    <div class="flex justify-end w-full">
-                        <div class="grid grid-cols-2 gap-3 w-full max-w-sm">
-                            <button @onclick="() => _showLabOrderConfirm = false"
-                                    class="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors text-sm flex items-center justify-center">
-                                Đóng lại
-                            </button>
-                            <SaveActionButton OnClick="ConfirmLabOrderAsync" Label="Xác Nhận" LoadingLabel="Đang gửi..."
-                                              Icon="ph-paper-plane-right" Variant="solid"
-                                              ExtraCssClass="w-full justify-center !py-2 !text-sm" />
-                        </div>
-                    </div>
-                </FooterContent>
-            </Modal>
-        }
+                </div>
+            </FooterContent>
+        </Modal>
     </div>
 
 @code {
     [Parameter] public int TicketId { get; set; }
     [Parameter] public int RoomId { get; set; }
+    [Parameter] public bool IsReadOnly { get; set; }
     [Parameter] public EventCallback OnLabsUpdated { get; set; }
 
     private List<LabTestDto>? _labTests;

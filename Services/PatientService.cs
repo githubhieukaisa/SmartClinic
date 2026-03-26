@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartClinic.Constant;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
+using SmartClinic.DTOs;
 
 namespace SmartClinic.Services
 {
@@ -103,6 +104,26 @@ namespace SmartClinic.Services
         }
 
         /// <summary>
+        /// Get doctor's current active shift with strict time and status checking
+        /// </summary>
+        public async Task<DoctorShift?> GetActiveDoctorShiftAsync(int doctorId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var now = DateTime.Now;
+
+            return await context.DoctorShifts
+                .AsNoTracking()
+                .Include(s => s.Room)
+                .ThenInclude(r => r.Department)
+                .Where(s => s.DoctorId == doctorId
+                         && s.StatusEnum == DoctorShiftStatus.Active
+                         && s.StartTime <= now
+                         && (s.EndTime == null || s.EndTime >= now))
+                .OrderByDescending(s => s.StartTime)
+                .FirstOrDefaultAsync();
+        }
+
+        /// <summary>
         /// Get doctor's queue based on DoctorShift room assignment
         /// Queries QueueTickets where RoomId matches the doctor's current shift room
         /// Creates its own DbContext instance
@@ -116,45 +137,36 @@ namespace SmartClinic.Services
 
             try
             {
-                // STEP 1: Get doctor's current active shift and its room id
-                var doctorShift = await context.DoctorShifts
-                    .AsNoTracking()
-                    .Where(ds => ds.DoctorId == doctorId && ds.StatusEnum == DoctorShiftStatus.Active)
-                    .OrderByDescending(ds => ds.StartTime)
-                    .FirstOrDefaultAsync();
+                // STEP 1: Get doctor's current active shift using centralized logic
+                var doctorShift = await GetActiveDoctorShiftAsync(doctorId);
+                var roomId = doctorShift?.RoomId;
 
-                // If no active shift found, return empty list
-                if (doctorShift == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ [PatientService] No active DoctorShift found for DoctorId={doctorId}");
-                    return new List<QueueTicket>();
-                }
-
-                System.Diagnostics.Debug.WriteLine($"🔵 [PatientService] Found active DoctorShift: RoomId={doctorShift.RoomId}");
-
-                // STEP 2: Get all queue tickets for this room (not just this doctor) for TODAY
-                // This ensures all patients in the room are visible to the doctor, preventing historical noise
+                // STEP 2: Get all relevant queue tickets
+                // Unified logic: Room common queue (Today only) OR Doctor's private active patients (No date filter)
                 var today = DateTime.Today;
                 var tickets = await context.QueueTickets
-                    .AsNoTracking()  // No tracking needed for read-only queries
+                    .AsNoTracking()
                     .Include(t => t.Patient)
-                    .Where(t => t.RoomId == doctorShift.RoomId 
-                             && (
-                                 (t.StatusEnum == TicketStatus.Waiting && t.CreatedAt >= today) || 
-                                 t.StatusEnum == TicketStatus.Examinating || 
-                                 t.StatusEnum == TicketStatus.Calling || 
-                                 t.StatusEnum == TicketStatus.Testing
-                             ))
-                    .ToListAsync();  // Load to memory first, then sort
+                    .Where(t =>
+                        // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi) - Chỉ trong ngày + Phải có Shift
+                        (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) && t.CreatedAt >= today)
+                        ||
+                        // TH2: Bệnh nhân riêng của bác sĩ (Đang khám, Đang xét nghiệm) - KHÔNG LỌC NGÀY
+                        (t.DoctorId == doctorId && (t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing))
+                    )
+                    .ToListAsync();
 
                 // Sort by priority: Examining → Testing → Calling → Waiting
                 var sortedTickets = tickets
-                    .OrderBy(t => t.StatusEnum == TicketStatus.Examinating ? 0 : t.StatusEnum == TicketStatus.Testing ? 1 : t.StatusEnum == TicketStatus.Calling ? 2 : 3)
-                    .ThenByDescending(t => t.CreatedAt)
+                    .OrderBy(t => 
+                        t.StatusEnum == TicketStatus.Examinating ? 0 : 
+                        t.StatusEnum == TicketStatus.Testing ? 1 : 
+                        t.StatusEnum == TicketStatus.Calling ? 2 : 3)
+                    .ThenByDescending(t => t.UpdatedAt ?? t.CreatedAt)
                     .ToList();
-
-                System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {sortedTickets.Count} queue tickets for RoomId={doctorShift.RoomId}");
-                return sortedTickets;
+ 
+                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {sortedTickets.Count} queue tickets");
+                 return sortedTickets;
             }
             catch (Exception ex)
             {
@@ -209,7 +221,7 @@ namespace SmartClinic.Services
                     PatientId = patientId,
                     TicketNumber = nextTicketNumber,
                     StatusEnum = TicketStatus.Waiting,
-                    ClinicalDiagnosis = diagnosis,
+                    Diagnosis = diagnosis,
                     CreatedAt = DateTime.Now,
                     RoomId = doctorShift.RoomId  // ✅ Get room from active doctor shift
                 };
@@ -291,6 +303,100 @@ namespace SmartClinic.Services
                 System.Diagnostics.Debug.WriteLine($"❌ [PatientService.UpdateQueueTicketStatusAsync] Stack: {ex.StackTrace}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Get summary data for the doctor dashboard
+        /// </summary>
+        public async Task<DoctorDashboardDto> GetDoctorDashboardSummaryAsync(int doctorId, string period = "Day")
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var today = DateTime.Today;
+            var now = DateTime.Now;
+
+            // Xác định mốc thời gian dựa theo Filter
+            DateTime filterStartDate = today;
+            if (period == "Week")
+            {
+                int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+                filterStartDate = today.AddDays(-1 * diff).Date;
+            }
+            else if (period == "Month")
+            {
+                filterStartDate = new DateTime(today.Year, today.Month, 1);
+            }
+
+            var shift = await GetActiveDoctorShiftAsync(doctorId);
+            var roomId = shift?.RoomId;
+
+            // Query data - Unified logic
+            var tickets = await context.QueueTickets
+                .AsNoTracking()
+                .Include(t => t.Patient)
+                .Where(t =>
+                    // TH1: Hàng chờ chung của phòng (Waiting/Calling) - Chỉ trong ngày
+                    (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) && t.CreatedAt >= today)
+                    ||
+                    // TH2: Bệnh nhân đang khám/xét nghiệm của BS - KHÔNG LỌC NGÀY
+                    (t.DoctorId == doctorId && (t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing))
+                    ||
+                    // TH3: Bệnh nhân đã xong (Completed/Done) - Lọc theo Period (Day/Week/Month)
+                    (t.DoctorId == doctorId && (t.StatusEnum == TicketStatus.Completed || t.StatusEnum == TicketStatus.Done) && t.CreatedAt >= filterStartDate)
+                )
+                .Select(t => new
+                {
+                    t.Id,
+                    t.TicketNumber,
+                    t.PatientId,
+                    t.DoctorId,
+                    t.StatusEnum,
+                    t.CreatedAt,
+                    t.UpdatedAt,
+                    PatientName = t.Patient != null ? t.Patient.FullName : "N/A",
+                    PatientPhone = t.Patient != null ? t.Patient.Phone : ""
+                })
+                .ToListAsync();
+
+            var result = new DoctorDashboardDto();
+
+            // Only count today's tickets for summary unless period is different
+            var dashboardTickets = tickets.Where(t => t.CreatedAt >= filterStartDate).ToList();
+
+            result.TotalCount = dashboardTickets.Count;
+            result.WaitingCount = dashboardTickets.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling);
+            result.InProgressCount = dashboardTickets.Count(t => t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing);
+
+            result.TestingTickets = tickets
+                .Where(t => t.StatusEnum == TicketStatus.Testing && t.DoctorId == doctorId)
+                .OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt)
+                .Take(5)
+                .Select(t => new QueueTicket
+                {
+                    Id = t.Id,
+                    TicketNumber = t.TicketNumber,
+                    PatientId = t.PatientId,
+                    StatusEnum = t.StatusEnum,
+                    Patient = new Patient { Id = t.PatientId ?? 0, FullName = t.PatientName, Phone = t.PatientPhone }
+                })
+                .ToList();
+
+            result.RecentCompletedTickets = dashboardTickets
+                .Where(t => t.StatusEnum == TicketStatus.Completed || t.StatusEnum == TicketStatus.Done)
+                .OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt)
+                .Take(5)
+                .Select(t => new QueueTicket
+                {
+                    Id = t.Id,
+                    TicketNumber = t.TicketNumber,
+                    PatientId = t.PatientId,
+                    StatusEnum = t.StatusEnum,
+                    UpdatedAt = t.UpdatedAt,
+                    CreatedAt = t.CreatedAt,
+                    Patient = new Patient { Id = t.PatientId ?? 0, FullName = t.PatientName }
+                })
+                .ToList();
+
+            return result;
         }
     }
 }

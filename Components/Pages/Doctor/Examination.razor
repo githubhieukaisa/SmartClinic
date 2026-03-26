@@ -109,67 +109,73 @@
             </div>
 
             <!-- AI Quick Input Area -->
-            <div class="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                <div class="flex items-center justify-between mb-3">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Phụ tá (Nhập nhanh tại đây)</label>
-                    <div class="flex items-center gap-2">
-                         @if (_isAiLoading)
-                        {
-                            <span class="text-xs text-primary animate-pulse flex items-center gap-1">
-                                <i class="ph ph-sparkle"></i> AI đang phân tích...
-                            </span>
-                        }
+            @if (!_isReadOnly)
+            {
+                <div class="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Phụ tá (Nhập nhanh tại đây)</label>
+                        <div class="flex items-center gap-2">
+                             @if (_isAiLoading)
+                            {
+                                <span class="text-xs text-primary animate-pulse flex items-center gap-1">
+                                    <i class="ph ph-sparkle"></i> AI đang phân tích...
+                                </span>
+                            }
+                        </div>
                     </div>
+                    <div class="flex gap-2">
+                        <input @bind="_aiRawInput" @bind:event="oninput" @onkeyup="HandleAiKeydown"
+                               placeholder="Ví dụ: đau họng, sốt nhẹ, viêm họng cấp..."
+                               class="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white" />
+                        <button @onclick="ProcessAiRefinementAsync" disabled="@(string.IsNullOrWhiteSpace(_aiRawInput) || _isAiLoading)"
+                                class="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            <i class="ph ph-magic-wand"></i> Standardize
+                        </button>
+                    </div>
+                    <p class="mt-2 text-[11px] text-slate-400 italic">Gợi ý: Nhập triệu chứng tóm tắt rồi nhấn Standardize để AI tự động điền hồ sơ chuẩn.</p>
                 </div>
-                <div class="flex gap-2">
-                    <input @bind="_aiRawInput" @bind:event="oninput" @onkeyup="HandleAiKeydown"
-                           placeholder="Ví dụ: đau họng, sốt nhẹ, viêm họng cấp..."
-                           class="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white" />
-                    <button @onclick="ProcessAiRefinementAsync" disabled="@(string.IsNullOrWhiteSpace(_aiRawInput) || _isAiLoading)"
-                            class="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                        <i class="ph ph-magic-wand"></i> Standardize
-                    </button>
-                </div>
-                <p class="mt-2 text-[11px] text-slate-400 italic">Gợi ý: Nhập triệu chứng tóm tắt rồi nhấn Standardize để AI tự động điền hồ sơ chuẩn.</p>
-            </div>
+            }
 
             <div class="space-y-6">
                 <!-- Diagnosis -->
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-2">Chẩn đoán</label>
-                    <textarea @bind="_diagnosis"
-                              class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    <textarea @bind="_diagnosis" disabled="@_isReadOnly"
+                              class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50 disabled:text-slate-500"
                               rows="4" placeholder="Nhập chẩn đoán và kết quả thăm khám..."></textarea>
                 </div>
 
                 <!-- Treatment Plan -->
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-2">Kế hoạch điều trị</label>
-                    <textarea @bind="_treatmentPlan"
-                              class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    <textarea @bind="_treatmentPlan" disabled="@_isReadOnly"
+                              class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50 disabled:text-slate-500"
                               rows="4" placeholder="Nhập kế hoạch điều trị và lời khuyên..."></textarea>
                 </div>
 
                 <!-- Additional Notes -->
                 <div>
                     <label class="block text-sm font-medium text-foreground mb-2">Ghi chú thêm</label>
-                    <textarea @bind="_notes"
-                              class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    <textarea @bind="_notes" disabled="@_isReadOnly"
+                              class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50 disabled:text-slate-500"
                               rows="3" placeholder="Các ghi chú lâm sàng khác..."></textarea>
                 </div>
 
                 <!-- Save Medical Record Button -->
-                <SaveActionButton OnClick="SaveMedicalRecordAsync" Label="Lưu Hồ Sơ" LoadingLabel="Đang lưu..."
-                                  Icon="ph-floppy-disk"
-                                  Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes))" />
+                @if (!_isReadOnly)
+                {
+                    <SaveActionButton OnClick="SaveMedicalRecordAsync" Label="Lưu Hồ Sơ" LoadingLabel="Đang lưu..."
+                                      Icon="ph-floppy-disk"
+                                      Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes))" />
+                }
             </div>
         </div>
 
         <!-- Lab Tests Section (Test) -->
-        <LabOrderPanel TicketId="@TicketId" RoomId="@_currentRoomId" OnLabsUpdated="CheckPendingLabsAsync" />
+        <LabOrderPanel TicketId="@TicketId" RoomId="@_currentRoomId" IsReadOnly="@_isReadOnly" OnLabsUpdated="CheckPendingLabsAsync" />
 
         <!-- Medicine Section (Prescription) -->
-        <PrescriptionPanel TicketId="@TicketId" />
+        <PrescriptionPanel TicketId="@TicketId" IsReadOnly="@_isReadOnly" />
 
         <!-- Action Buttons -->
         <div class="flex gap-3 justify-end items-center">
@@ -183,11 +189,14 @@
             }
 
             <SaveActionButton OnClick="@(() => { GoBack(); return Task.CompletedTask; })" Label="Quay lại"
-                              LoadingLabel="Đang quay lại..." Icon="ph-arrow-left" />
+                               LoadingLabel="Đang quay lại..." Icon="ph-arrow-left" />
 
-            <SaveActionButton OnClick="CompleteExaminationAsync" Label="Hoàn tất khám" LoadingLabel="Đang hoàn tất..."
-                              Icon="ph-check" Variant="solid" ExtraCssClass="shadow-md"
-                              Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes) || _hasPendingLabs)" />
+            @if (!_isReadOnly)
+            {
+                <SaveActionButton OnClick="CompleteExaminationAsync" Label="Hoàn tất khám" LoadingLabel="Đang hoàn tất..."
+                                  Icon="ph-check" Variant="solid" ExtraCssClass="shadow-md"
+                                  Disabled="@(string.IsNullOrWhiteSpace(_diagnosis) || string.IsNullOrWhiteSpace(_treatmentPlan) || string.IsNullOrWhiteSpace(_notes) || _hasPendingLabs)" />
+            }
         </div>
     }
 
@@ -240,6 +249,7 @@
     private string _notes = "";
     private bool _hasPendingLabs = false;
     private bool _showPrescriptionConfirm = false;
+    private bool _isReadOnly = false;
 
     private bool _isLoading = true;
     private string? _errorMessage;
@@ -278,6 +288,7 @@
 
             if (existingTicket != null)
             {
+                _isReadOnly = existingTicket.StatusEnum == TicketStatus.Completed || existingTicket.StatusEnum == TicketStatus.Done;
                 _currentRoomId = existingTicket.RoomId;
                 _diagnosis = existingTicket.Diagnosis ?? "";
                 _treatmentPlan = existingTicket.TreatmentPlan ?? "";
