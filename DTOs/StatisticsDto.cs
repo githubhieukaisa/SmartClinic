@@ -34,3 +34,12 @@ public class RevenueBreakdownItem
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }
 }
+
+/// <summary>
+/// Số lượng bệnh nhân theo từng khoa — dùng cho bar chart
+/// </summary>
+public class PatientsByDepartmentItem
+{
+    public string DepartmentName { get; set; } = string.Empty;
+    public int PatientCount { get; set; }
+}

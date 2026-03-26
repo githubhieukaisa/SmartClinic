@@ -10,6 +10,7 @@ public interface IStatisticsService
     Task<OverviewStats> GetOverviewAsync(DateTime date);
     Task<List<DailyRevenueItem>> GetDailyRevenueAsync(DateTime from, DateTime to);
     Task<List<RevenueBreakdownItem>> GetRevenueBreakdownAsync(DateTime from, DateTime to);
+    Task<List<PatientsByDepartmentItem>> GetPatientsByDepartmentAsync(DateTime from, DateTime to);
 }
 
 public class StatisticsService : IStatisticsService
@@ -149,6 +150,31 @@ public class StatisticsService : IStatisticsService
             new() { Category = "Thuốc", Amount = medicineRevenue },
             new() { Category = "Xét nghiệm", Amount = labRevenue },
         };
+    }
+
+    /// <summary>
+    /// Số lượng bệnh nhân (distinct) theo từng khoa trong khoảng [from, to]
+    /// </summary>
+    public async Task<List<PatientsByDepartmentItem>> GetPatientsByDepartmentAsync(DateTime from, DateTime to)
+    {
+        var fromDate = from.Date;
+        var toDate = to.Date.AddDays(1);
+
+        var data = await _context.QueueTickets
+            .AsNoTracking()
+            .Where(t => t.CreatedAt >= fromDate && t.CreatedAt < toDate)
+            .Include(t => t.Room)
+                .ThenInclude(r => r.Department)
+            .GroupBy(t => t.Room.Department.Name)
+            .Select(g => new PatientsByDepartmentItem
+            {
+                DepartmentName = g.Key,
+                PatientCount = g.Count()
+            })
+            .OrderByDescending(x => x.PatientCount)
+            .ToListAsync();
+
+        return data;
     }
 
     // ── Helper: tính % thay đổi ──
