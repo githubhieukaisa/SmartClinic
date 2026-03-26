@@ -27,7 +27,8 @@
         <!-- HEADER: User Profile -->
         <div class="p-6 border-b border-border">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold shrink-0">
+                <div
+                    class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold shrink-0">
                     @_userInitial
                 </div>
                 <div>
@@ -93,7 +94,7 @@
         if (user?.Identity?.IsAuthenticated != true) return;
 
         // Populate User Info
-        _userName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value 
+        _userName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
                     ?? user.Identity.Name ?? "Bạn";
         _userInitial = _userName.Trim().Length > 0 ? _userName.Trim().Substring(0, 1).ToUpper() : "U";
 
@@ -130,7 +131,7 @@
 
         // Khởi chạy Timer quét Database trong background (Mỗi 15 giây)
         _shiftCheckTimer = new System.Threading.Timer(async _ => await CheckActiveShiftAsync(), null, TimeSpan.FromSeconds(15),
-TimeSpan.FromSeconds(15));
+TimeSpan.FromMinutes(10));
     }
 
     private async Task CheckActiveShiftAsync()
@@ -159,13 +160,18 @@ TimeSpan.FromSeconds(15));
 
             if (activeRoomId == null)
             {
-                // Nếu không có ca trực (hoặc đã lỡ ca), rollback về Room mặc định của User
-                var doctor = await dbContext.Users.FindAsync(_doctorId);
-                activeRoomId = doctor?.RoomId;
-            }
+                // Nếu không có ca trực, không tự ý lấy phòng mặc định (theo yêu cầu mới)
+                System.Diagnostics.Debug.WriteLine($"[MainLayout] ⚠️ No active shift for Doctor {_doctorId}.");
 
+                // Nếu không có ca trực, thoát khỏi phòng hiện tại nếu đang ở trong phòng nào đó
+                if (_currentRoomId.HasValue)
+                {
+                    await Notification.LeaveRoomAsync(_currentRoomId.Value);
+                    _currentRoomId = null;
+                }
+            }
             // Nếu phát hiện có phòng trực & phòng khác phòng hiện tại → Chuyển phòng ngầm!
-            if (activeRoomId.HasValue && activeRoomId.Value > 0)
+            else if (activeRoomId.HasValue && activeRoomId.Value > 0)
             {
                 if (_currentRoomId != activeRoomId.Value)
                 {

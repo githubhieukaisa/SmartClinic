@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartClinic.Models;
@@ -20,8 +20,6 @@ public partial class User : BaseEntity
     public bool? IsActive { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiryTime { get; set; }
-    public int? RoomId { get; set; }
-    public virtual Room? Room { get; set; }
     public virtual ICollection<QueueTicket> QueueTickets { get; set; } = new List<QueueTicket>();
     public virtual ICollection<DoctorShift> DoctorShifts { get; set; } = new List<DoctorShift>();
 }

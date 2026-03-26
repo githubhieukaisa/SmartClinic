@@ -1,6 +1,8 @@
-﻿@* PharmacistToastHandler.razor
-   Lắng nghe SignalR "NewPrescriptionReady" và hiển thị toast cho Dược sĩ.
-   Đặt component này trong PharmacistLayout.
+@* PharmacistToastHandler.razor
+   - Lắng nghe SignalR "NewPrescriptionReady"
+   - Hiển thị toast
+   - Raise event OnNewPrescription để trang Prescriptions.razor tự reload
+   Đặt trong PharmacistLayout.
 *@
 @using Blazored.Toast.Services
 @using Microsoft.AspNetCore.SignalR.Client
@@ -12,6 +14,13 @@
 @code {
     private HubConnection? _hub;
 
+    /// <summary>
+    /// Event fired khi có đơn thuốc mới.
+    /// Prescriptions.razor subscribe vào đây để tự reload danh sách.
+    /// </summary>
+    [Parameter]
+    public EventCallback<NewPrescriptionNotificationDto> OnNewPrescription { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -21,15 +30,35 @@
             .WithAutomaticReconnect()
             .Build();
 
-        // Lắng nghe đơn thuốc mới từ bác sĩ
         _hub.On<NewPrescriptionNotificationDto>("NewPrescriptionReady", async (data) =>
         {
+            // 1. Hiện toast
             await InvokeAsync(() =>
             {
                 Toaster.ShowSuccess(
-                    $"💊 Đơn mới #{data.TicketNumber} - {data.PatientName} " +
-                    $"({data.MedicineCount} thuốc · {data.TotalAmount:N0}đ)");
+                    $"💊 New prescription #{data.TicketNumber} — {data.PatientName} " +
+                    $"({data.MedicineCount} items · {data.TotalAmount:N0}đ)");
             });
+
+            // 2. Notify trang Prescriptions để tự reload
+            if (OnNewPrescription.HasDelegate)
+            {
+                await OnNewPrescription.InvokeAsync(data);
+            }
+        });
+
+        _hub.On<int>("PrescriptionDeleted", async (prescriptionId) =>
+        {
+            await InvokeAsync(() =>
+            {
+                Toaster.ShowInfo($"Prescription has been deleted by Doctor. Updating list...");
+            });
+
+            if (OnNewPrescription.HasDelegate)
+            {
+                // Truyền dummy object để trigger reload list
+                await OnNewPrescription.InvokeAsync(new NewPrescriptionNotificationDto { PrescriptionId = prescriptionId });
+            }
         });
 
         await _hub.StartAsync();

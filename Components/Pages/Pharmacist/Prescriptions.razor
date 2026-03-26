@@ -1,44 +1,77 @@
-﻿@page "/pharmacist/prescriptions"
+@page "/pharmacist/prescriptions"
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.DTOs
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
+@using SmartClinic.Components.Common
 @using Blazored.Toast.Services
 @rendermode InteractiveServer
-@layout PharmacistLayout
+
 @attribute [Authorize(Policy = "PharmacistPolicy")]
 @inject IPharmacyService PharmacyService
 @inject IToastService ToastService
+@implements IDisposable
 
 <div class="p-8">
+    <PharmacistToastHandler OnNewPrescription="HandleNewPrescriptionAsync" />
 
-    <!-- Header -->
+    <!-- Header — khớp với MyPatient/Index -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-foreground">Đơn Thuốc Chờ Xuất</h1>
-            <p class="text-muted-foreground mt-1">Danh sách đơn thuốc cần chuẩn bị</p>
+            <h1 class="text-3xl font-bold text-foreground">Prescription Queue</h1>
+            <p class="text-muted-foreground mt-1">Pending prescriptions waiting to be dispensed</p>
         </div>
-        <button @onclick="LoadDataAsync"
-                class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
-            <i class="ph ph-arrows-clockwise"></i>
-            Làm mới
-        </button>
+        <div class="flex items-center gap-4">
+            <div class="text-right">
+                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+            </div>
+            @if (_isUpdating)
+            {
+                <div class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium">
+                    <span class="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+                    Updating...
+                </div>
+            }
+            <button @onclick="() => LoadDataAsync()"
+                    class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                <i class="ph ph-arrows-clockwise"></i>
+                Refresh
+            </button>
+        </div>
     </div>
 
-    <!-- Summary -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-2">
-                <h4 class="font-semibold text-foreground text-sm">Đơn chờ xử lý</h4>
+    <!-- Summary Cards — khớp với MyPatient 3-col grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Pending</h4>
                 <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-hourglass text-xl text-amber-600"></i>
                 </div>
             </div>
             <p class="text-3xl font-bold text-amber-600">@(_prescriptions?.Count ?? 0)</p>
+            <div class="mt-4 bg-amber-100 rounded-full h-2">
+                <div class="bg-amber-500 h-full rounded-full" style="width: 100%"></div>
+            </div>
         </div>
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-2">
-                <h4 class="font-semibold text-foreground text-sm">Tổng tiền chờ</h4>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Total Medicines</h4>
+                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-pill text-xl text-primary"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-primary">@(_prescriptions?.Sum(p => p.Details.Sum(d => d.Quantity)) ?? 0)</p>
+            <div class="mt-4 bg-primary/10 rounded-full h-2">
+                <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="font-semibold text-foreground text-sm">Total Value</h4>
                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-currency-circle-dollar text-xl text-green-600"></i>
                 </div>
@@ -46,117 +79,216 @@
             <p class="text-3xl font-bold text-green-600">
                 @((_prescriptions?.Sum(p => p.TotalAmount) ?? 0).ToString("N0"))đ
             </p>
+            <div class="mt-4 bg-green-100 rounded-full h-2">
+                <div class="bg-green-600 h-full rounded-full" style="width: 100%"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Prescription List -->
-    @if (_prescriptions == null)
-    {
-        <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
-            <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
-            <span>Đang tải...</span>
+    <!-- Prescription Table — khớp với Today's Queue table -->
+    <div class="bg-card rounded-xl border border-border shadow-sm">
+        <div class="flex items-center justify-between p-6 border-b border-border">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-prescription text-xl text-foreground"></i>
+                <h2 class="text-xl font-bold text-foreground">Prescriptions to Dispense</h2>
+            </div>
         </div>
-    }
-    else if (!_prescriptions.Any())
-    {
-        <div
-            class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground bg-card rounded-xl border border-border">
-            <i class="ph ph-prescription text-4xl"></i>
-            <p class="font-medium">Không có đơn thuốc nào đang chờ</p>
-        </div>
-    }
-    else
-    {
-        <div class="space-y-4">
-            @foreach (var p in _prescriptions)
+
+        <div class="overflow-x-auto">
+            @if (_prescriptions == null)
             {
-                <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                    <!-- Prescription Header -->
-                    <div class="flex items-center justify-between p-5 border-b border-border bg-amber-50">
-                        <div class="flex items-center gap-4">
-                            <span
-                                class="inline-flex items-center justify-center w-10 h-10 bg-amber-200 text-amber-800 rounded-lg text-sm font-bold">
-                                #@p.TicketNumber
-                            </span>
-                            <div>
-                                <p class="font-semibold text-foreground">@p.PatientName</p>
-                                <p class="text-xs text-muted-foreground">BS. @p.DoctorName · @p.CreatedAt.ToString("HH:mm")</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <p class="text-lg font-bold text-green-700">@p.TotalAmount.ToString("N0")đ</p>
-                            <button @onclick="() => DispenseAsync(p.PrescriptionId)"
-                                    disabled="@_processing.Contains(p.PrescriptionId)"
-                                    class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                @if (_processing.Contains(p.PrescriptionId))
-                                {
-                                    <i class="ph ph-spinner-gap animate-spin"></i>
-                                    <span>Đang xuất...</span>
-                                }
-                                else
-                                {
-                                    <i class="ph ph-check-circle"></i>
-                                    <span>Xuất thuốc</span>
-                                }
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Medicine Details -->
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-border bg-muted/30">
-                                    <th class="text-left py-2 px-5 font-semibold text-muted-foreground">Thuốc</th>
-                                    <th class="text-center py-2 px-5 font-semibold text-muted-foreground">SL</th>
-                                    <th class="text-center py-2 px-5 font-semibold text-muted-foreground">Đơn vị</th>
-                                    <th class="text-left py-2 px-5 font-semibold text-muted-foreground">Hướng dẫn</th>
-                                    <th class="text-right py-2 px-5 font-semibold text-muted-foreground">Thành tiền</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var d in p.Details)
-                                {
-                                    <tr class="border-b border-border last:border-0">
-                                        <td class="py-3 px-5 font-medium text-foreground">@d.MedicineName</td>
-                                        <td class="py-3 px-5 text-center text-foreground">@d.Quantity</td>
-                                        <td class="py-3 px-5 text-center text-muted-foreground">@(d.Unit ?? "—")</td>
-                                        <td class="py-3 px-5 text-muted-foreground">@(d.UsageInstruction ?? "—")</td>
-                                        <td class="py-3 px-5 text-right font-medium text-foreground">@d.SubTotal.ToString("N0")đ
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-
-                    @if (!string.IsNullOrWhiteSpace(p.DoctorNote))
-                    {
-                        <div class="px-5 py-3 bg-blue-50 text-sm text-blue-700">
-                            <i class="ph ph-note mr-1"></i>
-                            <span class="font-medium">Ghi chú BS:</span> @p.DoctorNote
-                        </div>
-                    }
+                <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
+                    <span class="text-sm">Loading...</span>
                 </div>
             }
+            else if (!_prescriptions.Any())
+            {
+                <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                    <i class="ph ph-prescription text-4xl"></i>
+                    <p class="text-sm font-medium">No prescriptions pending</p>
+                </div>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border bg-muted/30">
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground w-10"></th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">#</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Patient</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Doctor</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Medicines</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Time</th>
+                            <th class="text-right py-3 px-5 font-semibold text-muted-foreground">Total</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in _prescriptions)
+                        {
+                            var pid = p.PrescriptionId;
+                            <tr class="border-b border-border hover:bg-muted/20 transition">
+                                <!-- Expand toggle -->
+                                <td class="py-3 px-4 text-center">
+                                    <button @onclick="@(() => ToggleExpand(pid))"
+                                            class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground">
+                                        @if (_expanded.Contains(pid))
+                                        {
+                                            <i class="ph ph-caret-up text-base"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="ph ph-caret-down text-base"></i>
+                                        }
+                                    </button>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">
+                                        @p.TicketNumber
+                                    </span>
+                                </td>
+                                <td class="py-3 px-5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
+                                            @GetInitials(p.PatientName)
+                                        </div>
+                                        <p class="font-medium text-foreground">@p.PatientName</p>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-5 text-foreground">
+                                    <p class="text-sm">Dr. @p.DoctorName</p>
+                                    @if (!string.IsNullOrWhiteSpace(p.DoctorNote))
+                                    {
+                                        <p class="text-xs text-muted-foreground mt-0.5 truncate max-w-32">@p.DoctorNote</p>
+                                    }
+                                </td>
+                                <td class="py-3 px-5">
+                                    <div class="space-y-1">
+                                        @foreach (var d in p.Details.Take(2))
+                                        {
+                                            <div class="flex items-center gap-2">
+                                                <span class="inline-block px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-medium">
+                                                    @d.Quantity @d.Unit
+                                                </span>
+                                                <span class="text-xs text-foreground">@d.MedicineName</span>
+                                            </div>
+                                        }
+                                        @if (p.Details.Count > 2)
+                                        {
+                                            <p class="text-xs text-muted-foreground">+@(p.Details.Count - 2) more</p>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <div class="flex items-center justify-center gap-1 text-muted-foreground">
+                                        <i class="ph-bold ph-clock text-xs"></i>
+                                        <span class="text-xs">@p.CreatedAt.ToString("HH:mm")</span>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-5 text-right">
+                                    <p class="font-bold text-green-700">@p.TotalAmount.ToString("N0")đ</p>
+                                </td>
+                                <td class="py-3 px-5 text-center">
+                                    <button @onclick="() => DispenseAsync(p.PrescriptionId)"
+                                            disabled="@_processing.Contains(p.PrescriptionId)"
+                                            class="flex items-center gap-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed mx-auto">
+                                        @if (_processing.Contains(p.PrescriptionId))
+                                        {
+                                            <i class="ph ph-spinner-gap animate-spin"></i>
+                                            <span>Dispensing...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="ph ph-check-circle"></i>
+                                            <span>Dispense</span>
+                                        }
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Expandable medicine detail row -->
+                            @if (_expanded.Contains(p.PrescriptionId))
+                            {
+                                <tr class="bg-muted/10 border-b border-border">
+                                    <td colspan="8" class="px-5 py-4">
+                                        <div class="rounded-lg border border-border overflow-hidden">
+                                            <table class="w-full text-xs">
+                                                <thead>
+                                                    <tr class="bg-muted/30">
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Medicine</th>
+                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">Qty</th>
+                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">Unit</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Instructions</th>
+                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Subtotal</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var d in p.Details)
+                                                    {
+                                                        <tr class="border-t border-border">
+                                                            <td class="py-2 px-4 font-medium text-foreground">@d.MedicineName</td>
+                                                            <td class="py-2 px-4 text-center text-foreground">@d.Quantity</td>
+                                                            <td class="py-2 px-4 text-center text-muted-foreground">@(d.Unit ?? "—")</td>
+                                                            <td class="py-2 px-4 text-muted-foreground">@(d.UsageInstruction ?? "—")</td>
+                                                            <td class="py-2 px-4 text-right text-foreground">@d.SubTotal.ToString("N0")đ</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            }
         </div>
-    }
+    </div>
 </div>
 
 @code {
+
     private List<PrescriptionQueueDto>? _prescriptions;
     private HashSet<int> _processing = new();
+    private HashSet<int> _expanded = new();
+    private bool _isUpdating = false;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
     }
 
-    private async Task LoadDataAsync()
+
+    private async Task HandleNewPrescriptionAsync(NewPrescriptionNotificationDto data)
     {
-        _prescriptions = null;
-        StateHasChanged();
+        await InvokeAsync(async () =>
+        {
+            _isUpdating = true;
+            StateHasChanged();
+
+            await LoadDataAsync(showSpinner: false);
+
+            _isUpdating = false;
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadDataAsync(bool showSpinner = true)
+    {
+        if (showSpinner)
+        {
+            _prescriptions = null;
+            StateHasChanged();
+        }
         _prescriptions = await PharmacyService.GetPendingPrescriptionsAsync();
+    }
+
+    private void ToggleExpand(int prescriptionId)
+    {
+        if (!_expanded.Remove(prescriptionId))
+            _expanded.Add(prescriptionId);
     }
 
     private async Task DispenseAsync(int prescriptionId)
@@ -170,8 +302,9 @@
 
         if (success)
         {
-            ToastService.ShowSuccess("Xuất thuốc thành công! Thu ngân đã được thông báo.");
+            ToastService.ShowSuccess("Dispensed successfully! Cashier has been notified.");
             _prescriptions?.RemoveAll(p => p.PrescriptionId == prescriptionId);
+            _expanded.Remove(prescriptionId);
         }
         else
         {
@@ -179,5 +312,18 @@
         }
 
         StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+    }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
     }
 }

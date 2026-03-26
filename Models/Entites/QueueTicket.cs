@@ -12,7 +12,6 @@ public partial class QueueTicket : BaseEntity
 
     public TicketStatus StatusEnum { get; set; } = TicketStatus.Waiting;
 
-    public string? ClinicalDiagnosis { get; set; }
     public decimal? TotalAmount { get; set; }
     public int MissCount { get; set; } = 0;
 

@@ -121,16 +121,6 @@ namespace SmartClinic.Services
                 return (activeShift.RoomId, activeShift.Room.Name);
             }
 
-            if (user.RoomId.HasValue)
-            {
-                var roomName = await _context.Rooms
-                    .Where(r => r.Id == user.RoomId.Value)
-                    .Select(r => r.Name)
-                    .FirstOrDefaultAsync();
-
-                return (user.RoomId.Value, roomName);
-            }
-
             return (null, null);
         }
     }

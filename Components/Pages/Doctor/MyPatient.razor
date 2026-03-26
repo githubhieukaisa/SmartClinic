@@ -1,4 +1,4 @@
-﻿@page "/doctor/my-patients"
+@page "/doctor/my-patients"
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.Constant
@@ -14,7 +14,7 @@
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
 @inject NotificationService Notification
-@inject SmartClinicDbContext DbContext
+@inject IDbContextFactory<SmartClinicDbContext> DbFactory
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IToastService ToastService
 @inject ITicketService TicketService
@@ -76,55 +76,11 @@
         </div>
     }
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Tổng số hàng đợi</h4>
-                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-queue text-xl text-primary"></i>
-                </div>
-            </div>
-            <p class="text-3xl font-bold text-primary">@TotalCount</p>
-            <div class="mt-4 bg-primary/10 rounded-full h-2">
-                <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
-            </div>
-        </div>
-
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Đang chờ khám</h4>
-                <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-hourglass text-xl text-amber-600"></i>
-                </div>
-            </div>
-            <p class="text-3xl font-bold text-amber-600">@WaitingCount</p>
-            <div class="mt-4 bg-amber-100 rounded-full h-2">
-                <div class="bg-amber-500 h-full rounded-full" style="width: @WaitingPct%"></div>
-            </div>
-        </div>
-
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Đang khám / Xét nghiệm</h4>
-                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-clock text-xl text-blue-600"></i>
-                </div>
-            </div>
-            <p class="text-3xl font-bold text-blue-600">@InProgressCount</p>
-            <div class="mt-4 bg-blue-100 rounded-full h-2">
-                <div class="bg-blue-600 h-full rounded-full" style="width: @InProgressPct%"></div>
-            </div>
-        </div>
-    </div>
+    <!-- Removed Summary Cards -->
 
     <!-- Queue Table -->
     <div class="bg-card rounded-xl border border-border shadow-sm">
-        <div class="flex items-center justify-between p-6 border-b border-border">
-            <div class="flex items-center gap-2">
-                <i class="ph ph-list-numbers text-xl text-foreground"></i>
-                <h2 class="text-xl font-bold text-foreground">Hàng Đợi Hôm Nay</h2>
-            </div>
+        <div class="flex items-center justify-end p-6 border-b border-border">
             <div class="flex items-center gap-2">
                 <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
                                        CssClass="" OnCalled="RefreshQueueAsync" />
@@ -165,7 +121,7 @@
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Bệnh nhân</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Tuổi</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Số điện thoại</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chẩn đoán</th>
+                            @* <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chẩn đoán</th> *@
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chờ đợi</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Trạng thái</th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Thao tác</th>
@@ -202,7 +158,7 @@
                                 </td>
 
                                 @* <td class="py-3 px-5 text-center">
-                                    <span class="text-foreground">@(ticket.ClinicalDiagnosis ?? "—")</span>
+                                    <span class="text-foreground">@(ticket.Diagnosis ?? "—")</span>
                                 </td> *@
 
                                 <td class="py-3 px-5 text-center">
@@ -234,6 +190,7 @@
                                             Khám bệnh
                                         </button>
                                     }
+                                    
                                 </td>
                             </tr>
                         }
@@ -287,32 +244,25 @@
                 _currentDoctorId = doctorId;
             }
 
-            var now = DateTime.Now;
-            var activeShift = await DbContext.DoctorShifts
-                .Include(s => s.Room)
-                .Where(s => s.DoctorId == _currentDoctorId
-                         && s.StartTime <= now
-                         && (s.EndTime == null || s.EndTime >= now))
-                .OrderByDescending(s => s.StartTime)
-                .FirstOrDefaultAsync();
+            // Dùng centralized logic để lấy ca trực đang hoạt động
+            var activeShift = await PatientService.GetActiveDoctorShiftAsync(_currentDoctorId);
 
             if (activeShift != null)
             {
                 _currentRoomId = activeShift.RoomId;
-                _roomName = activeShift.Room.Name;
+                _roomName = activeShift.Room?.Name;
             }
             else
             {
-                var doctor = await DbContext.Users
-                    .Include(u => u.Room)
-                    .FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
-
-                _currentRoomId = doctor?.RoomId;
-                _roomName = doctor?.Room?.Name ?? "Chưa phân phòng";
+                // Nếu không có ca trực, không tự ý nạp phòng mặc định
+                _currentRoomId = null;
+                _roomName = "Hết ca làm việc / Chưa bắt đầu ca";
             }
         }
 
-        await LoadDataAsync();
+        // Kỹ thuật "Fire and Forget" hoặc Background Task: 
+        // Cho phép UI render nhanh tiêu đề và khung trang trước khi có dữ liệu
+        _ = LoadDataAsync(); 
 
         if (_currentRoomId.HasValue && _currentRoomId.Value > 0)
         {
@@ -365,11 +315,8 @@
         {
             try
             {
-                var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
-                if (ticketToUpdate != null)
-                {
-                    StateHasChanged();
-                }
+                // Khi trạng thái thay đổi, tải lại dữ liệu để áp dụng filter mới (phòng vs bác sĩ)
+                await LoadDataAsync();
             }
             catch (Exception) { }
         });
@@ -397,15 +344,22 @@
         {
             _queueTickets = null;
             StateHasChanged();
-            await Task.Delay(1000);
+            await Task.Delay(500); // Giảm delay xuống cho cảm giác nhanh hơn
         }
         try
         {
-            _queueTickets = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
+            // Tải dữ liệu từ Service
+            var data = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
+            _queueTickets = data;
         }
         catch (Exception)
         {
             _queueTickets = new();
+        }
+        finally
+        {
+            // Quan trọng: Cập nhật lại UI sau khi task background hoàn tất
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -445,20 +399,26 @@
     private static string GetStatusClass(TicketStatus status) => status switch
     {
         TicketStatus.Done => "bg-green-100 text-green-700",
+        TicketStatus.Completed => "bg-teal-100 text-teal-700",
         TicketStatus.Examinating => "bg-cyan-100 text-cyan-700",
         TicketStatus.Calling => "bg-orange-100 text-orange-700",
         TicketStatus.Waiting => "bg-amber-100 text-amber-700",
         TicketStatus.Testing => "bg-purple-100 text-purple-700",
+        TicketStatus.Missed => "bg-red-100 text-red-700",
+        TicketStatus.Cancelled => "bg-slate-100 text-slate-700",
         _ => "bg-gray-100 text-gray-700"
     };
 
     private static string GetRowBgClass(TicketStatus status) => status switch
     {
         TicketStatus.Done => "bg-green-50",
+        TicketStatus.Completed => "bg-teal-50",
         TicketStatus.Examinating => "bg-cyan-50",
         TicketStatus.Calling => "bg-orange-50",
         TicketStatus.Waiting => "bg-amber-50",
         TicketStatus.Testing => "bg-purple-50",
+        TicketStatus.Missed => "bg-red-50",
+        TicketStatus.Cancelled => "bg-slate-50",
         _ => ""
     };
 
@@ -468,7 +428,10 @@
         TicketStatus.Calling => "Đang gọi",
         TicketStatus.Examinating => "Đang khám",
         TicketStatus.Testing => "Đang xét nghiệm",
+        TicketStatus.Completed => "Đã khám xong",
         TicketStatus.Done => "Hoàn tất",
+        TicketStatus.Missed => "Trễ hẹn",
+        TicketStatus.Cancelled => "Đã hủy",
         _ => status.ToString()
     };
 
@@ -476,8 +439,8 @@
     {
         try
         {
-            if (_currentDoctorId == 0 || !_currentRoomId.HasValue) return;
-            var room = await DbContext.Rooms.FindAsync(_currentRoomId.Value);
+            using var context = DbFactory.CreateDbContext();
+            var room = await context.Rooms.FindAsync(_currentRoomId.Value);
             if (room == null) return;
 
             await TicketService.GenerateTicketAsync(
@@ -521,8 +484,14 @@
             }
 
             ticket.StatusEnum = TicketStatus.Examinating;
-            DbContext.QueueTickets.Update(ticket);
-            await DbContext.SaveChangesAsync();
+            ticket.DoctorId = _currentDoctorId;
+            ticket.UpdatedBy = _currentDoctorId;
+            ticket.UpdatedAt = DateTime.Now;
+            
+            using var context = DbFactory.CreateDbContext();
+            context.QueueTickets.Update(ticket);
+            await context.SaveChangesAsync();
+            
             StateHasChanged();
             ToastService.ShowSuccess($"Đang bắt đầu khám cho {ticket.Patient?.FullName}");
         }

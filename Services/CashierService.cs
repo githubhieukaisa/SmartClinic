@@ -7,108 +7,142 @@ using SmartClinic.Models;
 
 namespace SmartClinic.Services
 {
-    /// <summary>
-    /// Service xử lý nghiệp vụ Thu ngân:
-    /// - Lấy danh sách đơn chờ thanh toán
-    /// - Xác nhận thanh toán, kết thúc quy trình
-    ///
-    /// Registered as Scoped.
-    /// </summary>
     public class CashierService : ICashierService
     {
         private readonly SmartClinicDbContext _context;
         private readonly IHubContext<PrescriptionHub> _hubContext;
+        private readonly VNPayService _vnpay;
 
-        public CashierService(SmartClinicDbContext context, IHubContext<PrescriptionHub> hubContext)
+        public CashierService(SmartClinicDbContext context,
+                               IHubContext<PrescriptionHub> hubContext,
+                               VNPayService vnpay)
         {
             _context = context;
             _hubContext = hubContext;
+            _vnpay = vnpay;
         }
+
+        // ─── Query ────────────────────────────────────────────────────────────────
 
         public async Task<List<PrescriptionQueueDto>> GetDispensedPrescriptionsAsync()
         {
-            var prescriptions = await _context.Prescriptions
+            var tickets = await _context.QueueTickets
                 .AsNoTracking()
-                .Include(p => p.Ticket)
-                    .ThenInclude(t => t!.Patient)
-                .Include(p => p.Ticket)
-                    .ThenInclude(t => t!.Doctor)
-                .Include(p => p.PrescriptionDetails)
-                    .ThenInclude(d => d.Medicine)
-                .Where(p => p.Status == PrescriptionStatus.Dispensed)
-                .OrderBy(p => p.CreatedAt)
+                .Include(t => t.Patient)
+                .Include(t => t.Doctor)
+                .Include(t => t.Prescription)
+                    .ThenInclude(p => p!.PrescriptionDetails)
+                        .ThenInclude(d => d.Medicine)
+                .Where(t => t.StatusEnum == TicketStatus.Completed)
+                .OrderBy(t => t.CreatedAt)
                 .ToListAsync();
 
-            return prescriptions.Select(MapToDto).ToList();
+            return tickets.Select(MapToDto).ToList();
         }
+
+        // ─── Cash payment ─────────────────────────────────────────────────────────
 
         public async Task<(bool Success, string ErrorMessage)> ProcessPaymentAsync(int prescriptionId)
         {
-            System.Diagnostics.Debug.WriteLine($"[CashierService] Processing payment for prescription {prescriptionId}");
+            // prescriptionId here is actually the TicketId (mapped in DTO)
+            return await FinalizePaymentAsync(prescriptionId, "Cash");
+        }
 
+        // ─── VNPay ────────────────────────────────────────────────────────────────
+
+        public string CreateVNPayUrl(int prescriptionId, decimal amount, string patientName)
+        {
+            return _vnpay.CreatePaymentUrl(prescriptionId, amount, patientName);
+        }
+
+        public async Task<(bool Success, string ErrorMessage)> HandleVNPayCallbackAsync(IQueryCollection query)
+        {
+            if (!_vnpay.ValidateSignature(query, out var txnRef, out var isSuccess))
+                return (false, "Invalid VNPay signature.");
+
+            if (!isSuccess)
+                return (false, $"VNPay payment failed. Code: {query["vnp_ResponseCode"]}");
+
+            // txnRef format: "{ticketId}_{timestamp}"
+            var parts = txnRef.Split('_');
+            if (!int.TryParse(parts[0], out var ticketId))
+                return (false, "Invalid transaction reference.");
+
+            return await FinalizePaymentAsync(ticketId, "VNPay");
+        }
+
+        // ─── Shared finalization ──────────────────────────────────────────────────
+
+        private async Task<(bool Success, string ErrorMessage)> FinalizePaymentAsync(
+            int ticketId, string paymentMethod)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[CashierService] Finalizing payment ({paymentMethod}) for ticket #{ticketId}");
             try
             {
-                var prescription = await _context.Prescriptions
-                    .Include(p => p.Ticket)
-                        .ThenInclude(t => t!.Patient)
-                    .FirstOrDefaultAsync(p => p.Id == prescriptionId);
+                var ticket = await _context.QueueTickets
+                    .Include(t => t.Patient)
+                    .Include(t => t.Prescription)
+                    .FirstOrDefaultAsync(t => t.Id == ticketId);
 
-                if (prescription == null)
-                    return (false, "Không tìm thấy đơn thuốc.");
+                if (ticket == null)
+                    return (false, "Queue ticket not found.");
 
-                if (prescription.Status != PrescriptionStatus.Dispensed)
-                    return (false, $"Đơn thuốc đang ở trạng thái '{prescription.Status}', chưa thể thanh toán.");
+                if (ticket.StatusEnum != TicketStatus.Completed)
+                    return (false, $"Ticket is '{ticket.StatusEnum}', cannot process payment.");
 
-                // 1. Đánh dấu đã thanh toán
-                prescription.Status = PrescriptionStatus.Paid;
+                ticket.StatusEnum = TicketStatus.Done;
 
-                // 2. Kết thúc queue ticket
-                if (prescription.Ticket != null)
-                {
-                    prescription.Ticket.StatusEnum = TicketStatus.Done;
-                }
+                if (ticket.Prescription != null)
+                    ticket.Prescription.Status = PrescriptionStatus.Paid;
 
                 await _context.SaveChangesAsync();
 
-                // 3. Thông báo cho tất cả (bác sĩ / màn hình chờ cập nhật trạng thái)
                 await _hubContext.Clients.All.SendAsync("PaymentCompleted", new
                 {
-                    prescriptionId,
-                    ticketNumber = prescription.Ticket?.TicketNumber,
-                    patientName = prescription.Ticket?.Patient?.FullName
+                    prescriptionId = ticketId,
+                    paymentMethod,
+                    ticketNumber = ticket.TicketNumber,
+                    patientName = ticket.Patient?.FullName
                 });
 
-                System.Diagnostics.Debug.WriteLine($"[CashierService] Payment OK for prescription {prescriptionId}");
                 return (true, "");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[CashierService] ERROR: {ex.Message}");
-                return (false, "Lỗi hệ thống khi xử lý thanh toán.");
+                return (false, "System error during payment.");
             }
         }
 
-        private static PrescriptionQueueDto MapToDto(Prescription p) => new()
+        // ─── Helper ───────────────────────────────────────────────────────────────
+
+        private static PrescriptionQueueDto MapToDto(QueueTicket t) => new()
         {
-            PrescriptionId = p.Id,
-            TicketId = p.TicketId ?? 0,
-            TicketNumber = p.Ticket?.TicketNumber ?? 0,
-            PatientName = p.Ticket?.Patient?.FullName ?? "—",
-            DoctorName = p.Ticket?.Doctor?.FullName ?? "—",
-            DoctorNote = p.DoctorNote,
-            Status = p.Status.ToString(),
-            TotalAmount = p.TotalAmount ?? 0,
-            CreatedAt = p.CreatedAt,
-            Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto
+            // PrescriptionId is mapped to TicketId so the UI's payment callbacks work correctly
+            PrescriptionId = t.Id,
+            TicketId       = t.Id,
+            TicketNumber   = t.TicketNumber,
+            PatientName    = t.Patient?.FullName ?? "—",
+            DoctorName     = t.Doctor?.FullName ?? "Not assigned",
+            DoctorNote     = t.Prescription?.DoctorNote,
+            Status         = t.StatusEnum.ToString(),
+            // TotalAmount from QueueTicket (includes consultation + medicines + lab)
+            TotalAmount    = t.TotalAmount ?? t.Prescription?.TotalAmount
+                             ?? t.Prescription?.PrescriptionDetails
+                                  .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity)
+                             ?? 0,
+            CreatedAt      = t.CreatedAt,
+            Details        = t.Prescription?.PrescriptionDetails.Select(d => new PrescriptionDetailDto
             {
-                DetailId = d.Id,
-                MedicineId = d.MedicineId ?? 0,
-                MedicineName = d.Medicine?.Name ?? "—",
-                Unit = d.Medicine?.Unit,
-                Quantity = d.Quantity,
-                UnitPrice = d.UnitPrice,
+                DetailId         = d.Id,
+                MedicineId       = d.MedicineId ?? 0,
+                MedicineName     = d.Medicine?.Name ?? "—",
+                Unit             = d.Medicine?.Unit,
+                Quantity         = d.Quantity,
+                UnitPrice        = d.UnitPrice > 0 ? d.UnitPrice : 0,
                 UsageInstruction = d.UsageInstruction
-            }).ToList()
+            }).ToList() ?? new()
         };
     }
 }

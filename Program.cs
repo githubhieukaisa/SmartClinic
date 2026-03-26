@@ -17,6 +17,7 @@ namespace SmartClinic
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
             var builder = WebApplication.CreateBuilder(args);
+            builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
             // Add services to the container.
             builder.Services.AddRazorComponents()
@@ -82,7 +83,11 @@ namespace SmartClinic
                 context.Response.Cookies.Delete("refresh_token");
                 return Results.Redirect("/login");
             });
-
+            app.MapGet("/logout-action", async (HttpContext context) =>
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return Results.Redirect("/login");
+            });
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
