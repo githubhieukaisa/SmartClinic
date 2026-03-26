@@ -17,6 +17,7 @@
 @inject IPharmacyService PharmacyService
 @inject ILabService LabService
 @attribute [Authorize(Policy = "DoctorPolicy")]
+@inject AiService AiService
 
 
 <div class="p-8">
@@ -105,6 +106,31 @@
             <div class="flex items-center gap-3 mb-6">
                 <i class="ph ph-file-text text-2xl text-primary"></i>
                 <h2 class="text-xl font-bold text-foreground">Hồ Sơ Khám Bệnh</h2>
+            </div>
+
+            <!-- AI Quick Input Area -->
+            <div class="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Phụ tá (Nhập nhanh tại đây)</label>
+                    <div class="flex items-center gap-2">
+                         @if (_isAiLoading)
+                        {
+                            <span class="text-xs text-primary animate-pulse flex items-center gap-1">
+                                <i class="ph ph-sparkle"></i> AI đang phân tích...
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <input @bind="_aiRawInput" @bind:event="oninput" @onkeyup="HandleAiKeydown"
+                           placeholder="Ví dụ: đau họng, sốt nhẹ, viêm họng cấp..."
+                           class="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white" />
+                    <button @onclick="ProcessAiRefinementAsync" disabled="@(string.IsNullOrWhiteSpace(_aiRawInput) || _isAiLoading)"
+                            class="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                        <i class="ph ph-magic-wand"></i> Standardize
+                    </button>
+                </div>
+                <p class="mt-2 text-[11px] text-slate-400 italic">Gợi ý: Nhập triệu chứng tóm tắt rồi nhấn Standardize để AI tự động điền hồ sơ chuẩn.</p>
             </div>
 
             <div class="space-y-6">
@@ -218,45 +244,56 @@
     private bool _isLoading = true;
     private string? _errorMessage;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Loading data for TicketId={TicketId}, PatientId={PatientId}");
+        // Chạy ngầm việc tải dữ liệu để không block luồng render UI chính
+        // Điều này giúp trang hiện lên ngay lập tức
+        _ = LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Background loading started for TicketId={TicketId}");
 
         try
         {
-            _patient = await PatientService.GetPatientByIdAsync(PatientId);
-            _hasPendingLabs = await LabService.HasPendingLabOrdersAsync(TicketId);
+            // Thực hiện query song song
+            var patientTask = PatientService.GetPatientByIdAsync(PatientId);
+            var labsTask = LabService.HasPendingLabOrdersAsync(TicketId);
+
+            using var context = DbFactory.CreateDbContext();
+
+            await Task.WhenAll(patientTask, labsTask);
+
+            _patient = await patientTask;
+            _hasPendingLabs = await labsTask;
+
+            // Lấy thông tin ticket song song với context riêng đã tạo
+            var existingTicket = await context.QueueTickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == TicketId);
 
             if (_patient == null)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ [Examination] Patient not found with ID={PatientId}");
                 _errorMessage = $"Không tìm thấy bệnh nhân có ID {PatientId}";
             }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"✅ [Examination] Loaded patient: {_patient.FullName}");
-            }
 
-            // Load existing medical record data from DB
-            using var context = DbFactory.CreateDbContext();
-            var existingTicket = await context.QueueTickets.FindAsync(TicketId);
             if (existingTicket != null)
             {
                 _currentRoomId = existingTicket.RoomId;
                 _diagnosis = existingTicket.Diagnosis ?? "";
                 _treatmentPlan = existingTicket.TreatmentPlan ?? "";
                 _notes = existingTicket.AdditionalNotes ?? "";
-                System.Diagnostics.Debug.WriteLine($"✅ [Examination] Pre-filled medical record fields from DB. RoomId: {_currentRoomId}");
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ [Examination] ERROR loading patient: {ex.Message}");
-            _errorMessage = "Không thể tải hồ sơ bệnh nhân. Vui lòng liên hệ bộ phận kỹ thuật hoặc thử lại sau.";
+            _errorMessage = "Không thể tải hồ sơ bệnh nhân. Vui lòng thử lại sau.";
+            System.Diagnostics.Debug.WriteLine($"❌ [Examination] Error: {ex.Message}");
         }
         finally
         {
             _isLoading = false;
+            // Quan trọng: Gọi StateHasChanged từ luồng background để cập nhật UI
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -293,6 +330,52 @@
 
         ToastService.ShowSuccess("Đã lưu hồ sơ khám bệnh thành công!");
         StateHasChanged();
+    }
+
+    private string _aiRawInput = "";
+    private bool _isAiLoading = false;
+    
+    private async Task HandleAiKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_aiRawInput) && !_isAiLoading)
+        {
+            await ProcessAiRefinementAsync();
+        }
+    }
+
+    private async Task ProcessAiRefinementAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_aiRawInput)) return;
+
+        try
+        {
+            _isAiLoading = true;
+            StateHasChanged();
+
+            var result = await AiService.RefineMedicalRecordAsync(_aiRawInput);
+            
+            if (result != null)
+            {
+                _diagnosis = result.Diagnosis;
+                _treatmentPlan = result.Treatment;
+                _notes = result.Notes;
+                _aiRawInput = ""; // Clear input after success
+                ToastService.ShowSuccess("AI đã chuẩn hóa hồ sơ thành công!");
+            }
+            else
+            {
+                ToastService.ShowError("AI không thể phản hồi lúc này. Vui lòng kiểm tra API Key.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Lỗi AI: {ex.Message}");
+        }
+        finally
+        {
+            _isAiLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task CompleteExaminationAsync()

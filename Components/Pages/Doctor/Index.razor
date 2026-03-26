@@ -9,7 +9,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @rendermode InteractiveServer
 @layout MainLayout
-@inject SmartClinicDbContext DbContext
+@inject IDbContextFactory<SmartClinicDbContext> DbFactory
 @inject PatientService PatientService
 @inject NavigationManager NavigationManager
 @inject IToastService ToastService
@@ -21,16 +21,16 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p class="text-muted-foreground mt-1">Welcome back, Dr. Miller</p>
+            <h1 class="text-3xl font-bold text-foreground">Tổng Quan</h1>
+            <p class="text-muted-foreground mt-1">Chào mừng trở lại!</p>
         </div>
         <div class="flex items-center gap-4">
 
             @* ── TEST ONLY — xóa khi production ───────────────────── *@
             <button @onclick="AddTestQueueTicketAsync"
                     class="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-500/20 transition border border-amber-500/30">
-                <i class="ph ph-test-tube"></i>
-                Add Test Ticket
+                <i class="ph ph-flask"></i>
+                Thêm vé mẫu
             </button>
 
             <button @onclick="SimulateShiftChangeAsync"
@@ -41,8 +41,8 @@
             @* ─────────────────────────────────────────────────────────── *@
 
             <div class="text-right">
-                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
-                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+                <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, dd/MM/yyyy")</p>
+                <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("HH:mm")</p>
             </div>
             <button class="relative p-2 hover:bg-muted rounded-lg transition">
                 <i class="ph ph-bell text-xl text-foreground"></i>
@@ -52,157 +52,259 @@
     </div>
 
     <!-- Appointment Summary -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Total Patients -->
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Total Patients</h4>
-                <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-users text-xl text-primary"></i>
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-foreground">Tổng quan hàng đợi</h2>
+        <div class="flex items-center gap-2 bg-muted p-1 rounded-lg">
+            <button @onclick="@(() => SetFilterAsync("Day"))"
+                    class="px-3 py-1 rounded-md text-sm font-medium transition @(_filterPeriod == "Day" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")">Hôm
+                nay</button>
+                <button @onclick="@(() => SetFilterAsync("Week"))"
+                        class="px-3 py-1 rounded-md text-sm font-medium transition @(_filterPeriod == "Week" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")">Tuần
+                    này</button>
+                    <button @onclick="@(() => SetFilterAsync("Month"))"
+                            class="px-3 py-1 rounded-md text-sm font-medium transition @(_filterPeriod == "Month" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")">Tháng
+                        này</button>
+                    </div>
                 </div>
-            </div>
-            <p class="text-3xl font-bold text-primary">12</p>
-            <div class="mt-4 bg-primary/10 rounded-full h-2">
-                <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
-            </div>
-        </div>
 
-        <!-- Completed -->
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Completed</h4>
-                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-check-circle text-xl text-green-600"></i>
-                </div>
-            </div>
-            <p class="text-3xl font-bold text-green-600">7</p>
-            <div class="mt-4 bg-green-100 rounded-full h-2">
-                <div class="bg-green-600 h-full rounded-full" style="width: 58%"></div>
-            </div>
-        </div>
-
-        <!-- In Progress -->
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">In Progress</h4>
-                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <i class="ph ph-clock text-xl text-blue-600"></i>
-                </div>
-            </div>
-            <p class="text-3xl font-bold text-blue-600">2</p>
-            <div class="mt-4 bg-blue-100 rounded-full h-2">
-                <div class="bg-blue-600 h-full rounded-full" style="width: 17%"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Today's Queue -->
-        <div class="lg:col-span-2 bg-card rounded-xl border border-border p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-2">
-                    <i class="ph-bold ph-queue text-xl text-foreground"></i>
-                    <h2 class="text-xl font-bold text-foreground">Today's Queue</h2>
-                </div>
-                <button class="flex items-center gap-1 text-primary hover:text-primary/80 text-sm font-medium">
-                    View All <i class="ph-bold ph-arrow-right"></i>
-                </button>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-border">
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Patient</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Age</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Time</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Status</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var patient in patients)
-                        {
-                            <tr class="border-b border-border transition @GetRowBgClass(patient.Status)">
-                                <td class="py-3 px-4">
-                                    <p class="font-medium text-foreground">@patient.Name</p>
-                                    <p class="text-xs text-muted-foreground">@patient.Condition</p>
-                                </td>
-                                <td class="py-3 px-4 text-foreground">@patient.Age</td>
-                                <td class="py-3 px-4 text-foreground">@patient.Time</td>
-                                <td class="py-3 px-4">
-                                    <span
-                                        class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(patient.Status)">
-                                        @patient.Status
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4">
-                                    <button
-                                        class="flex items-center gap-1 text-primary hover:text-primary/80 font-medium text-xs">
-                                        View <i class="ph ph-arrow-right"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Quick Actions & Upcoming -->
-        <div class="space-y-6">
-            <!-- Quick Actions -->
-            <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
-                <div class="flex items-center gap-2 mb-4">
-                    <i class="ph ph-lightning text-xl text-foreground"></i>
-                    <h3 class="text-lg font-bold text-foreground">Quick Actions</h3>
-                </div>
-                <div class="space-y-3">
-                    <button
-                        class="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90 transition">
-                        <i class="ph ph-note-pencil"></i> Create Medical Record
-                    </button>
-                    <button
-                        class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
-                        <i class="ph ph-pill"></i> Prescribe Medicine
-                    </button>
-                    <button
-                        class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
-                        <i class="ph ph-test-tube"></i> Request Lab Test
-                    </button>
-                </div>
-            </div>
-
-            <!-- Upcoming Appointments -->
-            <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
-                <div class="flex items-center gap-2 mb-4">
-                    <i class="ph ph-calendar-check text-xl text-foreground"></i>
-                    <h3 class="text-lg font-bold text-foreground">Upcoming Appointments</h3>
-                </div>
-                <div class="space-y-3">
-                    @foreach (var appointment in upcomingAppointments)
-                    {
-                        <div class="border-l-4 border-primary pl-4 py-2">
-                            <p class="font-medium text-foreground text-sm">@appointment.PatientName</p>
-                            <p class="text-xs text-muted-foreground">@appointment.Time</p>
-                            <p class="text-xs text-muted-foreground mt-1">@appointment.Reason</p>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-semibold text-foreground text-sm">Tổng số hàng đợi</h4>
+                            <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <i class="ph ph-queue text-xl text-primary"></i>
+                            </div>
                         </div>
-                    }
+                        <p class="text-3xl font-bold text-primary">@TotalCount</p>
+                        <div class="mt-4 bg-primary/10 rounded-full h-2">
+                            <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-semibold text-foreground text-sm">Đang chờ khám</h4>
+                            <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                                <i class="ph ph-hourglass text-xl text-amber-600"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-amber-600">@WaitingCount</p>
+                        <div class="mt-4 bg-amber-100 rounded-full h-2">
+                            <div class="bg-amber-500 h-full rounded-full" style="width: @WaitingPct%"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-semibold text-foreground text-sm">Đang khám / Xét nghiệm</h4>
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="ph ph-clock text-xl text-blue-600"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-blue-600">@InProgressCount</p>
+                        <div class="mt-4 bg-blue-100 rounded-full h-2">
+                            <div class="bg-blue-600 h-full rounded-full" style="width: @InProgressPct%"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Dashboard Tables -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Testing Queue -->
+                        <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                                        <i class="ph ph-flask text-lg text-purple-600"></i>
+                                    </div>
+                                    <h2 class="text-lg font-bold text-foreground">Bệnh nhân đang xét nghiệm</h2>
+                                </div>
+                                <button @onclick='() => NavigationManager.NavigateTo("/doctor/my-patients")'
+                                        class="flex items-center gap-1 text-primary hover:text-primary/80 text-sm font-medium transition">
+                                    Xem hàng đợi <i class="ph ph-arrow-right"></i>
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                @if (!_testingTickets.Any())
+                                {
+                                    <div class="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                                        <i class="ph ph-check-circle text-4xl mb-2 text-muted-foreground/50"></i>
+                                        <span class="text-sm">Không có bệnh nhân nào đang đợi kết quả xét nghiệm.</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr class="border-b border-border bg-muted/30">
+                                                <th class="text-center py-3 px-4 font-semibold text-muted-foreground w-16">STT</th>
+                                                <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Bệnh nhân</th>
+                                                <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Trạng thái</th>
+                                                <th class="text-right py-3 px-4 font-semibold text-muted-foreground">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var t in _testingTickets)
+                                            {
+                                                <tr class="border-b border-border transition hover:bg-muted/30">
+                                                    <td class="py-3 px-4 font-bold text-foreground text-center">@t.TicketNumber</td>
+                                                    <td class="py-3 px-4">
+                                                        <p class="font-medium text-foreground">@t.Patient?.FullName</p>
+                                                        <p class="text-xs text-muted-foreground mt-0.5">@t.Patient?.Phone</p>
+                                                    </td>
+                                                    <td class="py-3 px-4">
+                                                        <span
+                                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                                            Đang chờ KQ
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-3 px-4 text-right">
+                                                        <button
+                                                            @onclick='() => NavigationManager.NavigateTo($"/doctor/examination/{t.Id}/{t.PatientId}")'
+                                                            class="flex items-center justify-end gap-1 w-full text-primary hover:text-primary/80 font-medium text-xs">
+                                                            Đọc KQ <i class="ph ph-arrow-right"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Recently Completed -->
+                        <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                                        <i class="ph ph-check-circle text-lg text-green-600 font-bold"></i>
+                                    </div>
+                                    <h2 class="text-lg font-bold text-foreground">Khám xong gần đây</h2>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                @if (!_recentCompletedTickets.Any())
+                                {
+                                    <div class="text-center py-6 text-muted-foreground text-sm">
+                                        Chưa có bệnh nhân nào hoàn tất khám hôm nay.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <table class="w-full text-sm">
+                                        <tbody>
+                                            @foreach (var t in _recentCompletedTickets)
+                                            {
+                                                <tr class="border-b border-border last:border-0 transition hover:bg-muted/30">
+                                                    <td
+                                                        class="py-3 px-4 font-bold text-foreground w-16 text-center text-muted-foreground/70">
+                                                        @t.TicketNumber</td>
+                                                        <td class="py-3 px-4">
+                                                            <p class="font-medium text-foreground">@t.Patient?.FullName</p>
+                                                        </td>
+                                                        <td class="py-3 px-4 text-right text-muted-foreground text-xs">
+                                                            @(t.UpdatedAt?.ToString("HH:mm") ?? t.CreatedAt.ToString("HH:mm"))
+                                                        </td>
+                                                        <td class="py-3 px-4 text-right">
+                                                            <button
+                                                                @onclick='() => NavigationManager.NavigateTo($"/doctor/examination/{t.Id}/{t.PatientId}")'
+                                                                class="flex items-center justify-end gap-1 w-full text-primary hover:text-primary/80 font-medium text-xs">
+                                                                Xem lại <i class="ph ph-arrow-right"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column -->
+                        <div class="space-y-6">
+                            <!-- Quick Actions -->
+                            <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <i class="ph ph-lightning text-xl text-foreground"></i>
+                                    <h3 class="text-lg font-bold text-foreground">Tiện ích nhanh</h3>
+                                </div>
+                                <div class="space-y-3">
+                                    <button @onclick='() => NavigationManager.NavigateTo("/doctor/my-patients")'
+                                            class="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90 transition shadow-sm">
+                                        <i class="ph ph-monitor-play"></i> Mở màn hình nhận bệnh
+                                    </button>
+                                    <button @onclick="OpenWaitingRoom"
+                                            class="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-lg font-medium hover:bg-primary/20 transition">
+                                        <i class="ph ph-monitor"></i> Màn hình chờ (Tivi)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Shift Info -->
+                            <div class="bg-card rounded-xl border border-border p-6 shadow-sm">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <i class="ph ph-clock text-xl text-foreground"></i>
+                                    <h3 class="text-lg font-bold text-foreground">Ca trực hiện tại</h3>
+                                </div>
+                                @if (_currentShift != null)
+                                {
+                                    <div class="bg-muted/30 rounded-lg p-4 border border-border">
+                                        <div class="flex items-center justify-between mb-3 border-b border-border pb-3">
+                                            <span class="text-sm text-muted-foreground">Phòng khám</span>
+                                            <span class="font-semibold text-foreground">@_currentShift.Room?.Name</span>
+                                        </div>
+                                        <div class="flex items-center justify-between mb-3 border-b border-border pb-3">
+                                            <span class="text-sm text-muted-foreground">Bắt đầu</span>
+                                            <span class="font-medium text-foreground">@_currentShift.StartTime.ToString("HH:mm")</span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm text-muted-foreground">Trạng thái</span>
+                                            <span
+                                                class="inline-flex py-1 px-2.5 rounded-md text-xs font-semibold bg-green-100 text-green-700">
+                                                Đang hoạt động
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div
+                                        class="text-center py-6 text-muted-foreground text-sm border border-dashed border-border rounded-lg bg-muted/20">
+                                        Bạn chưa được phân ca trực nào hôm nay.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
 @code {
-    private List<PatientQueueItem> patients = new();
-    private List<UpcomingAppointment> upcomingAppointments = new();
     private int _currentDoctorId = 0;
+
+    // Lists for main content
+    private List<QueueTicket> _testingTickets = new();
+    private List<QueueTicket> _recentCompletedTickets = new();
+    private DoctorShift? _currentShift;
+    private int? _currentRoomId;
+    private string? _roomName;
+    private bool _isLoading = true; // Thêm biến tracking loading state
+
+    // Summary logic
+    private int TotalCount = 0;
+    private int WaitingCount = 0;
+    private int InProgressCount = 0;
+    private int WaitingPct => TotalCount > 0 ? WaitingCount * 100 / TotalCount : 0;
+    private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
+    private string _filterPeriod = "Day"; // Day, Week, Month
 
     protected override async Task OnInitializedAsync()
     {
-        // Lấy DoctorId từ claims (giống MyPatient.razor)
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         if (user?.Identity?.IsAuthenticated == true)
@@ -212,23 +314,136 @@
                 _currentDoctorId = id;
         }
 
-        patients = new List<PatientQueueItem>
-        {
-            new("Christopher T.", 29, "08:30 AM", "In Progress", "Chest Pain"),
-            new("Sarah Anderson", 34, "08:50 AM", "Waiting", "Headache"),
-            new("Michael Chen", 45, "09:10 AM", "Waiting", "Blood Pressure Check"),
-            new("Emily Rodriguez", 28, "09:30 AM", "Done", "Flu Symptoms"),
-            new("David Kumar", 52, "09:50 AM", "Waiting", "Diabetes Checkup"),
-            new("Lisa Johnson", 38, "10:10 AM", "Done", "Annual Checkup"),
-        };
+        // Kỹ thuật "Fire and Forget": Render khung Dashboard ngay, nạp data ngầm
+        _ = LoadCompleteDashboardDataAsync();
+    }
 
-        upcomingAppointments = new List<UpcomingAppointment>
+    private async Task LoadCompleteDashboardDataAsync()
+    {
+        if (_currentDoctorId <= 0) return;
+
+        try
         {
-            new("Jennifer White", "02:00 PM", "Follow-up Consultation"),
-            new("Robert Brown", "03:30 PM", "Lab Results Review"),
-            new("Maria Garcia", "04:15 PM", "Chronic Pain Management"),
-            new("James Wilson", "05:00 PM", "Post-Surgery Check"),
-        };
+            using var context = DbFactory.CreateDbContext();
+            var today = DateTime.Today;
+
+            // Tạo 2 context riêng biệt để chạy song song Task.WhenAll mà không bị tranh chấp (Lỗi Second operation started)
+            using var context1 = DbFactory.CreateDbContext();
+            using var context2 = DbFactory.CreateDbContext();
+
+            var shiftQuery = context1.DoctorShifts
+                .AsNoTracking()
+                .Include(s => s.Room)
+                .Where(s => s.DoctorId == _currentDoctorId && s.StartTime >= today)
+                .OrderByDescending(s => s.StartTime)
+                .Select(s => new { s.RoomId, RoomName = s.Room != null ? s.Room.Name : "N/A", ShiftObject = s })
+                .FirstOrDefaultAsync();
+
+            var doctorQuery = context2.Users
+                .AsNoTracking()
+                .Include(u => u.Room)
+                .Where(u => u.Id == _currentDoctorId)
+                .Select(u => new { u.RoomId, RoomName = u.Room != null ? u.Room.Name : "N/A" })
+                .FirstOrDefaultAsync();
+
+            await Task.WhenAll(shiftQuery, doctorQuery);
+
+            var shiftInfo = await shiftQuery;
+            var doctorInfo = await doctorQuery;
+
+            _currentShift = shiftInfo?.ShiftObject;
+            _currentRoomId = shiftInfo?.RoomId ?? doctorInfo?.RoomId;
+            _roomName = shiftInfo?.RoomName ?? doctorInfo?.RoomName;
+
+            if (_currentRoomId == null) return;
+
+            // Dùng lại một context cho phần query ticket (vì lúc này 2 task trên đã xong)
+            using var context3 = DbFactory.CreateDbContext();
+            var baseTicketsQuery = context3.QueueTickets.AsNoTracking().Where(t => t.RoomId == _currentRoomId);
+
+            // Xác định mốc thời gian dựa theo Filter
+            DateTime filterStartDate = today;
+            if (_filterPeriod == "Week")
+            {
+                int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+                filterStartDate = today.AddDays(-1 * diff).Date;
+            }
+            else if (_filterPeriod == "Month")
+            {
+                filterStartDate = new DateTime(today.Year, today.Month, 1);
+            }
+
+            // Lấy data đã tinh gọn (Projection) để giảm payload nặng nề từ Cloud
+            var allData = await baseTicketsQuery
+                .Where(t => t.CreatedAt >= filterStartDate || t.StatusEnum == TicketStatus.Testing)
+                .Select(t => new
+                {
+                    t.Id,
+                    t.TicketNumber,
+                    t.StatusEnum,
+                    t.CreatedAt,
+                    t.UpdatedAt,
+                    PatientName = t.Patient != null ? t.Patient.FullName : "N/A"
+                })
+                .ToListAsync();
+
+            // Xử lý logic tại Memory (RAM) - Nhanh hơn hàng trăm lần Roundtrip tới Database
+            var filterTickets = allData.Where(t => t.CreatedAt >= filterStartDate).ToList();
+
+            TotalCount = filterTickets.Count;
+            WaitingCount = filterTickets.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling);
+            InProgressCount = filterTickets.Count(t => t.StatusEnum == TicketStatus.Examinating || t.StatusEnum ==
+TicketStatus.Testing);
+
+            // Bệnh nhân đang xét nghiệm (Bao gồm cả cũ hơn nếu state vẫn là Testing)
+            _testingTickets = allData
+                .Where(t => t.StatusEnum == TicketStatus.Testing)
+                .OrderByDescending(t => t.UpdatedAt)
+                .Take(5)
+                .Select(t => new QueueTicket
+                {
+                    Id = t.Id,
+                    TicketNumber = t.TicketNumber,
+                    StatusEnum = t.StatusEnum,
+                    Patient = new Patient { FullName = t.PatientName }
+                })
+                .ToList();
+
+            // Khám xong gần đây
+            _recentCompletedTickets = filterTickets
+                .Where(t => t.StatusEnum == TicketStatus.Completed || t.StatusEnum == TicketStatus.Done)
+                .OrderByDescending(t => t.UpdatedAt)
+                .Take(5)
+                .Select(t => new QueueTicket
+                {
+                    Id = t.Id,
+                    TicketNumber = t.TicketNumber,
+                    StatusEnum = t.StatusEnum,
+                    Patient = new Patient { FullName = t.PatientName }
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error optimization: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false; // Tắt trạng thái loading sau khi nạp xong data ngầm
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task SetFilterAsync(string period)
+    {
+        _filterPeriod = period;
+        await LoadSummaryAsync();
+    }
+
+    private async Task LoadSummaryAsync()
+    {
+        // Hàm này giờ chỉ cần gọi lại hàm tổng hợp để đồng bộ
+        await LoadCompleteDashboardDataAsync();
     }
 
     private string GetStatusClass(string status) => status switch
@@ -263,7 +478,8 @@
                 return;
             }
 
-            var doctor = await DbContext.Users.Include(u => u.Room).FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
+            using var context = DbFactory.CreateDbContext();
+            var doctor = await context.Users.Include(u => u.Room).FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
             if (doctor?.Room == null)
             {
                 ToastService.ShowError("Doctor has no assigned room.");
@@ -271,19 +487,33 @@
             }
 
             await TicketService.GenerateTicketAsync(
-                $"Test Patient {DateTime.Now:HHmmss}",
+                $"Bệnh nhân mẫu {DateTime.Now:HHmmss}",
                 "0900000000",
                 doctor.Room.DepartmentId
             );
-            ToastService.ShowSuccess("Test ticket added successfully.");
+            ToastService.ShowSuccess("Thêm vé mẫu thành công.");
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Error creating test ticket: {ex.Message}");
+            ToastService.ShowError($"Lỗi khi tải mẫu: {ex.Message}");
         }
         finally
         {
             _isAddingTestTicket = false;
+        }
+    }
+
+    private void OpenWaitingRoom()
+    {
+        if (_currentRoomId.HasValue && _currentRoomId.Value > 0)
+        {
+            // Do màn hình chờ là giao diện Tivi (Kiosk mode), nên mở sang tab mới bằng JSRuntime (nếu có)
+            // Tuy nhiên với Blazor Server, NavigateTo vẫn là cách chuẩn, user có thể bấm chuột giữa để mở tab mới.
+            NavigationManager.NavigateTo($"/waiting-room/{_currentRoomId.Value}");
+        }
+        else
+        {
+            ToastService.ShowError("Bạn chưa được phân phòng, không thể mở màn hình chờ.");
         }
     }
 
@@ -299,7 +529,8 @@
             var now = DateTime.Now;
 
             // 1. Lấy tất cả ca trực đang diễn ra và ĐÓNG lại (Completed)
-            var currentShifts = await DbContext.DoctorShifts
+            using var context = DbFactory.CreateDbContext();
+            var currentShifts = await context.DoctorShifts
                 .Where(s => s.DoctorId == _currentDoctorId && s.StatusEnum == DoctorShiftStatus.Active)
                 .ToListAsync();
 
@@ -314,7 +545,7 @@
 
             // 🐛 [FIX LỖI SUPABASE/POSTGRES BỊ KẸT SEQUENCE]
             // Tìm số ID to nhất đang có trong DB và cộng thêm 1 để ép vô thẳng khoá chính
-            var maxId = await DbContext.DoctorShifts.MaxAsync(s => (int?)s.Id) ?? 0;
+            var maxId = await context.DoctorShifts.MaxAsync(s => (int?)s.Id) ?? 0;
             // Giả lập 1 phút nữa Bác sĩ _currentDoctorId sẽ phải chạy sang trực Phòng số 6
             var fakeShift = new DoctorShift
             {
@@ -325,8 +556,8 @@
                 EndTime = now.AddHours(4),
                 StatusEnum = DoctorShiftStatus.Active
             };
-            DbContext.DoctorShifts.Add(fakeShift);
-            await DbContext.SaveChangesAsync();
+            context.DoctorShifts.Add(fakeShift);
+            await context.SaveChangesAsync();
             ToastService.ShowInfo($"Đã xếp lịch: Ca trực ảo tại Phòng 6 sẽ bắt đầu lúc {fakeShift.StartTime.ToString("HH:mm:ss")}. (hãy đợi và kiểm tra log console!)");
         }
         catch (Exception ex)
@@ -336,6 +567,5 @@
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    private record PatientQueueItem(string Name, int Age, string Time, string Status, string Condition);
-    private record UpcomingAppointment(string PatientName, string Time, string Reason);
+
 }

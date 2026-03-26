@@ -47,7 +47,8 @@ namespace SmartClinic.Services
             services.AddScoped<ILabService, LabService>();
             services.AddScoped<IUserService, UserService>();
             services.AddSingleton<NotificationService>();
-             services.AddScoped<VNPayService>();
+            services.AddScoped<VNPayService>();
+            services.AddHttpClient<AiService>();
             services.AddHttpContextAccessor();
             services.AddBlazoredToast();
             //Đăng ký logger cho AuthService

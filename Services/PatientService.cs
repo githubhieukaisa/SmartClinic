@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Constant;
 using SmartClinic.Hubs;
@@ -132,12 +132,19 @@ namespace SmartClinic.Services
 
                 System.Diagnostics.Debug.WriteLine($"🔵 [PatientService] Found active DoctorShift: RoomId={doctorShift.RoomId}");
 
-                // STEP 2: Get all queue tickets for this room (not just this doctor)
-                // This ensures all patients in the room are visible to the doctor
+                // STEP 2: Get all queue tickets for this room (not just this doctor) for TODAY
+                // This ensures all patients in the room are visible to the doctor, preventing historical noise
+                var today = DateTime.Today;
                 var tickets = await context.QueueTickets
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
-                    .Where(t => t.RoomId == doctorShift.RoomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Testing))
+                    .Where(t => t.RoomId == doctorShift.RoomId 
+                             && (
+                                 (t.StatusEnum == TicketStatus.Waiting && t.CreatedAt >= today) || 
+                                 t.StatusEnum == TicketStatus.Examinating || 
+                                 t.StatusEnum == TicketStatus.Calling || 
+                                 t.StatusEnum == TicketStatus.Testing
+                             ))
                     .ToListAsync();  // Load to memory first, then sort
 
                 // Sort by priority: Examining → Testing → Calling → Waiting

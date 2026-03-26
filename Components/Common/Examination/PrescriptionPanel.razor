@@ -24,7 +24,11 @@
                     @foreach (var med in _availableMedicines.Where(m => !_prescribedMedicines.Any(pm =>
                         pm.MedicineId == m.Id)))
                     {
-                        <option value="@med.Id">@med.Name (@med.Unit)</option>
+                        var stock = med.PhysicalStock;
+                        bool isAvailable = med.IsForSale && stock > 0;
+                        <option value="@med.Id" disabled="@(!isAvailable)">
+                            @med.Name (@med.Unit) - Tồn: @stock
+                        </option>
                     }
                 </select>
             </div>
@@ -230,6 +234,12 @@
         var selectedMed = _availableMedicines.FirstOrDefault(m => m.Id == _selectedMedicineId);
         if (selectedMed != null)
         {
+            if (!selectedMed.IsForSale || _medicineQuantity > selectedMed.PhysicalStock)
+            {
+                ToastService.ShowError($"Số lượng không đủ! Thuốc {selectedMed.Name} chỉ còn {selectedMed.PhysicalStock}.");
+                return;
+            }
+
             _prescribedMedicines.Add(new PrescribedMedicine
             {
                 MedicineId = _selectedMedicineId,
@@ -286,6 +296,40 @@
             prescription.TotalAmount = totalAmount;
 
             using var context = DbFactory.CreateDbContext();
+
+            // Kiểm tra lại tồn kho trực tiếp từ DB ngay trước khi lưu để tránh conflict do 2 bác sĩ cùng kê một loại thuốc
+            var medicineIds = _prescribedMedicines.Select(m => m.MedicineId).ToList();
+            var dbMedicines = await context.Medicines
+                .Where(m => medicineIds.Contains(m.Id))
+                .ToDictionaryAsync(m => m.Id);
+
+            foreach (var med in _prescribedMedicines)
+            {
+                if (dbMedicines.TryGetValue(med.MedicineId, out var dbMed))
+                {
+                    if (!dbMed.IsForSale || med.Quantity > dbMed.PhysicalStock)
+                    {
+                        ToastService.ShowError($"Thuốc {dbMed.Name} không đủ tồn kho (chỉ còn {dbMed.PhysicalStock}). Vui lòng điều chỉnh lại.");
+                        _showPrescriptionConfirm = false;
+
+                        // Cập nhật lại số lượng tồn kho hiển thị mới nhất
+                        var availableMed = _availableMedicines.FirstOrDefault(m => m.Id == dbMed.Id);
+                        if (availableMed != null)
+                        {
+                            availableMed.StockQuantity = dbMed.StockQuantity;
+                        }
+
+                        StateHasChanged();
+                        return;
+                    }
+                }
+                else
+                {
+                    ToastService.ShowError($"Cơ sở dữ liệu không tìm thấy thuốc: {med.MedicineName}.");
+                    return;
+                }
+            }
+
             context.Prescriptions.Add(prescription);
             await context.SaveChangesAsync();
 
