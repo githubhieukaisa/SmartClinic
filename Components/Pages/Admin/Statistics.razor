@@ -159,6 +159,32 @@ else
             }
         </div>
     </div>
+
+    <!-- ═══════════ BỆNH NHÂN THEO KHOA ═══════════ -->
+    <div class="bg-white rounded-xl shadow-sm p-5 ring-1 ring-slate-200 mb-6">
+        <h3 class="text-base font-bold text-slate-800 mb-4">Số lượng bệnh nhân theo khoa</h3>
+        @if (patientsByDept.Any())
+        {
+            <RadzenChart Style="@deptChartStyle">
+                <RadzenBarSeries Data="@patientsByDept"
+                                CategoryProperty="DepartmentName"
+                                ValueProperty="PatientCount"
+                                Title="Lượt khám">
+                    <RadzenSeriesDataLabels Visible="true" />
+                </RadzenBarSeries>
+                <RadzenCategoryAxis />
+                <RadzenValueAxis FormatString="{0:N0}" />
+                <RadzenBarOptions Radius="4" />
+                <RadzenLegend Visible="false" />
+            </RadzenChart>
+        }
+        else
+        {
+            <div class="flex items-center justify-center h-[200px] text-slate-400">
+                Chưa có dữ liệu bệnh nhân trong khoảng thời gian này
+            </div>
+        }
+    </div>
 }
 
 @code {
@@ -170,6 +196,10 @@ else
     private OverviewStats overview = new();
     private List<DailyRevenueItem> dailyRevenue = new();
     private List<RevenueBreakdownItem> revenueBreakdown = new();
+    private List<PatientsByDepartmentItem> patientsByDept = new();
+
+    private string deptChartStyle =>
+        $"width: 100%; height: {Math.Max(patientsByDept.Count * 60, 200)}px";
 
     // ──────── LIFECYCLE ────────
     protected override async Task OnInitializedAsync()
@@ -184,6 +214,7 @@ else
         overview = await StatisticsService.GetOverviewAsync(DateTime.Today);
         dailyRevenue = await StatisticsService.GetDailyRevenueAsync(fromDate, toDate);
         revenueBreakdown = await StatisticsService.GetRevenueBreakdownAsync(fromDate, toDate);
+        patientsByDept = await StatisticsService.GetPatientsByDepartmentAsync(fromDate, toDate);
 
         isLoading = false;
     }
