@@ -138,11 +138,11 @@ namespace SmartClinic.Services
                 var tickets = await context.QueueTickets
                     .AsNoTracking()  // No tracking needed for read-only queries
                     .Include(t => t.Patient)
-                    .Where(t => t.RoomId == doctorShift.RoomId 
+                    .Where(t => t.RoomId == doctorShift.RoomId
                              && (
-                                 (t.StatusEnum == TicketStatus.Waiting && t.CreatedAt >= today) || 
-                                 t.StatusEnum == TicketStatus.Examinating || 
-                                 t.StatusEnum == TicketStatus.Calling || 
+                                 (t.StatusEnum == TicketStatus.Waiting && t.CreatedAt >= today) ||
+                                 t.StatusEnum == TicketStatus.Examinating ||
+                                 t.StatusEnum == TicketStatus.Calling ||
                                  t.StatusEnum == TicketStatus.Testing
                              ))
                     .ToListAsync();  // Load to memory first, then sort
@@ -209,7 +209,7 @@ namespace SmartClinic.Services
                     PatientId = patientId,
                     TicketNumber = nextTicketNumber,
                     StatusEnum = TicketStatus.Waiting,
-                    ClinicalDiagnosis = diagnosis,
+                    Diagnosis = diagnosis,
                     CreatedAt = DateTime.Now,
                     RoomId = doctorShift.RoomId  // ✅ Get room from active doctor shift
                 };
