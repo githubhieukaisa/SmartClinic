@@ -1,0 +1,232 @@
+@page "/admin/statistics"
+@using Microsoft.AspNetCore.Authorization
+@using SmartClinic.DTOs
+
+@attribute [Authorize(Policy = "AdminPolicy")]
+@rendermode InteractiveServer
+
+@inject IStatisticsService StatisticsService
+
+<!-- ═══════════ HEADER + BỘ LỌC NGÀY ═══════════ -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800 ml-4">Thống kê Doanh thu</h1>
+        <p class="text-sm text-slate-500 mt-1 ml-4">Tổng quan hoạt động và doanh thu phòng khám</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-slate-600">Từ:</label>
+            <input type="date" value="@fromDate.ToString("yyyy-MM-dd")"
+                   @onchange="e => OnFromDateChanged(e.Value?.ToString())"
+                   class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-slate-600">Đến:</label>
+            <input type="date" value="@toDate.ToString("yyyy-MM-dd")"
+                   @onchange="e => OnToDateChanged(e.Value?.ToString())"
+                   class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════ 4 KPI CARDS ═══════════ -->
+@if (isLoading)
+{
+    <div class="bg-white rounded-xl shadow-sm p-12 text-center text-slate-400">
+        <p class="text-lg">Đang tải dữ liệu thống kê...</p>
+    </div>
+}
+else
+{
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Card: Bệnh nhân -->
+        <div class="bg-white rounded-xl shadow-sm p-5 ring-1 ring-slate-200">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-slate-500">Bệnh nhân hôm nay</span>
+                <span class="w-10 h-10 flex items-center justify-center rounded-lg bg-teal-50">
+                    <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-3xl font-bold text-slate-800">@overview.TodayPatients</p>
+            <div class="mt-2">
+                @RenderChangeIndicator(overview.PatientChange)
+            </div>
+        </div>
+
+        <!-- Card: Doanh thu -->
+        <div class="bg-white rounded-xl shadow-sm p-5 ring-1 ring-slate-200">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-slate-500">Doanh thu hôm nay</span>
+                <span class="w-10 h-10 flex items-center justify-center rounded-lg bg-emerald-50">
+                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-3xl font-bold text-slate-800">@FormatCurrency(overview.TodayRevenue)</p>
+            <div class="mt-2">
+                @RenderChangeIndicator(overview.RevenueChange)
+            </div>
+        </div>
+
+        <!-- Card: Đơn thuốc -->
+        <div class="bg-white rounded-xl shadow-sm p-5 ring-1 ring-slate-200">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-slate-500">Đơn thuốc đã phát</span>
+                <span class="w-10 h-10 flex items-center justify-center rounded-lg bg-purple-50">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-3xl font-bold text-slate-800">@overview.TodayPrescriptions</p>
+            <div class="mt-2">
+                @RenderChangeIndicator(overview.PrescriptionChange)
+            </div>
+        </div>
+
+        <!-- Card: Xét nghiệm -->
+        <div class="bg-white rounded-xl shadow-sm p-5 ring-1 ring-slate-200">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-slate-500">Xét nghiệm hoàn thành</span>
+                <span class="w-10 h-10 flex items-center justify-center rounded-lg bg-orange-50">
+                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-3xl font-bold text-slate-800">@overview.TodayLabOrders</p>
+            <div class="mt-2">
+                @RenderChangeIndicator(overview.LabOrderChange)
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ CHARTS ROW ═══════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <!-- Biểu đồ cột doanh thu theo ngày -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5 ring-1 ring-slate-200">
+            <h3 class="text-base font-bold text-slate-800 mb-4">Doanh thu theo ngày</h3>
+            @if (dailyRevenue.Any())
+            {
+                <RadzenChart Style="width: 100%; height: 320px;">
+                    <RadzenColumnSeries Data="@dailyRevenue"
+                                        CategoryProperty="Date"
+                                        ValueProperty="Revenue"
+                                        Title="Doanh thu (VNĐ)">
+                        <RadzenSeriesDataLabels Visible="false" />
+                    </RadzenColumnSeries>
+                    <RadzenCategoryAxis FormatString="{0:dd/MM}" />
+                    <RadzenValueAxis FormatString="{0:N0}" />
+                    <RadzenColumnOptions Radius="4" Width="20" />
+                    <RadzenLegend Visible="false" />
+                </RadzenChart>
+            }
+            else
+            {
+                <div class="flex items-center justify-center h-[320px] text-slate-400">
+                    Chưa có dữ liệu doanh thu trong khoảng thời gian này
+                </div>
+            }
+        </div>
+
+        <!-- Biểu đồ tròn cơ cấu doanh thu -->
+        <div class="bg-white rounded-xl shadow-sm p-5 ring-1 ring-slate-200">
+            <h3 class="text-base font-bold text-slate-800 mb-4">Cơ cấu doanh thu</h3>
+            @if (revenueBreakdown.Any(x => x.Amount > 0))
+            {
+                <RadzenChart Style="width: 100%; height: 320px;">
+                    <RadzenPieSeries Data="@revenueBreakdown"
+                                     CategoryProperty="Category"
+                                     ValueProperty="Amount"
+                                     Title="Cơ cấu">
+                        <RadzenSeriesDataLabels Visible="true" />
+                    </RadzenPieSeries>
+                    <RadzenLegend Position="LegendPosition.Right" />
+                </RadzenChart>
+            }
+            else
+            {
+                <div class="flex items-center justify-center h-[320px] text-slate-400">
+                    Chưa có dữ liệu doanh thu
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    // ──────── STATE ────────
+    private bool isLoading = true;
+    private DateTime fromDate = DateTime.Today.AddDays(-6);
+    private DateTime toDate = DateTime.Today;
+
+    private OverviewStats overview = new();
+    private List<DailyRevenueItem> dailyRevenue = new();
+    private List<RevenueBreakdownItem> revenueBreakdown = new();
+
+    // ──────── LIFECYCLE ────────
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllData();
+    }
+
+    private async Task LoadAllData()
+    {
+        isLoading = true;
+
+        overview = await StatisticsService.GetOverviewAsync(DateTime.Today);
+        dailyRevenue = await StatisticsService.GetDailyRevenueAsync(fromDate, toDate);
+        revenueBreakdown = await StatisticsService.GetRevenueBreakdownAsync(fromDate, toDate);
+
+        isLoading = false;
+    }
+
+    // ──────── DATE FILTER ────────
+    private async Task OnFromDateChanged(string? value)
+    {
+        if (DateTime.TryParse(value, out var date))
+        {
+            fromDate = date;
+            await LoadAllData();
+        }
+    }
+
+    private async Task OnToDateChanged(string? value)
+    {
+        if (DateTime.TryParse(value, out var date))
+        {
+            toDate = date;
+            await LoadAllData();
+        }
+    }
+
+    // ──────── HELPERS ────────
+    private static string FormatCurrency(decimal amount)
+    {
+        if (amount >= 1_000_000)
+            return $"{(amount / 1_000_000):N1}tr";
+        if (amount >= 1_000)
+            return $"{(amount / 1_000):N0}k";
+        return $"{amount:N0}đ";
+    }
+
+    private static RenderFragment RenderChangeIndicator(double change) => builder =>
+    {
+        var isPositive = change >= 0;
+        var colorClass = isPositive ? "text-emerald-600" : "text-red-500";
+        var arrow = isPositive ? "▲" : "▼";
+        var label = change == 0 ? "Không đổi so với hôm qua" : $"{arrow} {Math.Abs(change)}% so với hôm qua";
+
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", $"text-xs font-medium {colorClass}");
+        builder.AddContent(2, label);
+        builder.CloseElement();
+    };
+}
