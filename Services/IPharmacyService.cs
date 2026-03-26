@@ -15,9 +15,10 @@ namespace SmartClinic.Services
         // ── Medicine CRUD ───────────────────────────────────────────────────────
         Task<List<Medicine>> GetAllMedicinesAsync();
         Task<Medicine?> GetMedicineByIdAsync(int id);
-        Task<Medicine> CreateMedicineAsync(Medicine medicine);
-        Task<(bool Success, string Error)> UpdateMedicineAsync(Medicine medicine);
+        Task<Medicine> CreateMedicineWithPriceAsync(Medicine medicine, decimal initialPrice);
+        Task<(bool Success, string Error)> UpdateMedicineWithPriceAsync(Medicine medicine, decimal newPrice);
         Task<(bool Success, string Error)> DeleteMedicineAsync(int id);
         Task<(bool Success, string Error)> ToggleMedicineForSaleAsync(int id);
+        Task<List<MedicineInsightDto>> GetMedicineInsightsAsync(DateTime fromDate, DateTime toDate);
     }
 }
