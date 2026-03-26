@@ -1,0 +1,391 @@
+@page "/admin/scheduling"
+@using Microsoft.AspNetCore.Authorization
+@using SmartClinic.DTOs
+@using SmartClinic.Models
+@using SmartClinic.Constant
+
+@attribute [Authorize(Policy = "AdminPolicy")]
+@rendermode InteractiveServer
+
+@inject IDoctorShiftService ShiftService
+
+@* ═══════════════════════════════════════════════════════════════
+   LUỒNG HOẠT ĐỘNG CỦA TRANG NÀY:
+   ═══════════════════════════════════════════════════════════════
+   1. OnInitializedAsync() chạy khi trang load
+      → Gọi LoadData() song song: lấy shifts + doctors + rooms
+      → shifts dùng để render bảng
+      → doctors + rooms dùng để fill dropdown trong modal
+
+   2. Admin nhấn "Tạo ca trực"
+      → OpenCreateModal() mở modal, reset form
+      → Admin chọn bác sĩ, phòng, giờ bắt đầu/kết thúc
+      → Submit → HandleCreate() gọi ShiftService.CreateShiftAsync()
+      → Nếu thành công → đóng modal, reload bảng
+      → Nếu trùng lịch → hiển thị lỗi đỏ trong modal
+
+   3. Admin nhấn "Xóa"
+      → HandleDelete(id) gọi ShiftService.DeleteShiftAsync()
+      → Reload bảng
+
+   4. Admin thay đổi bộ lọc ngày
+      → OnFromDateChanged/OnToDateChanged → reload shifts
+   ═══════════════════════════════════════════════════════════════ *@
+
+<!-- ═══════════ HEADER + BỘ LỌC NGÀY ═══════════ -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800 ml-4">Phân lịch trực</h1>
+        <p class="text-sm text-slate-500 mt-1 ml-4">Quản lý ca trực cho bác sĩ tại các phòng khám</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <!-- Bộ lọc ngày -->
+        <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-slate-600">Từ:</label>
+            <input type="date" value="@fromDate.ToString("yyyy-MM-dd")"
+                   @onchange="e => OnFromDateChanged(e.Value?.ToString())"
+                   class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-slate-600">Đến:</label>
+            <input type="date" value="@toDate.ToString("yyyy-MM-dd")"
+                   @onchange="e => OnToDateChanged(e.Value?.ToString())"
+                   class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+        <!-- Nút tạo ca trực -->
+        <button @onclick="OpenCreateModal"
+                class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Tạo ca trực
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════ BẢNG DANH SÁCH CA TRỰC ═══════════ -->
+@if (isLoading)
+{
+    <div class="bg-white rounded-xl shadow-sm p-12 text-center text-slate-400">
+        <p class="text-lg">Đang tải dữ liệu...</p>
+    </div>
+}
+else
+{
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden ring-1 ring-slate-200">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+                <tr>
+                    <th class="text-left px-6 py-3 font-semibold text-slate-600">STT</th>
+                    <th class="text-left px-6 py-3 font-semibold text-slate-600">Bác sĩ</th>
+                    <th class="text-left px-6 py-3 font-semibold text-slate-600">Phòng</th>
+                    <th class="text-left px-6 py-3 font-semibold text-slate-600">Khoa</th>
+                    <th class="text-left px-6 py-3 font-semibold text-slate-600">Bắt đầu</th>
+                    <th class="text-left px-6 py-3 font-semibold text-slate-600">Kết thúc</th>
+                    <th class="text-center px-6 py-3 font-semibold text-slate-600">Trạng thái</th>
+                    <th class="text-center px-6 py-3 font-semibold text-slate-600">Hành động</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @if (shifts.Any())
+                {
+                    int stt = 1;
+                    @foreach (var shift in shifts)
+                    {
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-6 py-3 text-slate-500">@(stt++)</td>
+                            <td class="px-6 py-3 font-medium text-slate-800">@shift.DoctorName</td>
+                            <td class="px-6 py-3 text-slate-700">@shift.RoomName</td>
+                            <td class="px-6 py-3 text-slate-500">@shift.DepartmentName</td>
+                            <td class="px-6 py-3 text-slate-700">@shift.StartTime.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="px-6 py-3 text-slate-700">
+                                @(shift.EndTime?.ToString("dd/MM/yyyy HH:mm") ?? "—")
+                            </td>
+                            <td class="px-6 py-3 text-center">
+                                @if (shift.Status == "Đang trực")
+                                {
+                                    <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                        @shift.Status
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
+                                        @shift.Status
+                                    </span>
+                                }
+                            </td>
+                            <td class="px-6 py-3 text-center">
+                                <button @onclick="() => HandleDelete(shift.Id)"
+                                        class="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                                    Xóa
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-slate-400">
+                            Chưa có ca trực nào trong khoảng thời gian này.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- ═══════════ MODAL TẠO CA TRỰC ═══════════ -->
+@if (showModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <!-- Header Modal -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800">Tạo ca trực mới</h3>
+                <button @onclick="CloseModal" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body Modal — Form -->
+            <div class="px-6 py-4">
+                @if (!string.IsNullOrEmpty(modalError))
+                {
+                    <div class="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+                        @modalError
+                    </div>
+                }
+
+                <EditForm Model="@createDto" OnValidSubmit="HandleCreate" FormName="createShiftForm">
+                    <DataAnnotationsValidator />
+
+                    @* ── Chọn Bác sĩ ── *@
+                    <div class="mb-4">
+                        <label class="block mb-1 text-sm font-medium text-slate-700">
+                            Bác sĩ <span class="text-red-500">*</span>
+                        </label>
+                        <InputSelect @bind-Value="createDto.DoctorId"
+                                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <option value="0">— Chọn bác sĩ —</option>
+                            @foreach (var doc in doctors)
+                            {
+                                <option value="@doc.Id">@(doc.FullName ?? doc.Username)</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => createDto.DoctorId)" class="text-xs text-red-500 mt-1" />
+                    </div>
+
+                    @* ── Chọn Phòng ── *@
+                    <div class="mb-4">
+                        <label class="block mb-1 text-sm font-medium text-slate-700">
+                            Phòng khám <span class="text-red-500">*</span>
+                        </label>
+                        <InputSelect @bind-Value="createDto.RoomId"
+                                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <option value="0">— Chọn phòng —</option>
+                            @foreach (var room in rooms)
+                            {
+                                <option value="@room.Id">@room.Name — @room.Department?.Name (@room.Location)</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => createDto.RoomId)" class="text-xs text-red-500 mt-1" />
+                    </div>
+
+                    @* ── Thời gian bắt đầu ── *@
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block mb-1 text-sm font-medium text-slate-700">
+                                Bắt đầu <span class="text-red-500">*</span>
+                            </label>
+                            <InputDate Type="InputDateType.DateTimeLocal"
+                                       @bind-Value="createDto.StartTime"
+                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                        </div>
+
+                        @* ── Thời gian kết thúc (tùy chọn) ── *@
+                        <div>
+                            <label class="block mb-1 text-sm font-medium text-slate-700">Kết thúc</label>
+                            <InputDate Type="InputDateType.DateTimeLocal"
+                                       @bind-Value="createDto.EndTime"
+                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                            <p class="text-xs text-slate-400 mt-1">Bỏ trống nếu ca trực vô thời hạn</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                        <button type="button" @onclick="CloseModal"
+                                class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                            Hủy
+                        </button>
+                        <button type="submit" disabled="@isSaving"
+                                class="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                            @(isSaving ? "Đang lưu..." : "Tạo ca trực")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ═══════════ TOAST THÔNG BÁO ═══════════ -->
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="fixed bottom-5 right-5 z-50 px-6 py-3 bg-teal-600 text-white rounded-lg shadow-lg font-medium text-sm">
+        ✅ @successMessage
+    </div>
+}
+
+@code {
+    // ══════════════════════════════════════════════════════════
+    // STATE — Các biến trạng thái của trang
+    // ══════════════════════════════════════════════════════════
+    private bool isLoading = true;
+    private bool showModal = false;
+    private bool isSaving = false;
+    private string? modalError;
+    private string? successMessage;
+
+    // Bộ lọc ngày — mặc định xem tuần hiện tại
+    private DateTime fromDate = DateTime.Today;
+    private DateTime toDate = DateTime.Today.AddDays(7);
+
+    // Dữ liệu từ service
+    private List<DoctorShiftDisplayDto> shifts = new();  // Bảng ca trực
+    private List<User> doctors = new();                   // Dropdown bác sĩ
+    private List<Room> rooms = new();                     // Dropdown phòng
+
+    // Form data cho modal tạo ca trực
+    private CreateShiftDto createDto = new();
+
+    // ══════════════════════════════════════════════════════════
+    // LIFECYCLE — Chạy khi component được render lần đầu
+    // ══════════════════════════════════════════════════════════
+    // Gọi LoadData() để:
+    //   1. Lấy danh sách ca trực (shifts) → render bảng
+    //   2. Lấy danh sách bác sĩ (doctors) → fill dropdown
+    //   3. Lấy danh sách phòng (rooms) → fill dropdown
+    // ══════════════════════════════════════════════════════════
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+
+        // Gọi tuần tự vì EF Core DbContext không hỗ trợ chạy song song
+        shifts = await ShiftService.GetShiftsAsync(fromDate, toDate);
+        doctors = await ShiftService.GetDoctorsAsync();
+        rooms = await ShiftService.GetRoomsAsync();
+
+        isLoading = false;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // BỘ LỌC NGÀY — Khi admin thay đổi ngày, reload shifts
+    // ══════════════════════════════════════════════════════════
+    private async Task OnFromDateChanged(string? value)
+    {
+        if (DateTime.TryParse(value, out var date))
+        {
+            fromDate = date;
+            await ReloadShifts();
+        }
+    }
+
+    private async Task OnToDateChanged(string? value)
+    {
+        if (DateTime.TryParse(value, out var date))
+        {
+            toDate = date;
+            await ReloadShifts();
+        }
+    }
+
+    /// <summary>
+    /// Chỉ reload danh sách shifts (không cần reload doctors/rooms vì chúng không thay đổi)
+    /// </summary>
+    private async Task ReloadShifts()
+    {
+        shifts = await ShiftService.GetShiftsAsync(fromDate, toDate);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // MỞ / ĐÓNG MODAL
+    // ══════════════════════════════════════════════════════════
+    private void OpenCreateModal()
+    {
+        createDto = new CreateShiftDto(); // Reset form mới
+        modalError = null;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        modalError = null;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // SUBMIT FORM — Tạo ca trực mới
+    // ══════════════════════════════════════════════════════════
+    // Luồng:
+    //   1. Disable nút submit (isSaving = true)
+    //   2. Gọi ShiftService.CreateShiftAsync(dto)
+    //   3. Service validate: trùng lịch Doctor? trùng lịch Room?
+    //   4. Nếu (true, "") → đóng modal, reload bảng, hiện toast
+    //   5. Nếu (false, lỗi) → hiện lỗi đỏ trong modal
+    // ══════════════════════════════════════════════════════════
+    private async Task HandleCreate()
+    {
+        isSaving = true;
+        modalError = null;
+
+        var (success, error) = await ShiftService.CreateShiftAsync(createDto);
+
+        if (success)
+        {
+            showModal = false;
+            await ReloadShifts();
+            await ShowSuccess("Tạo ca trực thành công!");
+        }
+        else
+        {
+            modalError = error;
+        }
+
+        isSaving = false;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // XÓA CA TRỰC
+    // ══════════════════════════════════════════════════════════
+    private async Task HandleDelete(int shiftId)
+    {
+        var result = await ShiftService.DeleteShiftAsync(shiftId);
+        if (result)
+        {
+            await ReloadShifts();
+            await ShowSuccess("Đã xóa ca trực!");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // TOAST HELPER — Hiển thị thông báo thành công 3 giây
+    // ══════════════════════════════════════════════════════════
+    private async Task ShowSuccess(string message)
+    {
+        successMessage = message;
+        StateHasChanged();
+        await Task.Delay(3000);
+        successMessage = null;
+        StateHasChanged();
+    }
+}

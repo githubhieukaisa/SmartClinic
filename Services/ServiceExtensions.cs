@@ -47,6 +47,7 @@ namespace SmartClinic.Services
             services.AddScoped<ILabService, LabService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IStatisticsService, StatisticsService>();
+            services.AddScoped<IDoctorShiftService, DoctorShiftService>();
             services.AddSingleton<NotificationService>();
             services.AddScoped<VNPayService>();
             services.AddHttpClient<AiService>();
