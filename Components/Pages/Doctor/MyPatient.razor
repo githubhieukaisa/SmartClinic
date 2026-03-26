@@ -499,6 +499,9 @@
             }
 
             ticket.StatusEnum = TicketStatus.Examinating;
+            ticket.DoctorId = _currentDoctorId;
+            ticket.UpdatedBy = _currentDoctorId;
+            ticket.UpdatedAt = DateTime.Now;
             
             using var context = DbFactory.CreateDbContext();
             context.QueueTickets.Update(ticket);
