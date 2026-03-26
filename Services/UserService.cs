@@ -21,7 +21,6 @@ namespace SmartClinic.Services
             // Lấy tất cả user, sắp xếp theo ngày tạo mới nhất lên đầu.
             // Include Room để hiển thị tên phòng nếu user là Bác sĩ.
             return await _context.Users
-                .Include(u => u.Room)
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
         }
@@ -29,7 +28,6 @@ namespace SmartClinic.Services
         public async Task<User?> GetUserByIdAsync(int id)
         {
             return await _context.Users
-                .Include(u => u.Room)
                 .FirstOrDefaultAsync(u => u.Id == id);
         }
 
@@ -52,7 +50,6 @@ namespace SmartClinic.Services
                 Address = dto.Address,
                 Gender = dto.Gender,
                 RoleMask = dto.RoleMask,
-                RoomId = dto.RoomId,
                 IsActive = true
             };
 
@@ -75,7 +72,6 @@ namespace SmartClinic.Services
             user.Address = dto.Address;
             user.Gender = dto.Gender;
             user.RoleMask = dto.RoleMask;
-            user.RoomId = dto.RoomId;
 
             await _context.SaveChangesAsync();
             return true;

@@ -1,15 +1,10 @@
 @using Blazored.Toast
 @using Blazored.Toast.Configuration
 @using SmartClinic.Components.Common
-@using SmartClinic.Constant
 @using SmartClinic.Services
-@using SmartClinic.Models
-@using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Authorization
 
 @inherits LayoutComponentBase
-@implements IAsyncDisposable
-@inject NotificationService Notification
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="flex h-screen bg-background">
@@ -24,7 +19,7 @@
             </div>
         </div>
 
-        <!-- HEADER: User Profile -->
+        <!-- HEADER: User Profile + Shift Badge (nếu là bác sĩ) -->
         <div class="p-6 border-b border-border">
             <div class="flex items-center gap-3">
                 <div
@@ -36,6 +31,10 @@
                     <p class="text-xs text-muted-foreground line-clamp-1" title="@_userRole">@_userRole</p>
                 </div>
             </div>
+            @* DoctorShiftMonitor: Interactive, tự render badge + quản lý timer.
+               Đặt đây để badge hiện ngay bên dưới tên bác sĩ trong sidebar.
+               Component tự kiểm tra role nội bộ, không cần guard bên ngoài. *@
+            <DoctorShiftMonitor />
         </div>
 
         <!-- NAVIGATION -->
@@ -74,13 +73,7 @@
     <a class="dismiss">🗙</a>
 </div>
 
-@inject IDbContextFactory<SmartClinicDbContext> DbContextFactory
-
 @code {
-    private int? _currentRoomId;
-    private int _doctorId;
-    private System.Threading.Timer? _shiftCheckTimer;
-
     // Header Profile vars
     private string _userName = "Vô danh";
     private string _userInitial = "U";
@@ -88,15 +81,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // ✅ Chỉ đọc Claims — an toàn khi chạy trong Prerender
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
         if (user?.Identity?.IsAuthenticated != true) return;
 
-        // Populate User Info
         _userName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
                     ?? user.Identity.Name ?? "Bạn";
-        _userInitial = _userName.Trim().Length > 0 ? _userName.Trim().Substring(0, 1).ToUpper() : "U";
+        _userInitial = _userName.Trim().Length > 0
+            ? _userName.Trim().Substring(0, 1).ToUpper() : "U";
 
         var roleMaskClaim = user.FindFirst("RoleMask")?.Value;
         if (int.TryParse(roleMaskClaim, out int roleMask))
@@ -108,102 +102,7 @@
             if ((roleMask & 32) == 32) roleNames.Add("Xét nghiệm");
             if ((roleMask & 4) == 4) roleNames.Add("Dược sĩ");
             if ((roleMask & 1) == 1) roleNames.Add("Lễ tân");
-
             _userRole = roleNames.Any() ? string.Join(", ", roleNames) : "User";
         }
-
-        // Chỉ Doctor mới cần theo dõi Room auto-detect
-        if (!int.TryParse(roleMaskClaim, out int doctorRoleMask) || (doctorRoleMask & 2) != 2)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainLayout] ℹ️ Not a Doctor (RoleMask={roleMaskClaim}) — skipping JoinRoom");
-            return;
-        }
-
-        // Lấy DoctorId
-        var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int docId))
-        {
-            _doctorId = docId;
-        }
-
-        // Khởi chạy ngay lần đầu tiên để load & join phòng hiện tại của bác sĩ (nếu có)
-        await CheckActiveShiftAsync();
-
-        // Khởi chạy Timer quét Database trong background (Mỗi 15 giây)
-        _shiftCheckTimer = new System.Threading.Timer(async _ => await CheckActiveShiftAsync(), null, TimeSpan.FromSeconds(15),
-TimeSpan.FromMinutes(10));
-    }
-
-    private async Task CheckActiveShiftAsync()
-    {
-        var now = DateTime.Now;
-        // Log để dễ dàng theo dõi thời điểm chạy vòng background Timer (để ở đây cho chắc chắn log luôn hiện)
-        System.Diagnostics.Debug.WriteLine($"[MainLayout] ⏰ ---------- Timer Tick: {now.ToString("HH:mm:ss")} | DoctorId: {_doctorId} ----------");
-
-        if (_doctorId <= 0) return;
-
-        try
-        {
-            // Mở 1 connection Database riêng
-            using var dbContext = await DbContextFactory.CreateDbContextAsync();
-
-            // Lấy CA TRỰC ĐANG ACTIVE (Status == Active)
-            var activeShift = await dbContext.DoctorShifts
-                .Where(s => s.DoctorId == _doctorId
-                         && s.StatusEnum == DoctorShiftStatus.Active
-                         && s.StartTime <= now
-                         && (s.EndTime == null || s.EndTime >= now))
-                .OrderByDescending(s => s.StartTime)
-                .FirstOrDefaultAsync();
-
-            int? activeRoomId = activeShift?.RoomId;
-
-            if (activeRoomId == null)
-            {
-                // Nếu không có ca trực, không tự ý lấy phòng mặc định (theo yêu cầu mới)
-                System.Diagnostics.Debug.WriteLine($"[MainLayout] ⚠️ No active shift for Doctor {_doctorId}.");
-
-                // Nếu không có ca trực, thoát khỏi phòng hiện tại nếu đang ở trong phòng nào đó
-                if (_currentRoomId.HasValue)
-                {
-                    await Notification.LeaveRoomAsync(_currentRoomId.Value);
-                    _currentRoomId = null;
-                }
-            }
-            // Nếu phát hiện có phòng trực & phòng khác phòng hiện tại → Chuyển phòng ngầm!
-            else if (activeRoomId.HasValue && activeRoomId.Value > 0)
-            {
-                if (_currentRoomId != activeRoomId.Value)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[MainLayout] 🔄 TIMERSHIFT DETECTED! Time: {now.ToString("HH:mm:ss")}. Doctor={_doctorId}, OldRoom={_currentRoomId?.ToString() ?? "NULL"}, NewRoom={activeRoomId.Value}");
-
-                    // 1. Thoát Phòng Cũ (nếu đang ở phòng nào đó)
-                    if (_currentRoomId.HasValue)
-                    {
-                        await Notification.LeaveRoomAsync(_currentRoomId.Value);
-                    }
-
-                    // 2. Vào Phòng Mới
-                    await Notification.JoinRoomAsync(activeRoomId.Value);
-                    _currentRoomId = activeRoomId.Value;
-                }
-                else
-                {
-                    // Ping log để bạn biết Timer vẫn đang chạy
-                    System.Diagnostics.Debug.WriteLine($"[MainLayout] ⏳ {now.ToString("HH:mm:ss")}: Timer tick, still in Room_{_currentRoomId.Value}...");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainLayout] ❌ Error background check shift: {ex.Message}");
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _shiftCheckTimer?.Dispose();
-        await ValueTask.CompletedTask;
     }
 }
-

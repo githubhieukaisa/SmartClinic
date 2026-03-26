@@ -431,18 +431,16 @@
                 return;
             }
 
-            using var context = DbFactory.CreateDbContext();
-            var doctor = await context.Users.Include(u => u.Room).FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
-            if (doctor?.Room == null)
+            if (_currentRoomId == null)
             {
-                ToastService.ShowError("Doctor has no assigned room.");
+                ToastService.ShowError("Chưa vào ca trực, không thể tạo vé mẫu.");
                 return;
             }
 
             await TicketService.GenerateTicketAsync(
                 $"Bệnh nhân mẫu {DateTime.Now:HHmmss}",
                 "0900000000",
-                doctor.Room.DepartmentId
+                _currentShift?.Room?.DepartmentId ?? 1
             );
             ToastService.ShowSuccess("Thêm vé mẫu thành công.");
         }

@@ -30,6 +30,8 @@ public class LabService : ILabService
         using var context = _dbFactory.CreateDbContext();
         var now = System.DateTime.Now;
         return await context.LabTests
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted)
             .Include(t => t.DefaultRoom)
             .Include(t => t.LabPrices)
             .Select(t => new LabTestDto

@@ -4,8 +4,15 @@
 @using SmartClinic.Models
 @using SmartClinic.Components.Common
 @using SmartClinic.Components.Common.Examination
+<<<<<<< HEAD
 @attribute [Authorize(Policy = "ManagerPolicy")]
+=======
+@using SmartClinic.Constant
+@using Blazored.Toast.Services
+@attribute [Authorize(Policy = "AdminPolicy")]
+>>>>>>> origin/main
 @inject IDbContextFactory<SmartClinicDbContext> DbContextFactory
+@inject IToastService ToastService
 @rendermode InteractiveServer
 
 <PageTitle>Quản lý Xét Nghiệm</PageTitle>
@@ -265,8 +272,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadRoomsAsync();
-        await LoadDataAsync();
+        // Parallel loading for better performance
+        await Task.WhenAll(LoadRoomsAsync(), LoadDataAsync());
     }
 
     private async Task LoadRoomsAsync()
@@ -274,7 +281,9 @@
         using var context = await DbContextFactory.CreateDbContextAsync();
         // Get Lab Rooms only
         rooms = await context.Rooms
-            .Where(r => r.IsLab && r.IsActive)
+            .AsNoTracking()
+            .Where(r => (r.Flags & RoomFlags.IsActive) != 0
+                     && (r.Flags & RoomFlags.IsLab) != 0)
             .OrderBy(r => r.Name)
             .ToListAsync();
     }
@@ -282,43 +291,53 @@
     private async Task LoadDataAsync()
     {
         isLoading = true;
-
-        using var context = await DbContextFactory.CreateDbContextAsync();
-        var query = context.LabTests
-                    .Include(l => l.DefaultRoom)
-                    .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            var lowerSearch = searchTerm.ToLower();
-            query = query.Where(l => l.Name.ToLower().Contains(lowerSearch));
-        }
-
-        totalRecords = await query.CountAsync();
-        totalPages = Math.Max(1, (int)Math.Ceiling((double)totalRecords / pageSize));
-
-        if (currentPage > totalPages) currentPage = totalPages;
-
-        var dbTests = await query
-            .OrderBy(l => l.Id)
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        var now = System.DateTime.Now;
-        viewList = dbTests.Select(t => new LabTestDto
-        {
-            Id = t.Id,
-            Name = t.Name,
-            Description = t.Description,
-            Unit = t.Unit,
-            DefaultRoomId = t.DefaultRoomId,
-            DefaultRoom = t.DefaultRoom,
-            Price = t.LabPrices?.Where(p => p.EffectiveDate <= now).OrderByDescending(p => p.EffectiveDate).Select(p => p.Price).FirstOrDefault() ?? 0
-        }).ToList();
-
-        isLoading = false;
         StateHasChanged();
+
+        try
+        {
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            var query = context.LabTests
+                        .AsNoTracking()
+                        .Include(l => l.DefaultRoom)
+                        .Include(l => l.LabPrices)
+                        .Where(l => !l.IsDeleted)
+                        .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var lowerSearch = searchTerm.ToLower();
+                query = query.Where(l => l.Name.ToLower().Contains(lowerSearch));
+            }
+
+            totalRecords = await query.CountAsync();
+            totalPages = Math.Max(1, (int)Math.Ceiling((double)totalRecords / pageSize));
+
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            var dbTests = await query
+                .OrderBy(l => l.Id)
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var now = System.DateTime.Now;
+            viewList = dbTests.Select(t => new LabTestDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Description = t.Description,
+                Unit = t.Unit,
+                DefaultRoomId = t.DefaultRoomId,
+                DefaultRoom = t.DefaultRoom,
+                Price = t.LabPrices?.Where(p => p.EffectiveDate <= now).OrderByDescending(p => p.EffectiveDate).Select(p =>
+p.Price).FirstOrDefault() ?? 0
+            }).ToList();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task ApplyFilter()
@@ -379,6 +398,20 @@
 
         using var context = await DbContextFactory.CreateDbContextAsync();
 
+        // Safety check if being used in active orders
+        if (currentModel.Id != 0)
+        {
+            var isBeingTested = await context.LabOrderDetails
+                .AnyAsync(lod => lod.LabTestId == currentModel.Id
+                              && (lod.LabOrder.Status == LabOrderStatus.Pending || lod.LabOrder.Status == LabOrderStatus.InProgress));
+
+            if (isBeingTested)
+            {
+                ToastService?.ShowError("Xét nghiệm này đang được thực hiện bởi bệnh nhân trong hệ thống. Không thể thay đổi lúc này!");
+                return;
+            }
+        }
+
         if (currentModel.Id == 0)
         {
             var newTest = new LabTest
@@ -387,9 +420,9 @@
                 Unit = currentModel.Unit,
                 Description = currentModel.Description,
                 DefaultRoomId = currentModel.DefaultRoomId,
-                LabPrices = new List<LabPrice> 
-                { 
-                    new LabPrice { Price = currentModel.Price, EffectiveDate = System.DateTime.Now } 
+                LabPrices = new List<LabPrice>
+                {
+                    new LabPrice { Price = currentModel.Price, EffectiveDate = System.DateTime.Now }
                 }
             };
             context.LabTests.Add(newTest);
@@ -405,7 +438,8 @@
                 dbItem.DefaultRoomId = currentModel.DefaultRoomId;
 
                 var now = System.DateTime.Now;
-                var currentPrice = dbItem.LabPrices.Where(p => p.EffectiveDate <= now).OrderByDescending(p => p.EffectiveDate).Select(p => p.Price).FirstOrDefault();
+                var currentPrice = dbItem.LabPrices.Where(p => p.EffectiveDate <= now).OrderByDescending(p => p.EffectiveDate).Select(p
+=> p.Price).FirstOrDefault();
                 if (currentPrice != currentModel.Price)
                 {
                     dbItem.LabPrices.Add(new LabPrice { Price = currentModel.Price, EffectiveDate = now });
@@ -439,7 +473,20 @@
             var dbItem = await context.LabTests.FindAsync(currentModel.Id);
             if (dbItem != null)
             {
-                context.LabTests.Remove(dbItem);
+                // Safety check if being used in active orders
+                var isBeingTested = await context.LabOrderDetails
+                    .AnyAsync(lod => lod.LabTestId == currentModel.Id
+                                  && (lod.LabOrder.Status == LabOrderStatus.Pending || lod.LabOrder.Status == LabOrderStatus.InProgress));
+
+                if (isBeingTested)
+                {
+                    ToastService?.ShowError("Xét nghiệm đang có trong danh sách chờ/thực hiện. Không thể xóa!");
+                    CloseDeleteModal();
+                    return;
+                }
+
+                dbItem.IsDeleted = true;
+                context.LabTests.Update(dbItem);
                 await context.SaveChangesAsync();
             }
         }

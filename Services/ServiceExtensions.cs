@@ -50,6 +50,7 @@ namespace SmartClinic.Services
             services.AddScoped<IDoctorShiftService, DoctorShiftService>();
             services.AddSingleton<NotificationService>();
             services.AddScoped<VNPayService>();
+            services.AddScoped<DoctorDailyShiftService>();
             services.AddHttpClient<AiService>();
             services.AddHttpContextAccessor();
             services.AddBlazoredToast();
