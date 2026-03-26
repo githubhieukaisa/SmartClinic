@@ -4,9 +4,11 @@
 @using SmartClinic.Components.Layout
 @using SmartClinic.DTOs
 @using SmartClinic.Models
+@using SmartClinic.Constant
 @using SmartClinic.Services
 
 @attribute [Authorize(Policy = "AdminPolicy")]
+@rendermode InteractiveServer
 
 @inject IUserService UserService
 @inject SmartClinicDbContext DbContext
@@ -14,8 +16,8 @@
 <!-- ═══════════ HEADER + NÚT TẠO MỚI ═══════════ -->
 <div class="flex items-center justify-between mb-6">
     <div>
-        <h1 class="text-2xl font-bold text-slate-800">Quản lý Tài khoản</h1>
-        <p class="text-sm text-slate-500 mt-1">Tạo, chỉnh sửa và phân quyền tài khoản nhân viên</p>
+        <h1 class="text-2xl font-bold text-slate-800 ml-4">Quản lý Tài khoản</h1>
+        <p class="text-sm text-slate-500 mt-1 ml-4">Tạo, chỉnh sửa và phân quyền tài khoản nhân viên</p>
     </div>
     <button @onclick="OpenCreateModal"
             class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm">
@@ -448,8 +450,10 @@ else
         isLoading = true;
         users = await UserService.GetAllUsersAsync();
         // Chỉ lấy phòng KHÔNG phải phòng Lab để gán cho Bác sĩ
+        // Dùng Flags (mapped column) thay vì IsActive/IsLab ([NotMapped])
         rooms = await DbContext.Rooms
-            .Where(r => r.IsActive && !r.IsLab)
+            .Where(r => (r.Flags & RoomFlags.IsActive) != 0
+                     && (r.Flags & RoomFlags.IsLab) == 0)
             .OrderBy(r => r.Name)
             .ToListAsync();
         isLoading = false;
