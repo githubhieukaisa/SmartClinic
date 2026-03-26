@@ -6,14 +6,17 @@ namespace SmartClinic.Models;
 public partial class LabOrderDetail
 {
     public int Id { get; set; }
-    
+
     public int LabOrderId { get; set; }
     public int LabTestId { get; set; }
-    
+
     public decimal UnitPrice { get; set; }
-    
+
     public string? ResultNotes { get; set; }
     public string? ResultFileUrl { get; set; }
+
+    public int? PerformedId { get; set; }
+    public string? PerformedBy { get; set; }
 
     public virtual LabOrder LabOrder { get; set; } = null!;
     public virtual LabTest LabTest { get; set; } = null!;

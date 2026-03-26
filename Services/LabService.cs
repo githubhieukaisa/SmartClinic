@@ -104,7 +104,7 @@ public class LabService : ILabService
             .ToListAsync();
     }
 
-    public async Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl)
+    public async Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl, int? performedId = null, string? performedBy = null)
     {
         using var context = _dbFactory.CreateDbContext();
         var detail = await context.LabOrderDetails
@@ -116,6 +116,8 @@ public class LabService : ILabService
 
         detail.ResultNotes = resultNotes;
         detail.ResultFileUrl = resultFileUrl;
+        detail.PerformedId = performedId;
+        detail.PerformedBy = performedBy;
         await context.SaveChangesAsync();
 
         // Broadcast to Doctor immediately so they can see partial results

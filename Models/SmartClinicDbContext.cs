@@ -235,6 +235,7 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("LabOrderDetails_pkey");
             entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+            entity.Property(e => e.PerformedBy).HasMaxLength(100);
 
             entity.HasOne(d => d.LabOrder).WithMany(p => p.LabOrderDetails)
                 .HasForeignKey(d => d.LabOrderId)

@@ -12,7 +12,7 @@ public interface ILabService
     Task<List<LabOrder>> GetPendingLabOrdersAsync();
     Task<List<LabOrder>> GetTodayLabOrdersAsync();
     Task<List<Room>> GetLabStationsAsync();
-    Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl);
+    Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl, int? performedId = null, string? performedBy = null);
     Task<bool> HasPendingLabOrdersAsync(int ticketId);
     Task<List<LabOrder>> GetLabOrdersByTicketAsync(int ticketId);
     Task<string> UploadFileAsync(IBrowserFile file);

@@ -2,9 +2,12 @@
 @using SmartClinic.Services
 @using Blazored.Toast.Services
 @using SmartClinic.Components.Common.Examination
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 
 @inject ILabService LabService
 @inject IToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col h-full">
     <div class="p-6 border-b border-border bg-muted/30 flex justify-between items-start">
@@ -197,7 +200,15 @@
 
         try
         {
-            await LabService.SubmitLabResultAsync(detail.Id, detail.ResultNotes, detail.ResultFileUrl);
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userIdStr = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var performerName = user.FindFirst("FullName")?.Value ?? user.Identity?.Name;
+            
+            int? performedId = null;
+            if (int.TryParse(userIdStr, out int id)) performedId = id;
+
+            await LabService.SubmitLabResultAsync(detail.Id, detail.ResultNotes, detail.ResultFileUrl, performedId, performerName);
             _savedDetailIds.Add(detail.Id);
             ToastService.ShowSuccess($"Đã ghi nhận kết quả cho {detail.LabTest?.Name}");
 
