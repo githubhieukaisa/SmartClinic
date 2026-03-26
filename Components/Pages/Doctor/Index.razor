@@ -155,10 +155,10 @@
                                                         <p class="font-medium text-foreground">@t.Patient?.FullName</p>
                                                         <p class="text-xs text-muted-foreground mt-0.5">@t.Patient?.Phone</p>
                                                     </td>
-                                                    <td class="py-3 px-4">
+                                                    <td class="py-3 px-4 text-left">
                                                         <span
-                                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                                                            Đang chờ KQ
+                                                            class='@($"inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {GetStatusClass(t.StatusEnum)}")'>
+                                                            @TranslateStatus(t.StatusEnum)
                                                         </span>
                                                     </td>
                                                     <td class="py-3 px-4 text-right">
@@ -211,11 +211,15 @@
                                                             @(t.UpdatedAt?.ToString("HH:mm") ?? t.CreatedAt.ToString("HH:mm"))
                                                         </td>
                                                         <td class="py-3 px-4 text-right">
-                                                            <button
-                                                                @onclick='() => NavigationManager.NavigateTo($"/doctor/examination/{t.Id}/{t.PatientId}")'
-                                                                class="flex items-center justify-end gap-1 w-full text-primary hover:text-primary/80 font-medium text-xs">
-                                                                Xem lại <i class="ph ph-arrow-right"></i>
-                                                            </button>
+                                                            <div class="flex justify-end">
+                                                                <button
+                                                                    @onclick='() => NavigationManager.NavigateTo($"/doctor/medical-record/{t.Id}/{t.PatientId}")'
+                                                                    class="flex items-center gap-1.5 px-3 py-1.5 text-primary hover:bg-muted rounded-lg text-xs font-medium transition"
+                                                                    title="Xem hồ sơ bệnh án">
+                                                                    <i class="ph ph-file-text"></i>
+                                                                    Xem hồ sơ
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 }
@@ -324,112 +328,38 @@
 
         try
         {
-            using var context = DbFactory.CreateDbContext();
-            var today = DateTime.Today;
+            // 1. Lấy thông tin ca trực (Centralized logic)
+            _currentShift = await PatientService.GetActiveDoctorShiftAsync(_currentDoctorId);
 
-            // Tạo 2 context riêng biệt để chạy song song Task.WhenAll mà không bị tranh chấp (Lỗi Second operation started)
-            using var context1 = DbFactory.CreateDbContext();
-            using var context2 = DbFactory.CreateDbContext();
-
-            var shiftQuery = context1.DoctorShifts
-                .AsNoTracking()
-                .Include(s => s.Room)
-                .Where(s => s.DoctorId == _currentDoctorId && s.StartTime >= today)
-                .OrderByDescending(s => s.StartTime)
-                .Select(s => new { s.RoomId, RoomName = s.Room != null ? s.Room.Name : "N/A", ShiftObject = s })
-                .FirstOrDefaultAsync();
-
-            var doctorQuery = context2.Users
-                .AsNoTracking()
-                .Include(u => u.Room)
-                .Where(u => u.Id == _currentDoctorId)
-                .Select(u => new { u.RoomId, RoomName = u.Room != null ? u.Room.Name : "N/A" })
-                .FirstOrDefaultAsync();
-
-            await Task.WhenAll(shiftQuery, doctorQuery);
-
-            var shiftInfo = await shiftQuery;
-            var doctorInfo = await doctorQuery;
-
-            _currentShift = shiftInfo?.ShiftObject;
-            _currentRoomId = shiftInfo?.RoomId ?? doctorInfo?.RoomId;
-            _roomName = shiftInfo?.RoomName ?? doctorInfo?.RoomName;
-
-            if (_currentRoomId == null) return;
-
-            // Dùng lại một context cho phần query ticket (vì lúc này 2 task trên đã xong)
-            using var context3 = DbFactory.CreateDbContext();
-            var baseTicketsQuery = context3.QueueTickets.AsNoTracking().Where(t => t.RoomId == _currentRoomId);
-
-            // Xác định mốc thời gian dựa theo Filter
-            DateTime filterStartDate = today;
-            if (_filterPeriod == "Week")
+            if (_currentShift != null)
             {
-                int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
-                filterStartDate = today.AddDays(-1 * diff).Date;
+                _currentRoomId = _currentShift.RoomId;
+                _roomName = _currentShift.Room?.Name;
             }
-            else if (_filterPeriod == "Month")
+            else
             {
-                filterStartDate = new DateTime(today.Year, today.Month, 1);
+                // Nếu không có ca trực, không tự ý nạp phòng mặc định
+                _currentRoomId = null;
+                _roomName = "Hết ca làm việc / Chưa bắt đầu ca";
             }
 
-            // Lấy data đã tinh gọn (Projection) để giảm payload nặng nề từ Cloud
-            var allData = await baseTicketsQuery
-                .Where(t => t.CreatedAt >= filterStartDate || t.StatusEnum == TicketStatus.Testing)
-                .Select(t => new
-                {
-                    t.Id,
-                    t.TicketNumber,
-                    t.StatusEnum,
-                    t.CreatedAt,
-                    t.UpdatedAt,
-                    PatientName = t.Patient != null ? t.Patient.FullName : "N/A"
-                })
-                .ToListAsync();
+            // 2. Lấy dữ liệu thống kê và danh sách bệnh nhân (Centralized logic)
+            var summary = await PatientService.GetDoctorDashboardSummaryAsync(_currentDoctorId, _filterPeriod);
 
-            // Xử lý logic tại Memory (RAM) - Nhanh hơn hàng trăm lần Roundtrip tới Database
-            var filterTickets = allData.Where(t => t.CreatedAt >= filterStartDate).ToList();
-
-            TotalCount = filterTickets.Count;
-            WaitingCount = filterTickets.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling);
-            InProgressCount = filterTickets.Count(t => t.StatusEnum == TicketStatus.Examinating || t.StatusEnum ==
-TicketStatus.Testing);
-
-            // Bệnh nhân đang xét nghiệm (Bao gồm cả cũ hơn nếu state vẫn là Testing)
-            _testingTickets = allData
-                .Where(t => t.StatusEnum == TicketStatus.Testing)
-                .OrderByDescending(t => t.UpdatedAt)
-                .Take(5)
-                .Select(t => new QueueTicket
-                {
-                    Id = t.Id,
-                    TicketNumber = t.TicketNumber,
-                    StatusEnum = t.StatusEnum,
-                    Patient = new Patient { FullName = t.PatientName }
-                })
-                .ToList();
-
-            // Khám xong gần đây
-            _recentCompletedTickets = filterTickets
-                .Where(t => t.StatusEnum == TicketStatus.Completed || t.StatusEnum == TicketStatus.Done)
-                .OrderByDescending(t => t.UpdatedAt)
-                .Take(5)
-                .Select(t => new QueueTicket
-                {
-                    Id = t.Id,
-                    TicketNumber = t.TicketNumber,
-                    StatusEnum = t.StatusEnum,
-                    Patient = new Patient { FullName = t.PatientName }
-                })
-                .ToList();
+            TotalCount = summary.TotalCount;
+            WaitingCount = summary.WaitingCount;
+            InProgressCount = summary.InProgressCount;
+            _testingTickets = summary.TestingTickets;
+            _recentCompletedTickets = summary.RecentCompletedTickets;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error optimization: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error dashboard load: {ex.Message}");
+            ToastService.ShowError("Không thể tải dữ liệu tổng quan.");
         }
         finally
         {
-            _isLoading = false; // Tắt trạng thái loading sau khi nạp xong data ngầm
+            _isLoading = false;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -446,19 +376,42 @@ TicketStatus.Testing);
         await LoadCompleteDashboardDataAsync();
     }
 
-    private string GetStatusClass(string status) => status switch
+    private static string GetStatusClass(TicketStatus status) => status switch
     {
-        "Done" => "bg-green-100 text-green-700",
-        "In Progress" => "bg-blue-100 text-blue-700",
-        "Waiting" => "bg-amber-100 text-amber-700",
+        TicketStatus.Done => "bg-green-100 text-green-700",
+        TicketStatus.Completed => "bg-teal-100 text-teal-700",
+        TicketStatus.Examinating => "bg-cyan-100 text-cyan-700",
+        TicketStatus.Calling => "bg-orange-100 text-orange-700",
+        TicketStatus.Waiting => "bg-amber-100 text-amber-700",
+        TicketStatus.Testing => "bg-purple-100 text-purple-700",
+        TicketStatus.Missed => "bg-red-100 text-red-700",
+        TicketStatus.Cancelled => "bg-slate-100 text-slate-700",
         _ => "bg-gray-100 text-gray-700"
     };
 
-    private string GetRowBgClass(string status) => status switch
+    private static string TranslateStatus(TicketStatus status) => status switch
     {
-        "Done" => "bg-green-50",
-        "In Progress" => "bg-blue-50",
-        "Waiting" => "bg-amber-50",
+        TicketStatus.Waiting => "Chờ khám",
+        TicketStatus.Calling => "Đang gọi",
+        TicketStatus.Examinating => "Đang khám",
+        TicketStatus.Testing => "Đang xét nghiệm",
+        TicketStatus.Completed => "Đã khám xong",
+        TicketStatus.Done => "Hoàn tất",
+        TicketStatus.Missed => "Trễ hẹn",
+        TicketStatus.Cancelled => "Đã hủy",
+        _ => status.ToString()
+    };
+
+    private static string GetRowBgClass(TicketStatus status) => status switch
+    {
+        TicketStatus.Done => "bg-green-50",
+        TicketStatus.Completed => "bg-teal-50",
+        TicketStatus.Examinating => "bg-cyan-50",
+        TicketStatus.Calling => "bg-orange-50",
+        TicketStatus.Waiting => "bg-amber-50",
+        TicketStatus.Testing => "bg-purple-50",
+        TicketStatus.Missed => "bg-red-50",
+        TicketStatus.Cancelled => "bg-slate-50",
         _ => ""
     };
 

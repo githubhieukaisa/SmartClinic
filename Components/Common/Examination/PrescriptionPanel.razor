@@ -14,43 +14,46 @@
     </div>
 
     <div class="space-y-6">
-        <!-- Medicine Selection -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-foreground mb-2">Chọn Thuốc</label>
-                <select @bind="_selectedMedicineId"
-                        class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
-                    <option value="0">Chọn một loại thuốc...</option>
-                    @foreach (var med in _availableMedicines.Where(m => !_prescribedMedicines.Any(pm =>
-                        pm.MedicineId == m.Id)))
-                    {
-                        var stock = med.PhysicalStock;
-                        bool isAvailable = med.IsForSale && stock > 0;
-                        <option value="@med.Id" disabled="@(!isAvailable)">
-                            @med.Name (@med.Unit) - Tồn: @stock
-                        </option>
-                    }
-                </select>
+        @if (!IsReadOnly)
+        {
+            <!-- Medicine Selection -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-2">Chọn Thuốc</label>
+                    <select @bind="_selectedMedicineId"
+                            class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="0">Chọn một loại thuốc...</option>
+                        @foreach (var med in _availableMedicines.Where(m => !_prescribedMedicines.Any(pm =>
+                            pm.MedicineId == m.Id)))
+                        {
+                            var stock = med.PhysicalStock;
+                            bool isAvailable = med.IsForSale && stock > 0;
+                            <option value="@med.Id" disabled="@(!isAvailable)">
+                                @med.Name (@med.Unit) - Tồn: @stock
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-2">Số lượng</label>
+                    <input type="number" @bind="_medicineQuantity"
+                           class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                           min="1" placeholder="SL" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-2">Liều dùng</label>
+                    <input type="text" @bind="_medicineDosage"
+                           class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                           placeholder="Vd: 2 lần/ngày" />
+                </div>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-foreground mb-2">Số lượng</label>
-                <input type="number" @bind="_medicineQuantity"
-                       class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                       min="1" placeholder="SL" />
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-foreground mb-2">Liều dùng</label>
-                <input type="text" @bind="_medicineDosage"
-                       class="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                       placeholder="Vd: 2 lần/ngày" />
-            </div>
-        </div>
-
-        <!-- Add Medicine Button -->
-        <SaveActionButton OnClick="AddMedicineAsync" Label="Thêm Thuốc" LoadingLabel="Đang thêm..." Icon="ph-plus"
-                          Disabled="@(_prescriptionSaved || _selectedMedicineId == 0 || _medicineQuantity < 1)" />
+            <!-- Add Medicine Button -->
+            <SaveActionButton OnClick="AddMedicineAsync" Label="Thêm Thuốc" LoadingLabel="Đang thêm..." Icon="ph-plus"
+                              Disabled="@(_prescriptionSaved || _selectedMedicineId == 0 || _medicineQuantity < 1)" />
+        }
 
         <!-- Selected Medicines Table -->
         @if (_prescribedMedicines.Any())
@@ -75,13 +78,20 @@
                                     <td class="py-3 px-4 text-center text-foreground">@medicine.Quantity</td>
                                     <td class="py-3 px-4 text-center text-foreground">@medicine.Dosage</td>
                                     <td class="py-3 px-4">
-                                        <div class="flex justify-center">
-                                            <Button Variant="Button.ButtonVariant.Danger" IsFullWidth="false"
-                                                    Disabled="@_prescriptionSaved"
-                                                    OnClick="@(async _ => RemoveMedicine(medicine.MedicineId))">
-                                                <i class="ph ph-trash mr-1"></i> Xóa
-                                            </Button>
-                                        </div>
+                                        @if (!IsReadOnly)
+                                        {
+                                            <div class="flex justify-center">
+                                                <Button Variant="Button.ButtonVariant.Danger" IsFullWidth="false"
+                                                        Disabled="@_prescriptionSaved"
+                                                        OnClick="@(async _ => RemoveMedicine(medicine.MedicineId))">
+                                                    <i class="ph ph-trash mr-1"></i> Xóa
+                                                </Button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-slate-300">-</span>
+                                        }
                                     </td>
                                 </tr>
                             }
@@ -109,15 +119,18 @@
                     <span>Đơn thuốc đã gửi — Đang chờ Dược sĩ</span>
                 </div>
 
-                @* ── TEST ONLY ───────────────────── *@
-                <button @onclick="ResetPrescriptionTestAsync"
-                        class="flex items-center gap-2 px-3 py-2 bg-red-500/10 text-red-600 rounded-lg text-sm font-medium hover:bg-red-500/20 transition border border-red-500/30">
-                    <i class="ph ph-trash"></i>
-                    Test: Xoá Toàn Bộ Đơn Thuốc
-                </button>
+                @if (!IsReadOnly)
+                {
+                    @* ── TEST ONLY ───────────────────── *@
+                    <button @onclick="ResetPrescriptionTestAsync"
+                            class="flex items-center gap-2 px-3 py-2 bg-red-500/10 text-red-600 rounded-lg text-sm font-medium hover:bg-red-500/20 transition border border-red-500/30">
+                        <i class="ph ph-trash"></i>
+                        Test: Xoá Toàn Bộ Đơn Thuốc
+                    </button>
+                }
             </div>
         }
-        else
+        else if (!IsReadOnly)
         {
             <SaveActionButton
             OnClick="@(() => { _showPrescriptionConfirm = true; StateHasChanged(); return Task.CompletedTask; })"
@@ -188,6 +201,7 @@
 
 @code {
     [Parameter] public int TicketId { get; set; }
+    [Parameter] public bool IsReadOnly { get; set; }
 
     private int _selectedMedicineId = 0;
     private int _medicineQuantity = 1;

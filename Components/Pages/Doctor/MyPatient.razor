@@ -190,6 +190,7 @@
                                             Khám bệnh
                                         </button>
                                     }
+                                    
                                 </td>
                             </tr>
                         }
@@ -243,17 +244,8 @@
                 _currentDoctorId = doctorId;
             }
 
-            // Tối ưu: Dùng Factory để query nhanh thông tin phòng ban mà không block UI
-            using var context = DbFactory.CreateDbContext();
-            var now = DateTime.Now;
-            var activeShift = await context.DoctorShifts
-                .AsNoTracking()
-                .Include(s => s.Room)
-                .Where(s => s.DoctorId == _currentDoctorId
-                         && s.StartTime <= now
-                         && (s.EndTime == null || s.EndTime >= now))
-                .OrderByDescending(s => s.StartTime)
-                .FirstOrDefaultAsync();
+            // Dùng centralized logic để lấy ca trực đang hoạt động
+            var activeShift = await PatientService.GetActiveDoctorShiftAsync(_currentDoctorId);
 
             if (activeShift != null)
             {
@@ -262,13 +254,9 @@
             }
             else
             {
-                var doctor = await context.Users
-                    .AsNoTracking()
-                    .Include(u => u.Room)
-                    .FirstOrDefaultAsync(u => u.Id == _currentDoctorId);
-
-                _currentRoomId = doctor?.RoomId;
-                _roomName = doctor?.Room?.Name ?? "Chưa phân phòng";
+                // Nếu không có ca trực, không tự ý nạp phòng mặc định
+                _currentRoomId = null;
+                _roomName = "Hết ca làm việc / Chưa bắt đầu ca";
             }
         }
 
@@ -327,11 +315,8 @@
         {
             try
             {
-                var ticketToUpdate = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
-                if (ticketToUpdate != null)
-                {
-                    StateHasChanged();
-                }
+                // Khi trạng thái thay đổi, tải lại dữ liệu để áp dụng filter mới (phòng vs bác sĩ)
+                await LoadDataAsync();
             }
             catch (Exception) { }
         });
