@@ -135,20 +135,36 @@ namespace SmartClinic.Services
         public async Task<Medicine?> GetMedicineByIdAsync(int id)
             => await _context.Medicines.FindAsync(id);
 
-        public async Task<Medicine> CreateMedicineAsync(Medicine medicine)
+        public async Task<Medicine> CreateMedicineWithPriceAsync(Medicine medicine, decimal initialPrice)
         {
+            medicine.MedicinePrices = new List<MedicinePrice>
+            {
+                new MedicinePrice { Price = initialPrice, EffectiveFrom = DateTime.UtcNow }
+            };
             _context.Medicines.Add(medicine);
             await _context.SaveChangesAsync();
             return medicine;
         }
 
-        public async Task<(bool Success, string Error)> UpdateMedicineAsync(Medicine medicine)
+        public async Task<(bool Success, string Error)> UpdateMedicineWithPriceAsync(Medicine medicine, decimal newPrice)
         {
-            var existing = await _context.Medicines.FindAsync(medicine.Id);
+            var existing = await _context.Medicines
+                .Include(m => m.MedicinePrices)
+                .FirstOrDefaultAsync(m => m.Id == medicine.Id);
+                
             if (existing == null) return (false, "Medicine not found.");
+            
             existing.Name = medicine.Name;
             existing.Unit = medicine.Unit;
             existing.StockQuantity = medicine.StockQuantity;
+
+            // Check if price changed
+            var currentPrice = existing.MedicinePrices.OrderByDescending(p => p.EffectiveFrom).FirstOrDefault()?.Price ?? 0m;
+            if (currentPrice != newPrice)
+            {
+                existing.MedicinePrices.Add(new MedicinePrice { Price = newPrice, EffectiveFrom = DateTime.UtcNow });
+            }
+
             await _context.SaveChangesAsync();
             return (true, "");
         }
@@ -170,6 +186,43 @@ namespace SmartClinic.Services
             medicine.StockQuantity = ~medicine.StockQuantity;
             await _context.SaveChangesAsync();
             return (true, "");
+        }
+
+        public async Task<List<MedicineInsightDto>> GetMedicineInsightsAsync(DateTime fromDate, DateTime toDate)
+        {
+            var start = fromDate.Date;
+            var end = toDate.Date.AddDays(1).AddTicks(-1);
+
+            // Fetch the quantities sold in the last X days for prescriptions that are Dispensed (or Paid)
+            var salesData = await _context.PrescriptionDetails
+                .Where(d => d.Prescription.CreatedAt >= start && d.Prescription.CreatedAt <= end &&
+                            d.Prescription.Status != PrescriptionStatus.Pending) // Only count dispensed/paid
+                .GroupBy(d => d.MedicineId)
+                .Select(g => new 
+                {
+                    MedicineId = g.Key,
+                    TotalQuantity = g.Sum(x => x.Quantity),
+                    TotalRevenue = g.Sum(x => x.Quantity * x.UnitPrice)
+                })
+                .ToListAsync();
+
+            var medicines = await _context.Medicines.ToListAsync();
+
+            var insights = medicines.Select(m => {
+                var sale = salesData.FirstOrDefault(s => s.MedicineId == m.Id);
+                return new MedicineInsightDto
+                {
+                    MedicineId = m.Id,
+                    MedicineName = m.Name,
+                    Unit = m.Unit ?? "—",
+                    CurrentStock = m.PhysicalStock,
+                    IsForSale = m.IsForSale,
+                    QuantitySold = sale?.TotalQuantity ?? 0,
+                    Revenue = sale?.TotalRevenue ?? 0m
+                };
+            }).ToList();
+
+            return insights;
         }
 
         // ─── NOTIFY ─────────────────────────────────────────────────────────────

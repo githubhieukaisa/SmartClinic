@@ -1,0 +1,256 @@
+@page "/admin/medicines"
+@using Microsoft.AspNetCore.Authorization
+@using SmartClinic.Models
+@using SmartClinic.DTOs
+@using SmartClinic.Components.Common
+@using SmartClinic.Services
+@using Blazored.Toast.Services
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "ManagerPolicy")]
+@inject IPharmacyService PharmacyService
+@inject IToastService ToastService
+
+<div class="p-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Quản lý Kho Thuốc</h1>
+            <p class="text-muted-foreground mt-1">Quản lý danh mục, thiết lập giá và điều chỉnh trạng thái thuốc</p>
+        </div>
+        <div class="text-right">
+            <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+            <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("hh:mm tt")</p>
+        </div>
+    </div>
+
+    <!-- CRUD Section -->
+    <div class="bg-card rounded-xl border border-border shadow-sm p-6">
+        <div class="flex items-center justify-between mb-6">
+            <div class="relative">
+                <i class="ph absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"></i>
+                <input @bind="_searchQuery" @bind:event="oninput" placeholder="  Tìm tên thuốc..."
+                       class="pl-9 pr-4 py-2 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64" />
+            </div>
+            <button @onclick="OpenAddModal" class="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition shadow-sm">
+                <i class="ph ph-plus-circle"></i> Thêm Thuốc Mới
+            </button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-border bg-muted/30">
+                        <th class="py-3 px-4 text-left font-semibold text-muted-foreground">Tên Thuốc</th>
+                        <th class="py-3 px-4 text-center font-semibold text-muted-foreground">Đơn Vị</th>
+                        <th class="py-3 px-4 text-right font-semibold text-muted-foreground">Giá Bán</th>
+                        <th class="py-3 px-4 text-center font-semibold text-muted-foreground">Khả Dụng</th>
+                        <th class="py-3 px-4 text-center font-semibold text-muted-foreground">Trạng Thái</th>
+                        <th class="py-3 px-4 font-semibold text-muted-foreground text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_medicines == null)
+                    {
+                        <tr><td colspan="6" class="text-center py-8 text-muted-foreground"><i class="ph ph-spinner-gap animate-spin mr-2"></i>Đang tải...</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var m in FilteredMedicines)
+                        {
+                            <tr class="border-b border-border hover:bg-muted/10 transition">
+                                <td class="py-3 px-4 font-medium text-foreground">@m.Name</td>
+                                <td class="py-3 px-4 text-center text-muted-foreground">@(m.Unit ?? "—")</td>
+                                <td class="py-3 px-4 text-right font-semibold text-foreground">@GetCurrentPrice(m).ToString("N0")đ</td>
+                                <td class="py-3 px-4 text-center">
+                                     <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @(m.PhysicalStock < 50 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-700")">
+                                         @m.PhysicalStock
+                                     </span>
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    @if (m.IsForSale)
+                                    {
+                                        <span class="inline-block px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-medium">Đang mở bán</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-block px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-medium">Ngừng bán</span>
+                                    }
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button @onclick="() => OpenEditModal(m)" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition" title="Chỉnh sửa">
+                                            <i class="ph ph-pencil-simple text-lg"></i>
+                                        </button>
+                                        <button @onclick="() => ToggleMedicineStatusAsync(m)" class="p-1.5 @(m.IsForSale ? "text-red-500 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50") rounded transition" title="@(m.IsForSale ? "Ngừng bán nhanh" : "Mở bán lại")">
+                                            <i class="ph @(m.IsForSale ? "ph-minus-circle" : "ph-check-circle") text-lg"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit / Add Medicine -->
+@if (_showModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="bg-card w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 border-b border-border flex items-center justify-between">
+                <h3 class="text-lg font-bold text-foreground">@(_isEditMode ? "Cập nhật thuốc" : "Khai báo thuốc mới")</h3>
+                <button @onclick="CloseModal" class="text-muted-foreground hover:text-foreground transition"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-1">Tên Thuốc</label>
+                    <input @bind="_modalModel.Name" class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none" placeholder="Nhập tên thuốc..." />
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1">Đơn vị (đóng gói)</label>
+                        <input @bind="_modalModel.Unit" class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none" placeholder="Viên, vỉ, hộp..." />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-1">Tồn kho khả dụng</label>
+                        <input type="number" @bind="_modalModel.PhysicalStock" disabled="@_isEditMode" class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-muted/50 disabled:cursor-not-allowed disabled:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none" placeholder="SL..." />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-1">Giá Bán Lẻ (VNĐ)</label>
+                    <input type="number" @bind="_modalModel.Price" class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none" placeholder="VD: 5000" />
+                    @if (_isEditMode)
+                    {
+                        <p class="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5"><i class="ph ph-info text-blue-500"></i> Lưu giá mới sẽ tự động đóng băng giá cũ với các hoá đơn đã xuất.</p>
+                    }
+                </div>
+            </div>
+            <div class="bg-muted/30 px-6 py-4 border-t border-border flex items-center justify-end gap-3">
+                <button @onclick="CloseModal" class="px-4 py-2 rounded-lg text-sm font-medium text-foreground border border-border hover:bg-muted transition">Hủy</button>
+                <button @onclick="SaveMedicineAsync" disabled="@_isLoading" class="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-sm disabled:opacity-50">
+                    @if (_isLoading) { <i class="ph ph-spinner-gap animate-spin"></i> }
+                    Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Medicine>? _medicines;
+    private string _searchQuery = "";
+
+    private IEnumerable<Medicine> FilteredMedicines =>
+        string.IsNullOrWhiteSpace(_searchQuery)
+            ? (_medicines ?? Enumerable.Empty<Medicine>())
+            : (_medicines ?? Enumerable.Empty<Medicine>()).Where(m => m.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
+
+    // Modal state
+    private bool _showModal;
+    private bool _isEditMode;
+    private bool _isLoading;
+
+    private class MedicineFormModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+        public int PhysicalStock { get; set; }
+        public decimal Price { get; set; }
+    }
+    
+    private MedicineFormModel _modalModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDatas();
+    }
+
+    private async Task LoadDatas()
+    {
+        _medicines = await PharmacyService.GetAllMedicinesAsync();
+    }
+
+    private decimal GetCurrentPrice(Medicine m)
+        => m.MedicinePrices.OrderByDescending(p => p.EffectiveFrom).FirstOrDefault()?.Price ?? 0m;
+
+    private async Task ToggleMedicineStatusAsync(Medicine m)
+    {
+        var (ok, err) = await PharmacyService.ToggleMedicineForSaleAsync(m.Id);
+        if (ok)
+        {
+            ToastService.ShowSuccess($"Đã đổi trạng thái bán cho {(m.Name)}!");
+            m.StockQuantity = ~m.StockQuantity;
+            StateHasChanged();
+        }
+        else
+        {
+            ToastService.ShowError(err);
+        }
+    }
+
+    private void OpenAddModal()
+    {
+        _isEditMode = false;
+        _modalModel = new MedicineFormModel { PhysicalStock = 0 };
+        _showModal = true;
+    }
+
+    private void OpenEditModal(Medicine m)
+    {
+        _isEditMode = true;
+        _modalModel = new MedicineFormModel
+        {
+            Id = m.Id,
+            Name = m.Name,
+            Unit = m.Unit ?? "",
+            PhysicalStock = m.PhysicalStock,
+            Price = GetCurrentPrice(m)
+        };
+        _showModal = true;
+    }
+
+    private void CloseModal() => _showModal = false;
+
+    private async Task SaveMedicineAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_modalModel.Name) || _modalModel.Price < 0)
+        {
+            ToastService.ShowError("Tên và giá không hợp lệ");
+            return;
+        }
+
+        _isLoading = true;
+        if (!_isEditMode)
+        {
+            var med = new Medicine 
+            { 
+                Name = _modalModel.Name,
+                Unit = _modalModel.Unit,
+                StockQuantity = _modalModel.PhysicalStock
+            };
+            await PharmacyService.CreateMedicineWithPriceAsync(med, _modalModel.Price);
+            ToastService.ShowSuccess("Thêm thuốc thành công");
+        }
+        else
+        {
+            var med = new Medicine 
+            { 
+                Id = _modalModel.Id,
+                Name = _modalModel.Name,
+                Unit = _modalModel.Unit,
+                StockQuantity = _medicines?.FirstOrDefault(m => m.Id == _modalModel.Id)?.StockQuantity ?? 0
+            };
+            var (ok, err) = await PharmacyService.UpdateMedicineWithPriceAsync(med, _modalModel.Price);
+            if (ok) ToastService.ShowSuccess("Cập nhật thuốc thành công");
+            else ToastService.ShowError(err);
+        }
+        
+        await LoadDatas();
+        _isLoading = false;
+        CloseModal();
+    }
+}
