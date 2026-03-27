@@ -40,7 +40,9 @@ namespace SmartClinic.Services
             services.AddMemoryCache();
             services.AddScoped<ITicketService, TicketService>();
             services.AddScoped<IDepartmentService, DepartmentService>();
+            services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IQueueService, QueueService>();
             services.AddScoped<PatientService>();
             services.AddScoped<IPharmacyService, PharmacyService>();

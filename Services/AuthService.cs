@@ -4,9 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using SmartClinic.Constant;
 using SmartClinic.Models;
-using MailKit.Net.Smtp;
-using MailKit.Security;
-using MimeKit;
+
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -25,17 +23,20 @@ namespace SmartClinic.Services
         private readonly IConfiguration _configuration;
         private readonly IMemoryCache _memoryCache;
         private readonly ILogger<AuthService> _logger;
+        private readonly IEmailService _emailService;
 
         public AuthService(
             SmartClinicDbContext context,
             IConfiguration configuration,
             IMemoryCache memoryCache,
-            ILogger<AuthService> logger)
+            ILogger<AuthService> logger,
+            IEmailService emailService)
         {
             _context = context;
             _configuration = configuration;
             _memoryCache = memoryCache;
             _logger = logger;
+            _emailService = emailService;
         }
 
         public async Task<AuthResponse?> LoginAsync(string usernameOrEmail, string password)
@@ -216,7 +217,14 @@ namespace SmartClinic.Services
 
             try
             {
-                await SendOtpEmailAsync(user.Email!, user.FullName, otp);
+                var subject = "[SmartClinic] Ma OTP dat lai mat khau";
+                var receiverName = string.IsNullOrWhiteSpace(user.FullName) ? "ban" : user.FullName;
+                var body = $"Xin chao {receiverName},\n\n" +
+                           $"Ma OTP dat lai mat khau cua ban la: {otp}\n" +
+                           $"Ma co hieu luc trong {OtpExpiryMinutes} phut.\n\n" +
+                           "Neu ban khong yeu cau dat lai mat khau, vui long bo qua email nay.\n\n" +
+                           "SmartClinic";
+                await _emailService.SendEmailAsync(user.Email!, subject, body);
             }
             catch (Exception ex)
             {
@@ -429,63 +437,7 @@ namespace SmartClinic.Services
             return $"password-reset-otp:{normalizedEmail}";
         }
 
-        private async Task SendOtpEmailAsync(string toEmail, string? fullName, string otp)
-        {
-            var smtpHost = _configuration["Email:SmtpHost"];
-            var smtpPortRaw = _configuration["Email:SmtpPort"];
-            var senderEmail = _configuration["Email:SenderEmail"];
-            var senderName = _configuration["Email:SenderName"];
-            var username = _configuration["Email:Username"]?.Trim();
-            var password = _configuration["Email:Password"]?.Replace(" ", string.Empty).Trim();
-            var enableSslRaw = _configuration["Email:EnableSsl"];
 
-            if (string.IsNullOrWhiteSpace(smtpHost) ||
-                string.IsNullOrWhiteSpace(smtpPortRaw) ||
-                string.IsNullOrWhiteSpace(senderEmail) ||
-                string.IsNullOrWhiteSpace(username) ||
-                string.IsNullOrWhiteSpace(password) ||
-                !int.TryParse(smtpPortRaw, out var smtpPort))
-            {
-                throw new InvalidOperationException("Thiếu cấu hình Email SMTP trong appsettings.");
-            }
-
-            var enableSsl = true;
-            if (!string.IsNullOrWhiteSpace(enableSslRaw) && bool.TryParse(enableSslRaw, out var parsedSsl))
-            {
-                enableSsl = parsedSsl;
-            }
-
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(
-                string.IsNullOrWhiteSpace(senderName) ? "SmartClinic" : senderName,
-                senderEmail));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = "[SmartClinic] Ma OTP dat lai mat khau";
-            message.Body = new TextPart("plain")
-            {
-                Text = BuildOtpEmailBody(fullName, otp)
-            };
-
-            using var client = new SmtpClient();
-            var socketOptions = enableSsl
-                ? SecureSocketOptions.StartTls
-                : SecureSocketOptions.None;
-
-            await client.ConnectAsync(smtpHost, smtpPort, socketOptions);
-            await client.AuthenticateAsync(username, password);
-            await client.SendAsync(message);
-            await client.DisconnectAsync(true);
-        }
-
-        private static string BuildOtpEmailBody(string? fullName, string otp)
-        {
-            var receiverName = string.IsNullOrWhiteSpace(fullName) ? "ban" : fullName;
-            return $"Xin chao {receiverName},\n\n" +
-                   $"Ma OTP dat lai mat khau cua ban la: {otp}\n" +
-                   $"Ma co hieu luc trong {OtpExpiryMinutes} phut.\n\n" +
-                   "Neu ban khong yeu cau dat lai mat khau, vui long bo qua email nay.\n\n" +
-                   "SmartClinic";
-        }
 
         private async Task<(int? RoomId, string? RoomName)> GetDoctorRoomContextAsync(User user)
         {
