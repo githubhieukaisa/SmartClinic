@@ -1,5 +1,4 @@
-﻿@page "/login"
-@using Blazored.Toast.Services
+@page "/login"
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authentication.Cookies
 @using SmartClinic.Components.Common
@@ -123,7 +122,7 @@ authProperties);
 					}
                     else if((roleMask & 128) == 128) // Patient (RoleMask: 128)
                     {
-                        redirectUrl = "/";
+                        redirectUrl = "/patient/medical-history";
 					}
                     // Kiểm tra role theo thứ tự (Doctor > Reception > Admin)
                     else if ((roleMask & 2) == 2) // Doctor (RoleMask: 2)

@@ -125,6 +125,16 @@
 			</Authorized>
 		</AuthorizeView>
 
+		@* Patient Links *@
+		<AuthorizeView Policy="PatientPolicy">
+			<Authorized>
+				<NavLink class="@baseClass" href="/patient/medical-history" Match="NavLinkMatch.All">
+					<i class="ph ph-folder-user text-lg"></i>
+					<span>Hồ sơ của tôi</span>
+				</NavLink>
+			</Authorized>
+		</AuthorizeView>
+
 		@* Đăng Xuất được chuyển sang MainLayout *@
 
 	</nav>

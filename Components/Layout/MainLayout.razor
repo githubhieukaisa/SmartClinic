@@ -32,9 +32,10 @@
                 </div>
             </div>
             @* DoctorShiftMonitor: Interactive, tự render badge + quản lý timer.
-               Đặt đây để badge hiện ngay bên dưới tên bác sĩ trong sidebar.
-               Component tự kiểm tra role nội bộ, không cần guard bên ngoài. *@
-            <DoctorShiftMonitor />
+               Đặt đây để badge hiện ngay bên dưới tên bác sĩ trong sidebar. *@
+            <AuthorizeView Policy="DoctorPolicy">
+                <DoctorShiftMonitor />
+            </AuthorizeView>
         </div>
 
         <!-- NAVIGATION -->
