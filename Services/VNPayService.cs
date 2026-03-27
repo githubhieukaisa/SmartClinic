@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -29,7 +29,7 @@ namespace SmartClinic.Services
             var hashSecret = _config["VNPay:HashSecret"] ?? "RAOEXHYVSDDIIENYWSLDIIZTANXUXZFJ";
             var returnUrl = _config["VNPay:ReturnUrl"] ?? "https://localhost:7062/cashier/vnpay-return";
 
-            var vnpParams = new SortedDictionary<string, string>
+            var vnpParams = new SortedDictionary<string, string>(StringComparer.Ordinal)
             {
                 ["vnp_Version"] = "2.1.0",
                 ["vnp_Command"] = "pay",
@@ -47,14 +47,16 @@ namespace SmartClinic.Services
                 ["vnp_ExpireDate"] = DateTime.Now.AddMinutes(15).ToString("yyyyMMddHHmmss"),
             };
 
-            // Build query string + tạo checksum
             var queryBuilder = new StringBuilder();
             foreach (var kv in vnpParams)
             {
-                queryBuilder.Append(WebUtility.UrlEncode(kv.Key));
-                queryBuilder.Append('=');
-                queryBuilder.Append(WebUtility.UrlEncode(kv.Value));
-                queryBuilder.Append('&');
+                if (!string.IsNullOrEmpty(kv.Value))
+                {
+                    queryBuilder.Append(WebUtility.UrlEncode(kv.Key));
+                    queryBuilder.Append('=');
+                    queryBuilder.Append(WebUtility.UrlEncode(kv.Value));
+                    queryBuilder.Append('&');
+                }
             }
             // Bỏ dấu & cuối
             var queryString = queryBuilder.ToString().TrimEnd('&');
@@ -76,7 +78,7 @@ namespace SmartClinic.Services
             var receivedHash = query["vnp_SecureHash"].ToString();
 
             // Build lại chuỗi ký (bỏ vnp_SecureHash)
-            var sortedParams = new SortedDictionary<string, string>();
+            var sortedParams = new SortedDictionary<string, string>(StringComparer.Ordinal);
             foreach (var key in query.Keys)
             {
                 if (key.StartsWith("vnp_") && key != "vnp_SecureHash" && key != "vnp_SecureHashType")
@@ -86,10 +88,13 @@ namespace SmartClinic.Services
             var sb = new StringBuilder();
             foreach (var kv in sortedParams)
             {
-                sb.Append(WebUtility.UrlEncode(kv.Key));
-                sb.Append('=');
-                sb.Append(WebUtility.UrlEncode(kv.Value));
-                sb.Append('&');
+                if (!string.IsNullOrEmpty(kv.Value))
+                {
+                    sb.Append(WebUtility.UrlEncode(kv.Key));
+                    sb.Append('=');
+                    sb.Append(WebUtility.UrlEncode(kv.Value));
+                    sb.Append('&');
+                }
             }
             var rawData = sb.ToString().TrimEnd('&');
             var expectedHash = HmacSha512(hashSecret, rawData);
