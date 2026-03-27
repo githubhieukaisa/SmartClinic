@@ -121,6 +121,10 @@ authProperties);
                     {
                         redirectUrl = "/";
 					}
+                    else if((roleMask & 128) == 128) // Patient (RoleMask: 128)
+                    {
+                        redirectUrl = "/";
+					}
                     // Kiểm tra role theo thứ tự (Doctor > Reception > Admin)
                     else if ((roleMask & 2) == 2) // Doctor (RoleMask: 2)
                     {
