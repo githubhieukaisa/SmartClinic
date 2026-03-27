@@ -498,3 +498,5 @@ appsettings.Local.json
 node_modules/
 package-lock.json
 yarn.lock
+.antigravity/instructions.md
+.github/copilot-instructions.md

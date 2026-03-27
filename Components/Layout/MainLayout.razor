@@ -1,11 +1,8 @@
 @using Blazored.Toast
 @using Blazored.Toast.Configuration
 @using SmartClinic.Components.Common
-@using SmartClinic.Services
-@using Microsoft.AspNetCore.Components.Authorization
 
 @inherits LayoutComponentBase
-@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="flex h-screen bg-background">
     <aside class="w-64 bg-sidebar border-r border-border flex flex-col fixed h-full z-50">
@@ -20,23 +17,7 @@
         </div>
 
         <!-- HEADER: User Profile + Shift Badge (nếu là bác sĩ) -->
-        <div class="p-6 border-b border-border">
-            <div class="flex items-center gap-3">
-                <div
-                    class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold shrink-0">
-                    @_userInitial
-                </div>
-                <div>
-                    <p class="font-semibold text-foreground text-sm line-clamp-1" title="@_userName">@_userName</p>
-                    <p class="text-xs text-muted-foreground line-clamp-1" title="@_userRole">@_userRole</p>
-                </div>
-            </div>
-            @* DoctorShiftMonitor: Interactive, tự render badge + quản lý timer.
-               Đặt đây để badge hiện ngay bên dưới tên bác sĩ trong sidebar. *@
-            <AuthorizeView Policy="DoctorPolicy">
-                <DoctorShiftMonitor />
-            </AuthorizeView>
-        </div>
+        <NavUser />
 
         <!-- NAVIGATION -->
         <nav class="flex-1 overflow-y-auto">
@@ -73,37 +54,3 @@
     <a href="" class="reload">Reload</a>
     <a class="dismiss">🗙</a>
 </div>
-
-@code {
-    // Header Profile vars
-    private string _userName = "Vô danh";
-    private string _userInitial = "U";
-    private string _userRole = "Khách";
-
-    protected override async Task OnInitializedAsync()
-    {
-        // ✅ Chỉ đọc Claims — an toàn khi chạy trong Prerender
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        if (user?.Identity?.IsAuthenticated != true) return;
-
-        _userName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
-                    ?? user.Identity.Name ?? "Bạn";
-        _userInitial = _userName.Trim().Length > 0
-            ? _userName.Trim().Substring(0, 1).ToUpper() : "U";
-
-        var roleMaskClaim = user.FindFirst("RoleMask")?.Value;
-        if (int.TryParse(roleMaskClaim, out int roleMask))
-        {
-            var roleNames = new List<string>();
-            if ((roleMask & 16) == 16) roleNames.Add("Admin");
-            if ((roleMask & 2) == 2) roleNames.Add("Bác sĩ");
-            if ((roleMask & 8) == 8) roleNames.Add("Thu ngân");
-            if ((roleMask & 32) == 32) roleNames.Add("Xét nghiệm");
-            if ((roleMask & 4) == 4) roleNames.Add("Dược sĩ");
-            if ((roleMask & 1) == 1) roleNames.Add("Lễ tân");
-            _userRole = roleNames.Any() ? string.Join(", ", roleNames) : "User";
-        }
-    }
-}

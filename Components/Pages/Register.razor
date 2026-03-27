@@ -1,0 +1,239 @@
+@page "/register"
+@layout SmartClinic.Components.Layout.KioskLayout
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using System.ComponentModel.DataAnnotations
+
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+<div class="relative min-h-screen overflow-hidden bg-gradient-to-br from-cyan-50 via-white to-emerald-50 px-4 py-10 sm:px-6">
+    <div class="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-cyan-200/40 blur-3xl"></div>
+    <div class="pointer-events-none absolute -right-12 bottom-16 h-72 w-72 rounded-full bg-emerald-200/40 blur-3xl"></div>
+
+    <div class="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.15fr_1fr]">
+        <section class="hidden rounded-3xl border border-white/70 bg-white/60 p-8 shadow-2xl backdrop-blur lg:block">
+            <p class="inline-flex items-center gap-2 rounded-full bg-cyan-100 px-4 py-1 text-xs font-semibold tracking-wide text-cyan-700">
+                <span class="h-2 w-2 rounded-full bg-cyan-500"></span>
+                SMARTCLINIC PATIENT ONBOARDING
+            </p>
+
+            <h1 class="mt-6 text-5xl font-black leading-tight tracking-tight text-slate-900">
+                Mở hồ sơ bệnh nhân trong
+                <span class="bg-gradient-to-r from-cyan-600 to-emerald-600 bg-clip-text text-transparent">60 giây</span>
+            </h1>
+
+            <p class="mt-5 text-lg leading-relaxed text-slate-600">
+                Nếu bạn là bác sĩ hoặc nhân sự bệnh viện và muốn đi khám như một bệnh nhân,
+                hệ thống sẽ tự động cộng thêm quyền <strong>Patient (RoleMask = 128)</strong> vào tài khoản hiện có.
+            </p>
+
+            <div class="mt-10 grid gap-4">
+                <div class="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+                    <p class="text-sm font-semibold text-slate-800">1) Đã có tài khoản nội bộ?</p>
+                    <p class="mt-1 text-sm text-slate-600">Dùng đúng username/email và mật khẩu hiện tại để thêm quyền bệnh nhân.</p>
+                </div>
+                <div class="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                    <p class="text-sm font-semibold text-slate-800">2) Chưa có tài khoản?</p>
+                    <p class="mt-1 text-sm text-slate-600">Hệ thống tạo tài khoản mới và gán duy nhất quyền Patient (128).</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p class="text-sm font-semibold text-slate-800">3) Bảo mật</p>
+                    <p class="mt-1 text-sm text-slate-600">Mật khẩu được mã hóa bằng BCrypt, không lưu dạng text thuần.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+            <div class="mb-6">
+                <h2 class="text-3xl font-black tracking-tight text-slate-900">Đăng ký tài khoản bệnh nhân</h2>
+                <p class="mt-2 text-sm text-slate-500">Chỉ áp dụng cho role Patient (128).</p>
+            </div>
+
+            <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="registerForm" class="space-y-4">
+                <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">@errorMessage</div>
+                }
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">@successMessage</div>
+                }
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="username" class="mb-1 block text-sm font-semibold text-slate-700">Tên đăng nhập</label>
+                        <InputText id="username" @bind-Value="registerModel.Username"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                                   placeholder="vd: nguyenan" />
+                        <ValidationMessage For="@(() => registerModel.Username)" class="mt-1 text-xs text-red-500" />
+                    </div>
+                    <div>
+                        <label for="fullName" class="mb-1 block text-sm font-semibold text-slate-700">Họ và tên</label>
+                        <InputText id="fullName" @bind-Value="registerModel.FullName"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                                   placeholder="Nguyen Van A" />
+                        <ValidationMessage For="@(() => registerModel.FullName)" class="mt-1 text-xs text-red-500" />
+                    </div>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="email" class="mb-1 block text-sm font-semibold text-slate-700">Email</label>
+                        <InputText id="email" @bind-Value="registerModel.Email"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                                   placeholder="name@example.com" />
+                        <ValidationMessage For="@(() => registerModel.Email)" class="mt-1 text-xs text-red-500" />
+                    </div>
+                    <div>
+                        <label for="phone" class="mb-1 block text-sm font-semibold text-slate-700">Số điện thoại</label>
+                        <InputText id="phone" @bind-Value="registerModel.PhoneNumber"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                                   placeholder="09xxxxxxxx" />
+                        <ValidationMessage For="@(() => registerModel.PhoneNumber)" class="mt-1 text-xs text-red-500" />
+                    </div>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="gender" class="mb-1 block text-sm font-semibold text-slate-700">Giới tính</label>
+                        <InputSelect id="gender" @bind-Value="registerModel.Gender"
+                                     class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100">
+                            <option value="">Chọn giới tính</option>
+                            <option value="true">Nam</option>
+                            <option value="false">Nữ</option>
+                        </InputSelect>
+                    </div>
+                    <div>
+                        <label for="dob" class="mb-1 block text-sm font-semibold text-slate-700">Ngày sinh</label>
+                        <InputDate id="dob" @bind-Value="registerModel.DoB" Type="InputDateType.Date"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100" />
+                    </div>
+                </div>
+
+                <div>
+                    <label for="address" class="mb-1 block text-sm font-semibold text-slate-700">Địa chỉ</label>
+                    <InputText id="address" @bind-Value="registerModel.Address"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                               placeholder="Số nhà, đường, quận/huyện..." />
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="password" class="mb-1 block text-sm font-semibold text-slate-700">Mật khẩu</label>
+                        <InputText id="password" type="password" @bind-Value="registerModel.Password"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                                   placeholder="Tối thiểu 6 ký tự" />
+                        <ValidationMessage For="@(() => registerModel.Password)" class="mt-1 text-xs text-red-500" />
+                    </div>
+                    <div>
+                        <label for="confirmPassword" class="mb-1 block text-sm font-semibold text-slate-700">Nhập lại mật khẩu</label>
+                        <InputText id="confirmPassword" type="password" @bind-Value="registerModel.ConfirmPassword"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                                   placeholder="Nhập lại để xác nhận" />
+                        <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="mt-1 text-xs text-red-500" />
+                    </div>
+                </div>
+
+                <button type="submit"
+                        disabled="@isLoading"
+                        class="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70">
+                    @(isLoading ? "Đang tạo hồ sơ..." : "Đăng ký tài khoản bệnh nhân")
+                </button>
+
+                <div class="text-center text-sm text-slate-600">
+                    Đã có tài khoản?
+                    <a href="/login" class="font-semibold text-cyan-700 hover:text-cyan-800">Đăng nhập ngay</a>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private RegisterModel registerModel { get; set; } = default!;
+
+    private bool isLoading;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override void OnInitialized()
+    {
+        registerModel ??= new RegisterModel();
+    }
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var result = await AuthService.RegisterPatientAsync(new PatientRegistrationRequest
+            {
+                Username = registerModel.Username,
+                Password = registerModel.Password,
+                FullName = registerModel.FullName,
+                Email = registerModel.Email,
+                PhoneNumber = registerModel.PhoneNumber,
+                Address = registerModel.Address,
+                Gender = registerModel.Gender,
+                DoB = registerModel.DoB
+            });
+
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                return;
+            }
+
+            successMessage = result.Message + " Đang chuyển sang đăng nhập...";
+            await Task.Delay(1300);
+            NavigationManager.NavigateTo("/login");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Lỗi hệ thống: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class RegisterModel
+    {
+        [Required(ErrorMessage = "Vui lòng nhập tên đăng nhập!")]
+        [MaxLength(50, ErrorMessage = "Tên đăng nhập tối đa 50 ký tự!")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập họ tên!")]
+        [MaxLength(100, ErrorMessage = "Họ tên tối đa 100 ký tự!")]
+        public string FullName { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Email không hợp lệ!")]
+        public string? Email { get; set; }
+
+        [Phone(ErrorMessage = "Số điện thoại không hợp lệ!")]
+        public string? PhoneNumber { get; set; }
+
+        public string? Address { get; set; }
+
+        public bool? Gender { get; set; }
+
+        public DateOnly? DoB { get; set; }
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu!")]
+        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự!")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập lại mật khẩu!")]
+        [Compare(nameof(Password), ErrorMessage = "Mật khẩu xác nhận không khớp!")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

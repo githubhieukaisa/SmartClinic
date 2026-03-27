@@ -13,8 +13,8 @@
 <div class="p-8">
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-foreground">Payment Queue</h1>
-            <p class="text-muted-foreground mt-1">Patients waiting to complete payment</p>
+            <h1 class="text-3xl font-bold text-foreground">Hàng đợi thanh toán</h1>
+            <p class="text-muted-foreground mt-1">Danh sách bệnh nhân chờ thanh toán</p>
         </div>
         <div class="flex items-center gap-4">
             <div class="text-right">
@@ -24,7 +24,7 @@
             <button @onclick="LoadDataAsync"
                     class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
                 <i class="ph ph-arrows-clockwise"></i>
-                Refresh
+                Làm mới
             </button>
         </div>
     </div>
@@ -32,7 +32,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Awaiting Payment</h4>
+                <h4 class="font-semibold text-foreground text-sm">Chờ thanh toán</h4>
                 <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                     <i class="ph ph-queue text-xl text-primary"></i>
                 </div>
@@ -45,7 +45,7 @@
 
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Total Revenue</h4>
+                <h4 class="font-semibold text-foreground text-sm">Tổng doanh thu</h4>
                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-money text-xl text-green-600"></i>
                 </div>
@@ -60,7 +60,7 @@
 
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Avg. Bill</h4>
+                <h4 class="font-semibold text-foreground text-sm">Hóa đơn TB</h4>
                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-chart-bar text-xl text-blue-600"></i>
                 </div>
@@ -78,7 +78,7 @@
         <div class="flex items-center justify-between p-6 border-b border-border">
             <div class="flex items-center gap-2">
                 <i class="ph ph-receipt text-xl text-foreground"></i>
-                <h2 class="text-xl font-bold text-foreground">Pending Payments</h2>
+                <h2 class="text-xl font-bold text-foreground">Khoản chờ thanh toán</h2>
             </div>
         </div>
 
@@ -86,7 +86,7 @@
         {
             <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
                 <i class="ph ph-spinner-gap animate-spin text-2xl"></i>
-                <span>Loading payments...</span>
+                <span>Đang tải dữ liệu...</span>
             </div>
         }
         else if (!_prescriptions.Any())
@@ -104,13 +104,13 @@
                         <tr class="border-b border-border bg-muted/30">
                             <th class="text-center py-3 px-4 font-semibold text-muted-foreground w-10"></th>
                             <th class="text-center py-3 px-4 font-semibold text-muted-foreground">#</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Patient</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Doctor</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Medicines</th>
-                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Time</th>
-                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Status</th>
-                            <th class="text-right py-3 px-4 font-semibold text-muted-foreground">Total</th>
-                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Action</th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Bệnh nhân</th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Bác sĩ</th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Thuốc</th>
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Thời gian</th>
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Trạng thái</th>
+                            <th class="text-right py-3 px-4 font-semibold text-muted-foreground">Tổng cộng</th>
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -161,7 +161,7 @@
                                 </td>
                                 <td class="py-3 px-4 text-center">
                                     <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                        Dispensed
+                                        Đã phát thuốc
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 text-right">
@@ -179,7 +179,7 @@
                                             else
                                             {
                                                 <i class="ph ph-money"></i>
-                                                <span>Cash</span>
+                                                <span>Tiền mặt</span>
                                             }
                                         </button>
                                         <button @onclick="@(() => PayVNPay(item))"
@@ -200,18 +200,18 @@
                                             <div class="px-4 py-2 bg-muted/30 border-b border-border flex items-center gap-2">
                                                 <i class="ph ph-pill text-sm text-primary"></i>
                                                 <span class="text-xs font-semibold text-foreground uppercase tracking-wide">
-                                                    Medicine Details — @item.PatientName
+                                                    Chi tiết đơn thuốc — @item.PatientName
                                                 </span>
                                             </div>
                                             <table class="w-full text-xs">
                                                 <thead>
                                                     <tr class="border-b border-border bg-muted/20">
-                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Medicine</th>
-                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">Qty</th>
-                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">Unit</th>
-                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Instructions</th>
-                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Unit Price</th>
-                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Subtotal</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Tên thuốc</th>
+                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">SL</th>
+                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">ĐVT</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Cách dùng</th>
+                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Đơn giá</th>
+                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Thành tiền</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -227,7 +227,7 @@
                                                         </tr>
                                                     }
                                                     <tr class="border-t-2 border-border bg-green-50 font-bold">
-                                                        <td colspan="5" class="py-2.5 px-4 text-foreground text-right">Total Medicine</td>
+                                                        <td colspan="5" class="py-2.5 px-4 text-foreground text-right">Tổng tiền thuốc</td>
                                                         <td class="py-2.5 px-4 text-right text-green-700">@item.TotalAmount.ToString("N0")đ</td>
                                                     </tr>
                                                 </tbody>
@@ -251,6 +251,20 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var uri = new Uri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("vnpay_success", out var success) && success == "true")
+        {
+            var msg = query.TryGetValue("vnpay_msg", out var msgVal) ? msgVal.ToString() : "Thanh toán VNPay thành công!";
+            ToastService.ShowSuccess(msg);
+        }
+        else if (query.TryGetValue("vnpay_error", out var error) && error == "true")
+        {
+            var msg = query.TryGetValue("vnpay_msg", out var msgVal) ? msgVal.ToString() : "Thanh toán VNPay thất bại!";
+            ToastService.ShowError(msg);
+        }
+
         await LoadDataAsync();
     }
 
@@ -278,7 +292,7 @@
 
         if (result.Success)
         {
-            ToastService.ShowSuccess("Cash payment confirmed!");
+            ToastService.ShowSuccess("Đã xác nhận thanh toán tiền mặt!");
             _prescriptions?.RemoveAll(p => p.PrescriptionId == prescriptionId);
             _expanded.Remove(prescriptionId);
         }
@@ -294,7 +308,7 @@
     {
         if (p.TotalAmount <= 0)
         {
-            ToastService.ShowWarning("Total amount is 0, cannot process VNPay.");
+            ToastService.ShowWarning("Tổng tiền bằng 0, không thể thanh toán qua VNPay.");
             return;
         }
         var url = CashierService.CreateVNPayUrl(p.PrescriptionId, p.TotalAmount, p.PatientName);
