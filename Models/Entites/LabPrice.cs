@@ -2,8 +2,9 @@ using System;
 
 namespace SmartClinic.Models;
 
-public class LabPrice : BaseEntity
+public class LabPrice
 {
+    public int Id { get; set; }
     public int LabTestId { get; set; }
     public decimal Price { get; set; }
     public DateTime EffectiveDate { get; set; }

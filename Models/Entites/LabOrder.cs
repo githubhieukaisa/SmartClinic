@@ -6,7 +6,7 @@ namespace SmartClinic.Models;
 public partial class LabOrder : BaseEntity
 {
     public int TicketId { get; set; }
-    
+
     public LabOrderStatus Status { get; set; } = LabOrderStatus.Pending;
 
 

@@ -2,8 +2,9 @@
 {
     using SmartClinic.Constant;
 
-    public class DoctorShift : BaseEntity
+    public class DoctorShift
     {
+        public int Id { get; set; }
         public int DoctorId { get; set; }
         public virtual User Doctor { get; set; } = null!;
 
