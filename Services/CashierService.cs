@@ -28,7 +28,7 @@ namespace SmartClinic.Services
         {
             var tickets = await _context.QueueTickets
                 .AsNoTracking()
-                .Include(t => t.Patient)
+                .Include(t => t.PatientUser)
                 .Include(t => t.Doctor)
                 .Include(t => t.Prescription)
                     .ThenInclude(p => p!.PrescriptionDetails)
@@ -81,7 +81,7 @@ namespace SmartClinic.Services
             try
             {
                 var ticket = await _context.QueueTickets
-                    .Include(t => t.Patient)
+                    .Include(t => t.PatientUser)
                     .Include(t => t.Prescription)
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
@@ -103,7 +103,7 @@ namespace SmartClinic.Services
                     prescriptionId = ticketId,
                     paymentMethod,
                     ticketNumber = ticket.TicketNumber,
-                    patientName = ticket.Patient?.FullName
+                    patientName = ticket.PatientUser?.FullName
                 });
 
                 return (true, "");
@@ -123,7 +123,7 @@ namespace SmartClinic.Services
             PrescriptionId = t.Id,
             TicketId       = t.Id,
             TicketNumber   = t.TicketNumber,
-            PatientName    = t.Patient?.FullName ?? "—",
+            PatientName    = t.PatientUser?.FullName ?? "—",
             DoctorName     = t.Doctor?.FullName ?? "Not assigned",
             DoctorNote     = t.Prescription?.DoctorNote,
             Status         = t.StatusEnum.ToString(),

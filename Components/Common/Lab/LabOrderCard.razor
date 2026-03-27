@@ -17,7 +17,7 @@
                 @Order.QueueTicket?.TicketNumber
             </div>
             <div>
-                <h3 class="text-xl font-bold text-foreground">@Order.QueueTicket?.Patient?.FullName</h3>
+                <h3 class="text-xl font-bold text-foreground">@Order.QueueTicket?.PatientUser?.FullName</h3>
                 <p class="text-sm text-muted-foreground flex items-center gap-2 mt-0.5">
                     <i class="ph ph-clock"></i>
                     Chỉ định lúc @Order.CreatedAt.ToString("HH:mm")

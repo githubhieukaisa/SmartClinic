@@ -138,8 +138,8 @@
                                                 <tr class="border-b border-border transition hover:bg-muted/30">
                                                     <td class="py-3 px-4 font-bold text-foreground text-center">@t.TicketNumber</td>
                                                     <td class="py-3 px-4">
-                                                        <p class="font-medium text-foreground">@t.Patient?.FullName</p>
-                                                        <p class="text-xs text-muted-foreground mt-0.5">@t.Patient?.PhoneNumber</p>
+                                                        <p class="font-medium text-foreground">@t.PatientUser?.FullName</p>
+                                                        <p class="text-xs text-muted-foreground mt-0.5">@t.PatientUser?.PhoneNumber</p>
                                                     </td>
                                                     <td class="py-3 px-4 text-left">
                                                         <span
@@ -191,7 +191,7 @@
                                                         class="py-3 px-4 font-bold text-foreground w-16 text-center text-muted-foreground/70">
                                                         @t.TicketNumber</td>
                                                         <td class="py-3 px-4">
-                                                            <p class="font-medium text-foreground">@t.Patient?.FullName</p>
+                                                            <p class="font-medium text-foreground">@t.PatientUser?.FullName</p>
                                                         </td>
                                                         <td class="py-3 px-4 text-right text-muted-foreground text-xs">
                                                             @(t.UpdatedAt?.ToString("HH:mm") ?? t.CreatedAt.ToString("HH:mm"))
@@ -199,7 +199,7 @@
                                                         <td class="py-3 px-4 text-right">
                                                             <div class="flex justify-end">
                                                                 <button
-                                                                    @onclick='() => NavigationManager.NavigateTo($"/doctor/medical-record/{t.Id}/{t.PatientId}")'
+                                                                    @onclick='() => NavigationManager.NavigateTo($"/medical-record/{t.Id}/{t.PatientId}")'
                                                                     class="flex items-center gap-1.5 px-3 py-1.5 text-primary hover:bg-muted rounded-lg text-xs font-medium transition"
                                                                     title="Xem hồ sơ bệnh án">
                                                                     <i class="ph ph-file-text"></i>

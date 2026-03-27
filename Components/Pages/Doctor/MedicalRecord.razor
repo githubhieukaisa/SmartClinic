@@ -1,11 +1,13 @@
-@page "/doctor/medical-record/{TicketId:int}/{PatientId:int}"
+@page "/medical-record/{TicketId:int}/{PatientId:int}"
 @using SmartClinic.Models
-@using SmartClinic.Components.Common.Examination
 @using SmartClinic.Components.Layout
 @using Microsoft.EntityFrameworkCore
 @layout MainLayout
+@rendermode InteractiveServer
 @inject IDbContextFactory<SmartClinicDbContext> DbFactory
 @inject NavigationManager NavigationManager
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
+@inject Blazored.Toast.Services.IToastService ToastService
 
 <div class="p-8">
     <!-- Back Button: same as Examination.razor -->
@@ -24,38 +26,44 @@
             <span class="text-sm">Đang tải hồ sơ bệnh án...</span>
         </div>
     }
-    else if (_patient == null || _ticket == null)
+    else if (_patient == null || _ticket == null || !string.IsNullOrEmpty(_errorMessage))
     {
         <div class="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-6">
-            <p class="text-yellow-700">Không tìm thấy thông tin hồ sơ bệnh án.</p>
-        </div>
-    }
+            <p class="text-yellow-700">@(string.IsNullOrEmpty(_errorMessage) ? "Không tìm thấy thông tin hồ sơ bệnh án." :
+                                                                                            _errorMessage)</p>
+            </div>
+        }
     else
-    {
-        <!-- Page Title -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-foreground">Hồ sơ Bệnh án</h1>
-            <p class="text-muted-foreground mt-1">
-                Lượt khám <span class="font-mono font-semibold text-primary">#@TicketId</span>
-                — @(_ticket.CreatedAt.ToString("dd/MM/yyyy HH:mm"))
-                — <span class="text-green-600 font-semibold">Đã hoàn tất</span>
-            </p>
-        </div>
+        {
+            <!-- Page Title -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-foreground">Hồ sơ Bệnh án</h1>
+                <p class="text-muted-foreground mt-1">
+                    Lượt khám <span class="font-mono font-semibold text-primary">#@TicketId</span>
+                    — @(_ticket.CreatedAt.ToString("dd/MM/yyyy HH:mm"))
+                    — <span class="text-green-600 font-semibold">Đã hoàn tất</span>
+                </p>
+            </div>
 
-        <!-- Patient Info Card: same pattern as Examination.razor -->
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Column 1: Identity -->
-                <div class="space-y-3">
-                    <h3 class="text-lg font-semibold text-foreground">Thông tin bệnh nhân</h3>
-                    <div>
-                        <p class="text-xs text-muted-foreground">Họ và tên</p>
-                        <p class="text-foreground font-medium">@_patient.FullName</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-muted-foreground">Giới tính / Tuổi</p>
-                        <p class="text-foreground font-medium">@((_patient.Gender ?? false) ? "Nam" : "Nữ") — @GetAge(_patient.DoB)
-                            tuổi</p>
+            <!-- Patient Info Card: same pattern as Examination.razor -->
+            <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Column 1: Identity -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold text-foreground">Thông tin bệnh nhân</h3>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Họ và tên</p>
+                            <p class="text-foreground font-medium">@_patient.FullName</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Giới tính / Tuổi</p>
+                            <p class="text-foreground font-medium">
+                                @((_patient.Gender ?? false) ? "Nam" : "Nữ")
+                                @if (_patient.DoB.HasValue)
+                                {
+                                    @($" — {GetAge(_patient.DoB)} tuổi")
+                                }
+                            </p>
                         </div>
                         <div>
                             <p class="text-xs text-muted-foreground">Số điện thoại</p>
@@ -110,13 +118,101 @@
                 </div>
             </div>
 
-            <!-- Lab Orders -->
-        <LabOrderPanel TicketId="TicketId" RoomId="0" IsReadOnly="true" />
+            <!-- Lab Orders Section -->
+            <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-flask text-2xl text-primary"></i>
+                    <h2 class="text-xl font-bold text-foreground">Kết quả Xét nghiệm</h2>
+                </div>
+                @if (_ticket.LabOrders.Any())
+                {
+                    <div class="overflow-x-auto rounded-lg border border-border">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-muted text-muted-foreground uppercase text-[11px] font-bold">
+                                <tr>
+                                    <th class="px-4 py-3">Tên Xét Nghiệm</th>
+                                    <th class="px-4 py-3 text-center">Kết quả / Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border">
+                                @foreach (var order in _ticket.LabOrders)
+                                {
+                                    @foreach (var detail in order.LabOrderDetails)
+                                    {
+                                        <tr class="hover:bg-muted/50 transition-colors">
+                                            <td class="px-4 py-4 font-medium text-foreground">@detail.LabTest?.Name</td>
+                                            <td class="px-4 py-4">
+                                                @if (!string.IsNullOrEmpty(detail.ResultNotes))
+                                                {
+                                                    <span class="text-foreground">@detail.ResultNotes</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted-foreground italic">Chưa có kết quả</span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(detail.ResultFileUrl))
+                                                {
+                                                    <a href="@detail.ResultFileUrl" target="_blank"
+                                                           class="ml-2 text-primary hover:underline inline-flex items-center gap-1">
+                                                        <i class="ph ph-file-pdf"></i> File
+                                                    </a>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-6 text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border">
+                        <p class="text-sm italic">Không có xét nghiệm nào được chỉ định cho lượt khám này.</p>
+                    </div>
+                }
+            </div>
 
-            <!-- Prescription -->
-        <PrescriptionPanel TicketId="TicketId" IsReadOnly="true" />
-        }
-    </div>
+            <!-- Prescription Section -->
+            <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-pill text-2xl text-primary"></i>
+                    <h2 class="text-xl font-bold text-foreground">Đơn thuốc</h2>
+                </div>
+                @if (_ticket.Prescription?.PrescriptionDetails.Any() == true)
+                {
+                    <div class="overflow-x-auto rounded-lg border border-border">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-muted text-muted-foreground uppercase text-[11px] font-bold">
+                                <tr>
+                                    <th class="px-4 py-3">Tên thuốc</th>
+                                    <th class="px-4 py-3 text-center">Số lượng</th>
+                                    <th class="px-4 py-3">Liều dùng</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border">
+                                @foreach (var detail in _ticket.Prescription.PrescriptionDetails)
+                                {
+                                    <tr class="hover:bg-muted/50 transition-colors">
+                                        <td class="px-4 py-4 font-medium text-foreground">@detail.Medicine?.Name
+                                            (@detail.Medicine?.Unit)</td>
+                                            <td class="px-4 py-4 text-center text-foreground">@detail.Quantity</td>
+                                            <td class="px-4 py-4 text-foreground italic">@detail.UsageInstruction</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-6 text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border">
+                            <p class="text-sm italic">Không có đơn thuốc nào được kê cho lượt khám này.</p>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
 
 @code {
     [Parameter] public int TicketId { get; set; }
@@ -126,37 +222,92 @@
     private User? _patient;
     private string? _doctorName;
     private bool _isLoading = true;
+    private string? _errorMessage;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
+    {
+        _ = LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
     {
         try
         {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var currentUserId))
+            {
+                NavigationManager.NavigateTo("/login");
+                return;
+            }
+
             using var context = DbFactory.CreateDbContext();
 
             _ticket = await context.QueueTickets
                 .AsNoTracking()
                 .Include(t => t.Doctor)
                 .Include(t => t.Room)
+                .Include(t => t.Prescription)
+                    .ThenInclude(p => p!.PrescriptionDetails)
+                        .ThenInclude(d => d.Medicine)
+                .Include(t => t.LabOrders)
+                    .ThenInclude(l => l.LabOrderDetails)
+                        .ThenInclude(d => d.LabTest)
                 .FirstOrDefaultAsync(t => t.Id == TicketId);
+
+            if (_ticket == null)
+            {
+                _errorMessage = "Không tìm thấy hồ sơ bệnh án.";
+                _isLoading = false;
+                return;
+            }
+
+            // Authorization: Patient of this ticket, Doctor of this ticket, or Admin
+            // Admin role usually has role claim "Admin" or certain RoleMask bits
+            var isAdmin = user.IsInRole("Admin"); // Check if standard role exists
+
+            if (!isAdmin && currentUserId != _ticket.PatientId && currentUserId != _ticket.DoctorId)
+            {
+                ToastService.ShowError("Bạn không có quyền xem hồ sơ bệnh án này!");
+                NavigationManager.NavigateTo("/unauthorized");
+                return;
+            }
 
             _patient = await context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == PatientId);
 
-            if (_ticket?.Doctor != null)
+            if (_ticket.Doctor != null)
                 _doctorName = _ticket.Doctor.FullName;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error loading medical record: {ex.Message}");
+            _errorMessage = "Lỗi khi tải dữ liệu.";
         }
         finally
         {
             _isLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    private void GoBack() => NavigationManager.NavigateTo("/doctor/dashboard");
+    private async Task GoBack()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.IsInRole("Patient") || (user.HasClaim(c => c.Type == "RoleMask") &&
+(int.Parse(user.FindFirst("RoleMask")!.Value) & 128) == 128))
+        {
+            NavigationManager.NavigateTo("/patient/medical-history");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/doctor/dashboard");
+        }
+    }
 
     private static int GetAge(DateOnly? dob)
     {

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Constant;
 using SmartClinic.DTOs;
@@ -43,7 +43,7 @@ namespace SmartClinic.Services
                 .Select(t => new
                 {
                     t.TicketNumber,
-                    PatientName = t.Patient.FullName
+                    PatientName = t.PatientUser != null ? t.PatientUser.FullName : "N/A"
                 })
                 .FirstOrDefaultAsync();
 

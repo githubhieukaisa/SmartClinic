@@ -116,14 +116,14 @@ authProperties);
                     {
                         redirectUrl = "/admin/users";
                     }
-                    else if((roleMask & 64) == 64) // Manager (RoleMask: 64)
+                    else if ((roleMask & 64) == 64) // Manager (RoleMask: 64)
                     {
                         redirectUrl = "/";
-					}
-                    else if((roleMask & 128) == 128) // Patient (RoleMask: 128)
+                    }
+                    else if ((roleMask & 128) == 128) // Patient (RoleMask: 128)
                     {
                         redirectUrl = "/patient/medical-history";
-					}
+                    }
                     // Kiểm tra role theo thứ tự (Doctor > Reception > Admin)
                     else if ((roleMask & 2) == 2) // Doctor (RoleMask: 2)
                     {

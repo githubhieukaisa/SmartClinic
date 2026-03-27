@@ -143,7 +143,7 @@
 
     private IEnumerable<LabOrder> FilteredOrders => _labOrders?
         .Where(o => (string.IsNullOrWhiteSpace(_searchTerm) ||
-                    (o.QueueTicket?.Patient?.FullName?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (o.QueueTicket?.PatientUser?.FullName?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (o.QueueTicket?.TicketNumber.ToString().Contains(_searchTerm) ?? false)))
         .Where(o => !_filterStatus.HasValue || o.Status == _filterStatus.Value)
         .Where(o => _selectedStationId == 0 || o.LabOrderDetails.Any(d => d.LabTest?.DefaultRoomId == _selectedStationId))

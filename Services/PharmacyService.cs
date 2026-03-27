@@ -23,7 +23,7 @@ namespace SmartClinic.Services
         {
             var prescriptions = await _context.Prescriptions
                 .AsNoTracking()
-                .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
+                .Include(p => p.Ticket).ThenInclude(t => t!.PatientUser)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
                 .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine).ThenInclude(m => m!.MedicinePrices)
                 .Where(p => p.Status == PrescriptionStatus.Pending)
@@ -37,7 +37,7 @@ namespace SmartClinic.Services
         {
             var p = await _context.Prescriptions
                 .AsNoTracking()
-                .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
+                .Include(p => p.Ticket).ThenInclude(t => t!.PatientUser)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
                 .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine).ThenInclude(m => m!.MedicinePrices)
                 .FirstOrDefaultAsync(p => p.Id == prescriptionId);
@@ -54,7 +54,7 @@ namespace SmartClinic.Services
             {
                 // Load WITH tracking (không AsNoTracking) để EF detect thay đổi
                 var prescription = await _context.Prescriptions
-                    .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
+                    .Include(p => p.Ticket).ThenInclude(t => t!.PatientUser)
                     .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
                     .Include(p => p.PrescriptionDetails)
                         .ThenInclude(d => d.Medicine)
@@ -109,7 +109,7 @@ namespace SmartClinic.Services
                     {
                         PrescriptionId = prescription.Id,
                         TicketNumber = prescription.Ticket?.TicketNumber ?? 0,
-                        PatientName = prescription.Ticket?.Patient?.FullName ?? "Unknown",
+                        PatientName = prescription.Ticket?.PatientUser?.FullName ?? "Unknown",
                         TotalAmount = total
                     });
 
@@ -231,7 +231,7 @@ namespace SmartClinic.Services
         {
             var p = await _context.Prescriptions
                 .AsNoTracking()
-                .Include(p => p.Ticket).ThenInclude(t => t!.Patient)
+                .Include(p => p.Ticket).ThenInclude(t => t!.PatientUser)
                 .Include(p => p.Ticket).ThenInclude(t => t!.Doctor)
                 .Include(p => p.PrescriptionDetails).ThenInclude(d => d.Medicine).ThenInclude(m => m!.MedicinePrices)
                 .FirstOrDefaultAsync(p => p.Id == prescriptionId);
@@ -242,7 +242,7 @@ namespace SmartClinic.Services
                 {
                     PrescriptionId = p.Id,
                     TicketNumber = p.Ticket?.TicketNumber ?? 0,
-                    PatientName = p.Ticket?.Patient?.FullName ?? "Unknown",
+                    PatientName = p.Ticket?.PatientUser?.FullName ?? "Unknown",
                     DoctorName = p.Ticket?.Doctor?.FullName ?? "Unknown",
                     MedicineCount = p.PrescriptionDetails.Count,
                     TotalAmount = p.TotalAmount ?? p.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.MedicinePrices.OrderByDescending(x => x.EffectiveFrom).FirstOrDefault()?.Price ?? 0m)) * d.Quantity)
@@ -261,7 +261,7 @@ namespace SmartClinic.Services
             PrescriptionId = p.Id,
             TicketId = p.TicketId ?? 0,
             TicketNumber = p.Ticket?.TicketNumber ?? 0,
-            PatientName = p.Ticket?.Patient?.FullName ?? "—",
+            PatientName = p.Ticket?.PatientUser?.FullName ?? "—",
             DoctorName = p.Ticket?.Doctor?.FullName ?? "Not assigned",
             DoctorNote = p.DoctorNote,
             Status = p.Status.ToString(),
