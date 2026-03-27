@@ -38,7 +38,7 @@ namespace SmartClinic.Services
         /// Add a new patient to the database
         /// Creates its own DbContext instance
         /// </summary>
-        public async Task AddPatientAsync(Patient patient)
+        public async Task AddPatientAsync(User patient)
         {
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
@@ -52,7 +52,7 @@ namespace SmartClinic.Services
                     FullName = patient.FullName,
                     DoB = patient.DoB,
                     Gender = patient.Gender,
-                    PhoneNumber = patient.Phone,
+                    PhoneNumber = patient.PhoneNumber,
                     Address = patient.Address,
                     RoleMask = PatientRoleMask,
                     IsActive = true
@@ -72,7 +72,7 @@ namespace SmartClinic.Services
         /// Get all active patients
         /// Creates its own DbContext instance
         /// </summary>
-        public async Task<List<Patient>> GetActivePatientsAsync()
+        public async Task<List<User>> GetActivePatientsAsync()
         {
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
@@ -83,15 +83,15 @@ namespace SmartClinic.Services
                     .AsNoTracking()
                     .Where(u => (u.RoleMask & PatientRoleMask) == PatientRoleMask)
                     .OrderByDescending(p => p.CreatedAt)
-                    .Select(u => new Patient
+                    .Select(u => new User
                     {
                         Id = u.Id,
                         FullName = u.FullName ?? string.Empty,
                         DoB = u.DoB,
-                        Phone = u.PhoneNumber,
+                        PhoneNumber = u.PhoneNumber,
                         Address = u.Address,
                         CreatedAt = u.CreatedAt,
-                        Gender = u.Gender ?? false
+                        Gender = u.Gender
                     })
                     .ToListAsync();
 
@@ -109,7 +109,7 @@ namespace SmartClinic.Services
         /// Creates its own DbContext instance
         /// Safe to call from SignalR callbacks
         /// </summary>
-        public async Task<Patient?> GetPatientByIdAsync(int patientId)
+        public async Task<User?> GetPatientByIdAsync(int patientId)
         {
             // Create a fresh context for this operation
             await using var context = await _contextFactory.CreateDbContextAsync();
@@ -119,15 +119,15 @@ namespace SmartClinic.Services
                 var patient = await context.Users
                     .AsNoTracking()
                     .Where(u => u.Id == patientId && (u.RoleMask & PatientRoleMask) == PatientRoleMask)
-                    .Select(u => new Patient
+                    .Select(u => new User
                     {
                         Id = u.Id,
                         FullName = u.FullName ?? string.Empty,
                         DoB = u.DoB,
-                        Phone = u.PhoneNumber,
+                        PhoneNumber = u.PhoneNumber,
                         Address = u.Address,
                         CreatedAt = u.CreatedAt,
-                        Gender = u.Gender ?? false
+                        Gender = u.Gender
                     })
                     .FirstOrDefaultAsync();
 
@@ -183,7 +183,7 @@ namespace SmartClinic.Services
                 var today = DateTime.Today;
                 var tickets = await context.QueueTickets
                     .AsNoTracking()
-                    .Include(t => t.Patient)
+                    .Include(t => t.PatientUser)
                     .Where(t =>
                         // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi) - Chỉ trong ngày + Phải có Shift
                         (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) && t.CreatedAt >= today)
@@ -369,7 +369,7 @@ namespace SmartClinic.Services
             // Query data - Unified logic
             var tickets = await context.QueueTickets
                 .AsNoTracking()
-                .Include(t => t.Patient)
+                .Include(t => t.PatientUser)
                 .Where(t =>
                     // TH1: Hàng chờ chung của phòng (Waiting/Calling) - Chỉ trong ngày
                     (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) && t.CreatedAt >= today)
@@ -389,8 +389,8 @@ namespace SmartClinic.Services
                     t.StatusEnum,
                     t.CreatedAt,
                     t.UpdatedAt,
-                    PatientName = t.Patient != null ? t.Patient.FullName : "N/A",
-                    PatientPhone = t.Patient != null ? t.Patient.PhoneNumber : ""
+                    PatientName = t.PatientUser != null ? t.PatientUser.FullName : "N/A",
+                    PatientPhone = t.PatientUser != null ? t.PatientUser.PhoneNumber : ""
                 })
                 .ToListAsync();
 
@@ -413,7 +413,7 @@ namespace SmartClinic.Services
                     TicketNumber = t.TicketNumber,
                     PatientId = t.PatientId,
                     StatusEnum = t.StatusEnum,
-                    Patient = new User { Id = t.PatientId ?? 0, FullName = t.PatientName, PhoneNumber = t.PatientPhone }
+                    PatientUser = new User { Id = t.PatientId ?? 0, FullName = t.PatientName, PhoneNumber = t.PatientPhone }
                 })
                 .ToList();
 
@@ -429,7 +429,7 @@ namespace SmartClinic.Services
                     StatusEnum = t.StatusEnum,
                     UpdatedAt = t.UpdatedAt,
                     CreatedAt = t.CreatedAt,
-                    Patient = new User { Id = t.PatientId ?? 0, FullName = t.PatientName }
+                    PatientUser = new User { Id = t.PatientId ?? 0, FullName = t.PatientName }
                 })
                 .ToList();
 

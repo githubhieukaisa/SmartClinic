@@ -96,7 +96,7 @@ public class LabService : ILabService
         using var context = _dbFactory.CreateDbContext();
         return await context.LabOrders
             .Include(lo => lo.QueueTicket)
-            .ThenInclude(qt => qt.Patient)
+            .ThenInclude(qt => qt.PatientUser)
             .Include(lo => lo.LabOrderDetails)
             .ThenInclude(lod => lod.LabTest)
             .Where(lo => lo.Status == LabOrderStatus.Pending)
@@ -176,7 +176,7 @@ public class LabService : ILabService
         var today = System.DateTime.Today;
         return await context.LabOrders
             .Include(lo => lo.QueueTicket)
-                .ThenInclude(qt => qt.Patient)
+                .ThenInclude(qt => qt.PatientUser)
             .Include(lo => lo.LabOrderDetails)
                 .ThenInclude(lod => lod.LabTest)
             .Where(lo => lo.CreatedAt >= today)

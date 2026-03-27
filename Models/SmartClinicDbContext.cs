@@ -152,14 +152,10 @@ public partial class SmartClinicDbContext : DbContext
                 .HasForeignKey(d => d.DoctorId)
                 .HasConstraintName("QueueTickets_DoctorId_fkey");
 
-            entity.HasOne(d => d.Patient)
+            entity.HasOne(d => d.PatientUser)
                 .WithMany(p => p.PatientTickets)
                 .HasForeignKey(d => d.PatientId)
                 .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("QueueTickets_UserId_fkey");
-
-            entity.HasOne(d => d.Patient).WithMany(p => p.PatientTickets)
-                .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("QueueTickets_PatientId_fkey");
 
             entity.HasOne(d => d.CreatedByUser).WithMany()

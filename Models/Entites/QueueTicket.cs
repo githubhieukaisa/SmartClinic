@@ -36,7 +36,7 @@ public partial class QueueTicket : BaseEntity
     public string? AdditionalNotes { get; set; }
 
     public int? PatientId { get; set; }
-    public virtual User? Patient { get; set; }
+    public virtual User? PatientUser { get; set; }
 
     public virtual ICollection<LabOrder> LabOrders { get; set; } = new List<LabOrder>();
 }
