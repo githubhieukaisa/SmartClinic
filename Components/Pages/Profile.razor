@@ -1,0 +1,334 @@
+@page "/profile"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using SmartClinic.DTOs
+@using SmartClinic.Models
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IUserService UserService
+
+<div class="p-6 max-w-4xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Hồ sơ cá nhân</h1>
+        <p class="text-sm text-slate-500 mt-1">Xem và cập nhật thông tin tài khoản của bạn</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="bg-white rounded-xl shadow-sm p-8 text-slate-500">Đang tải hồ sơ...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(loadError))
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4">@loadError</div>
+    }
+    else if (currentUser is null)
+    {
+        <div class="bg-amber-50 border border-amber-200 text-amber-700 rounded-xl p-4">Không tìm thấy thông tin người dùng.</div>
+    }
+    else
+    {
+        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Tài khoản</p>
+                    <p class="text-lg font-semibold text-slate-800">@DisplayName</p>
+                    <p class="text-sm text-slate-500">Tên đăng nhập: @currentUser.Username</p>
+                </div>
+                @if (!isEditing)
+                {
+                    <button type="button"
+                            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition"
+                            @onclick="StartEdit">
+                        Cập nhật hồ sơ
+                    </button>
+                }
+            </div>
+
+            @if (!isEditing)
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 text-sm">
+                    <div>
+                        <p class="text-slate-500">Họ và tên</p>
+                        <p class="font-medium text-slate-800">@DisplayName</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500">Email</p>
+                        <p class="font-medium text-slate-800">@DisplayValue(currentUser.Email)</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500">Số điện thoại</p>
+                        <p class="font-medium text-slate-800">@DisplayValue(currentUser.PhoneNumber)</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500">Giới tính</p>
+                        <p class="font-medium text-slate-800">@GenderText(currentUser.Gender)</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500">Địa chỉ</p>
+                        <p class="font-medium text-slate-800">@DisplayValue(currentUser.Address)</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500">Ngày sinh</p>
+                        <p class="font-medium text-slate-800">@DobText(currentUser.DoB)</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="p-6">
+                    @if (!string.IsNullOrWhiteSpace(saveError))
+                    {
+                        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">@saveError</div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(saveSuccess))
+                    {
+                        <div class="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">@saveSuccess</div>
+                    }
+
+                    <EditForm Model="@editModel" OnValidSubmit="HandleSave" FormName="profileForm">
+                        <DataAnnotationsValidator />
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-slate-700">Họ và tên <span class="text-red-500">*</span></label>
+                                <InputText @bind-Value="editModel.FullName"
+                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                <ValidationMessage For="@(() => editModel.FullName)" class="text-xs text-red-500 mt-1" />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-slate-700">Email</label>
+                                <InputText @bind-Value="editModel.Email"
+                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                <ValidationMessage For="@(() => editModel.Email)" class="text-xs text-red-500 mt-1" />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-slate-700">Số điện thoại</label>
+                                <InputText @bind-Value="editModel.PhoneNumber"
+                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                <ValidationMessage For="@(() => editModel.PhoneNumber)" class="text-xs text-red-500 mt-1" />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-slate-700">Giới tính</label>
+                                <InputSelect @bind-Value="editModel.Gender"
+                                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="">-- Chọn --</option>
+                                    <option value="true">Nam</option>
+                                    <option value="false">Nữ</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <label class="block mb-1 text-sm font-medium text-slate-700">Địa chỉ</label>
+                            <InputText @bind-Value="editModel.Address"
+                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+
+                        <div class="mt-6 flex items-center gap-3">
+                            <button type="submit"
+                                    disabled="@isSaving"
+                                    class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                                @(isSaving ? "Đang lưu..." : "Lưu thay đổi")
+                            </button>
+                            <button type="button"
+                                    class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition"
+                                    @onclick="CancelEdit">
+                                Hủy
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "mode")]
+    public string? Mode { get; set; }
+
+    private User? currentUser;
+    private ProfileUpdateModel editModel = new();
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool isEditing;
+
+    private string? loadError;
+    private string? saveError;
+    private string? saveSuccess;
+
+    private string DisplayName => string.IsNullOrWhiteSpace(currentUser?.FullName)
+        ? currentUser?.Username ?? "Người dùng"
+        : currentUser.FullName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileAsync();
+        isEditing = string.Equals(Mode, "edit", StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (currentUser is null) return;
+        isEditing = string.Equals(Mode, "edit", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                loadError = "Bạn cần đăng nhập để xem hồ sơ.";
+                return;
+            }
+
+            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+            {
+                loadError = "Không đọc được thông tin định danh người dùng.";
+                return;
+            }
+
+            currentUser = await UserService.GetUserByIdAsync(userId);
+            if (currentUser is null)
+            {
+                loadError = "Không tìm thấy người dùng trong hệ thống.";
+                return;
+            }
+
+            editModel = new ProfileUpdateModel
+            {
+                FullName = currentUser.FullName ?? currentUser.Username,
+                Email = currentUser.Email,
+                PhoneNumber = currentUser.PhoneNumber,
+                Address = currentUser.Address,
+                Gender = currentUser.Gender
+            };
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Không thể tải hồ sơ: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void StartEdit()
+    {
+        isEditing = true;
+        saveError = null;
+        saveSuccess = null;
+    }
+
+    private void CancelEdit()
+    {
+        if (currentUser is null)
+        {
+            isEditing = false;
+            return;
+        }
+
+        editModel = new ProfileUpdateModel
+        {
+            FullName = currentUser.FullName ?? currentUser.Username,
+            Email = currentUser.Email,
+            PhoneNumber = currentUser.PhoneNumber,
+            Address = currentUser.Address,
+            Gender = currentUser.Gender
+        };
+
+        saveError = null;
+        saveSuccess = null;
+        isEditing = false;
+    }
+
+    private async Task HandleSave()
+    {
+        if (currentUser is null) return;
+
+        isSaving = true;
+        saveError = null;
+        saveSuccess = null;
+
+        try
+        {
+            var dto = new EditUserDto
+            {
+                FullName = editModel.FullName,
+                Email = editModel.Email,
+                PhoneNumber = editModel.PhoneNumber,
+                Address = editModel.Address,
+                Gender = editModel.Gender,
+                RoleMask = currentUser.RoleMask
+            };
+
+            var success = await UserService.UpdateUserAsync(currentUser.Id, dto);
+            if (!success)
+            {
+                saveError = "Cập nhật hồ sơ thất bại.";
+                return;
+            }
+
+            currentUser.FullName = dto.FullName;
+            currentUser.Email = dto.Email;
+            currentUser.PhoneNumber = dto.PhoneNumber;
+            currentUser.Address = dto.Address;
+            currentUser.Gender = dto.Gender;
+
+            saveSuccess = "Đã cập nhật hồ sơ thành công.";
+            isEditing = false;
+        }
+        catch (Exception ex)
+        {
+            saveError = $"Không thể lưu hồ sơ: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "Chưa cập nhật" : value;
+
+    private static string GenderText(bool? gender) => gender switch
+    {
+        true => "Nam",
+        false => "Nữ",
+        null => "Chưa cập nhật"
+    };
+
+    private static string DobText(DateOnly? dob) => dob?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật";
+
+    private sealed class ProfileUpdateModel
+    {
+        [Required(ErrorMessage = "Vui lòng nhập họ và tên!")]
+        [MaxLength(100, ErrorMessage = "Họ và tên tối đa 100 ký tự!")]
+        public string FullName { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Email không hợp lệ!")]
+        public string? Email { get; set; }
+
+        [Phone(ErrorMessage = "Số điện thoại không hợp lệ!")]
+        public string? PhoneNumber { get; set; }
+
+        public string? Address { get; set; }
+        public bool? Gender { get; set; }
+    }
+}

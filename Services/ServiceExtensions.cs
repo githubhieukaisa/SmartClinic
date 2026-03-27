@@ -37,6 +37,7 @@ namespace SmartClinic.Services
         /// </summary>
         public static IServiceCollection AddSmartClinicServices(this IServiceCollection services)
         {
+            services.AddMemoryCache();
             services.AddScoped<ITicketService, TicketService>();
             services.AddScoped<IDepartmentService, DepartmentService>();
             services.AddScoped<IAuthService, AuthService>();
