@@ -221,7 +221,7 @@
 		{
 			// Auto-fill patient name and gender
 			patientName = existingPatient.FullName;
-			patientGender = existingPatient.Gender;
+			patientGender = existingPatient.Gender ?? true;
 			isExistingPatient = true;
 			ToastService.ShowInfo($"Tìm thấy hồ sơ: {patientName}");
 		}

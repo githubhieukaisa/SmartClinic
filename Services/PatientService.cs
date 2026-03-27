@@ -21,6 +21,8 @@ namespace SmartClinic.Services
     /// </summary>
     public class PatientService
     {
+        private const int PatientRoleMask = 128;
+
         private readonly IDbContextFactory<SmartClinicDbContext> _contextFactory;
         private readonly IHubContext<PatientHub> _hubContext;
 
@@ -43,7 +45,20 @@ namespace SmartClinic.Services
 
             try
             {
-                context.Patients.Add(patient);
+                var user = new User
+                {
+                    Username = $"patient_{Guid.NewGuid():N}",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
+                    FullName = patient.FullName,
+                    DoB = patient.DoB,
+                    Gender = patient.Gender,
+                    PhoneNumber = patient.Phone,
+                    Address = patient.Address,
+                    RoleMask = PatientRoleMask,
+                    IsActive = true
+                };
+
+                context.Users.Add(user);
                 await context.SaveChangesAsync();
             }
             catch (Exception ex)
@@ -64,9 +79,20 @@ namespace SmartClinic.Services
 
             try
             {
-                var patients = await context.Patients
+                var patients = await context.Users
                     .AsNoTracking()
+                    .Where(u => (u.RoleMask & PatientRoleMask) == PatientRoleMask)
                     .OrderByDescending(p => p.CreatedAt)
+                    .Select(u => new Patient
+                    {
+                        Id = u.Id,
+                        FullName = u.FullName ?? string.Empty,
+                        DoB = u.DoB,
+                        Phone = u.PhoneNumber,
+                        Address = u.Address,
+                        CreatedAt = u.CreatedAt,
+                        Gender = u.Gender ?? false
+                    })
                     .ToListAsync();
 
                 return patients;
@@ -90,9 +116,20 @@ namespace SmartClinic.Services
 
             try
             {
-                var patient = await context.Patients
+                var patient = await context.Users
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == patientId);
+                    .Where(u => u.Id == patientId && (u.RoleMask & PatientRoleMask) == PatientRoleMask)
+                    .Select(u => new Patient
+                    {
+                        Id = u.Id,
+                        FullName = u.FullName ?? string.Empty,
+                        DoB = u.DoB,
+                        Phone = u.PhoneNumber,
+                        Address = u.Address,
+                        CreatedAt = u.CreatedAt,
+                        Gender = u.Gender ?? false
+                    })
+                    .FirstOrDefaultAsync();
 
                 return patient;
             }
@@ -230,9 +267,9 @@ namespace SmartClinic.Services
                 await context.SaveChangesAsync();
                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService.AddQueueTicketAsync] Ticket #{nextTicketNumber} created with ID={queueTicket.Id}, RoomId={doctorShift.RoomId}");
 
-                var patient = await context.Patients
+                var patient = await context.Users
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == patientId);
+                    .FirstOrDefaultAsync(u => u.Id == patientId && (u.RoleMask & PatientRoleMask) == PatientRoleMask);
 
                 string patientName = patient?.FullName ?? "Unknown";
                 // Broadcast SignalR notification to the specific room group only
@@ -353,7 +390,7 @@ namespace SmartClinic.Services
                     t.CreatedAt,
                     t.UpdatedAt,
                     PatientName = t.Patient != null ? t.Patient.FullName : "N/A",
-                    PatientPhone = t.Patient != null ? t.Patient.Phone : ""
+                    PatientPhone = t.Patient != null ? t.Patient.PhoneNumber : ""
                 })
                 .ToListAsync();
 
@@ -376,7 +413,7 @@ namespace SmartClinic.Services
                     TicketNumber = t.TicketNumber,
                     PatientId = t.PatientId,
                     StatusEnum = t.StatusEnum,
-                    Patient = new Patient { Id = t.PatientId ?? 0, FullName = t.PatientName, Phone = t.PatientPhone }
+                    Patient = new User { Id = t.PatientId ?? 0, FullName = t.PatientName, PhoneNumber = t.PatientPhone }
                 })
                 .ToList();
 
@@ -392,7 +429,7 @@ namespace SmartClinic.Services
                     StatusEnum = t.StatusEnum,
                     UpdatedAt = t.UpdatedAt,
                     CreatedAt = t.CreatedAt,
-                    Patient = new Patient { Id = t.PatientId ?? 0, FullName = t.PatientName }
+                    Patient = new User { Id = t.PatientId ?? 0, FullName = t.PatientName }
                 })
                 .ToList();
 

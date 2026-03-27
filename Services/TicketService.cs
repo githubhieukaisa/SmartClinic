@@ -10,6 +10,8 @@ namespace SmartClinic.Services
 {
     public class TicketService : ITicketService
     {
+        private const int PatientRoleMask = 128;
+
         private readonly SmartClinicDbContext _context;
         private readonly IQueueService _queueService;
         private readonly IHubContext<QueueHub> _hubContext;
@@ -23,12 +25,16 @@ namespace SmartClinic.Services
             _patientHubContext = patientHubContext;
         }
 
-        public async Task<Patient?> FindPatientByPhoneAsync(string phone)
+        public async Task<User?> FindPatientByPhoneAsync(string phone)
         {
             if (string.IsNullOrWhiteSpace(phone)) return null;
 
-            return await _context.Patients
-                .FirstOrDefaultAsync(p => p.Phone == phone.Trim());
+            var normalizedPhone = phone.Trim();
+
+            return await _context.Users
+                .FirstOrDefaultAsync(u =>
+                    u.PhoneNumber == normalizedPhone &&
+                    (u.RoleMask & PatientRoleMask) == PatientRoleMask);
         }
 
         public async Task<QueueTicket> GenerateTicketAsync(GenerateTicketRequest request)
@@ -43,13 +49,16 @@ namespace SmartClinic.Services
 
         private async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId, bool patientGender)
         {
-            Patient patient = null;
+            User? patient = null;
             patientPhone = patientPhone?.Trim();
 
             if (!string.IsNullOrEmpty(patientPhone))
             {
-                patient = await _context.Patients.FirstOrDefaultAsync(p => p.Phone == patientPhone);
-                if (patient != null && patient.FullName != patientName)
+                patient = await _context.Users.FirstOrDefaultAsync(u =>
+                    u.PhoneNumber == patientPhone &&
+                    (u.RoleMask & PatientRoleMask) == PatientRoleMask);
+
+                if (patient != null && (patient.FullName != patientName || patient.Gender != patientGender))
                 {
                     patient.FullName = patientName;
                     patient.Gender = patientGender;
@@ -59,13 +68,17 @@ namespace SmartClinic.Services
 
             if (patient == null)
             {
-                patient = new Patient
+                patient = new User
                 {
+                    Username = $"patient_{Guid.NewGuid():N}",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
                     FullName = patientName,
-                    Phone = string.IsNullOrEmpty(patientPhone) ? null : patientPhone,
-                    Gender = patientGender
+                    PhoneNumber = string.IsNullOrEmpty(patientPhone) ? null : patientPhone,
+                    Gender = patientGender,
+                    RoleMask = PatientRoleMask,
+                    IsActive = true
                 };
-                _context.Patients.Add(patient);
+                _context.Users.Add(patient);
                 await _context.SaveChangesAsync(); // Lưu luôn để có patient.Id
             }
 

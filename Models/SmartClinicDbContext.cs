@@ -20,8 +20,6 @@ public partial class SmartClinicDbContext : DbContext
 
     public virtual DbSet<MedicinePrice> MedicinePrices { get; set; }
 
-    public virtual DbSet<Patient> Patients { get; set; }
-
     public virtual DbSet<Prescription> Prescriptions { get; set; }
 
     public virtual DbSet<PrescriptionDetail> PrescriptionDetails { get; set; }
@@ -101,18 +99,6 @@ public partial class SmartClinicDbContext : DbContext
                 .HasConstraintName("MedicinePrices_MedicineId_fkey");
         });
 
-        modelBuilder.Entity<Patient>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("Patients_pkey");
-
-            entity.Property(e => e.Address).HasMaxLength(255);
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
-            entity.Property(e => e.FullName).HasMaxLength(100);
-            entity.Property(e => e.Phone).HasMaxLength(20);
-        });
-
         modelBuilder.Entity<Prescription>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("Prescriptions_pkey");
@@ -162,11 +148,17 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone");
 
-            entity.HasOne(d => d.Doctor).WithMany(p => p.QueueTickets)
+            entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorTickets)
                 .HasForeignKey(d => d.DoctorId)
                 .HasConstraintName("QueueTickets_DoctorId_fkey");
 
-            entity.HasOne(d => d.Patient).WithMany(p => p.QueueTickets)
+            entity.HasOne(d => d.Patient)
+                .WithMany(p => p.PatientTickets)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("QueueTickets_UserId_fkey");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.PatientTickets)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("QueueTickets_PatientId_fkey");
 
@@ -195,6 +187,8 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.PasswordHash).HasMaxLength(255);
             entity.Property(e => e.RoleMask).HasDefaultValue(0);
             entity.Property(e => e.Username).HasMaxLength(50);
+            entity.Property(e => e.Address).HasMaxLength(255);
+            entity.Property(e => e.PhoneNumber).HasMaxLength(20);
         });
 
         modelBuilder.Entity<LabTest>(entity =>

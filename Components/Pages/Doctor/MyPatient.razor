@@ -149,7 +149,7 @@
                                     @(GetAge(ticket.Patient?.DoB) > 0 ? $"{GetAge(ticket.Patient?.DoB)} tuổi" : "—")
                                 </td>
                                 <td class="py-3 px-5 text-center text-foreground">
-                                    @(ticket.Patient?.Phone ?? "—")
+                                    @(ticket.Patient?.PhoneNumber ?? "—")
                                 </td>
 
                                 @* <td class="py-3 px-5 text-center">
