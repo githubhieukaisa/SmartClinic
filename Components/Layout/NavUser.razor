@@ -1,0 +1,116 @@
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+@rendermode InteractiveServer
+
+<div class="p-6 border-b border-border relative">
+    <button type="button"
+            class="w-full text-left"
+            disabled="@(!_isAuthenticated)"
+            @onclick="ToggleProfileMenu">
+        <div class="flex items-center gap-3 @(_isAuthenticated ? "cursor-pointer" : "cursor-not-allowed opacity-70")">
+            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold shrink-0">
+                @_userInitial
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="font-semibold text-foreground text-sm line-clamp-1" title="@_userName">@_userName</p>
+                <p class="text-xs text-muted-foreground line-clamp-1" title="@_userRole">@_userRole</p>
+            </div>
+            @if (_isAuthenticated)
+            {
+                <i class="ph ph-caret-down text-muted-foreground"></i>
+            }
+        </div>
+    </button>
+
+    @if (_isAuthenticated && _isProfileMenuOpen)
+    {
+        <div class="mt-3 rounded-lg border border-border bg-white shadow-sm overflow-hidden">
+            <button type="button"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
+                    @onclick="OpenProfileView">
+                <i class="ph ph-user-circle"></i>
+                <span>Xem hồ sơ</span>
+            </button>
+            <button type="button"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition border-t border-border"
+                    @onclick="OpenProfileEdit">
+                <i class="ph ph-pencil-simple"></i>
+                <span>Cập nhật hồ sơ</span>
+            </button>
+        </div>
+    }
+
+    @* DoctorShiftMonitor: Interactive, tự render badge + quản lý timer.
+       Đặt đây để badge hiện ngay bên dưới tên bác sĩ trong sidebar.
+       Component tự kiểm tra role nội bộ, không cần guard bên ngoài. *@
+    <DoctorShiftMonitor />
+</div>
+
+@code {
+    private string _userName = "Vô danh";
+    private string _userInitial = "U";
+    private string _userRole = "Khách";
+    private bool _isAuthenticated;
+    private bool _isProfileMenuOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user is null || user.Identity?.IsAuthenticated != true)
+        {
+            _isAuthenticated = false;
+            return;
+        }
+
+        _isAuthenticated = true;
+
+        _userName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+            ?? user.Identity?.Name
+            ?? "Bạn";
+
+        _userInitial = _userName.Trim().Length > 0
+            ? _userName.Trim().Substring(0, 1).ToUpper()
+            : "U";
+
+        var roleMaskClaim = user.FindFirst("RoleMask")?.Value;
+        if (!int.TryParse(roleMaskClaim, out var roleMask))
+        {
+            return;
+        }
+
+        var roleNames = new List<string>();
+        if ((roleMask & 16) == 16) roleNames.Add("Admin");
+        if ((roleMask & 64) == 64) roleNames.Add("Manager");
+        if ((roleMask & 128) == 128) roleNames.Add("Người dùng");
+        if ((roleMask & 2) == 2) roleNames.Add("Bác sĩ");
+        if ((roleMask & 8) == 8) roleNames.Add("Thu ngân");
+        if ((roleMask & 32) == 32) roleNames.Add("Xét nghiệm");
+        if ((roleMask & 4) == 4) roleNames.Add("Dược sĩ");
+        if ((roleMask & 1) == 1) roleNames.Add("Lễ tân");
+
+        _userRole = roleNames.Any() ? string.Join(", ", roleNames) : "User";
+    }
+
+    private void ToggleProfileMenu()
+    {
+        if (!_isAuthenticated) return;
+        _isProfileMenuOpen = !_isProfileMenuOpen;
+    }
+
+    private void OpenProfileView()
+    {
+        _isProfileMenuOpen = false;
+        NavigationManager.NavigateTo("/profile");
+    }
+
+    private void OpenProfileEdit()
+    {
+        _isProfileMenuOpen = false;
+        NavigationManager.NavigateTo("/profile?mode=edit");
+    }
+}
