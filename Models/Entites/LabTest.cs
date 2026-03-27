@@ -3,8 +3,9 @@ using System.Collections.Generic;
 
 namespace SmartClinic.Models;
 
-public class LabTest : BaseEntity
+public class LabTest
 {
+    public int Id { get; set; }
     public string Name { get; set; } = null!;
     public string? Unit { get; set; }
     public string? Description { get; set; }

@@ -69,9 +69,6 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("Medicines_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.StockQuantity).HasDefaultValue(0);
             entity.Property(e => e.Unit).HasMaxLength(20);
@@ -85,9 +82,6 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("MedicinePrices_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
             entity.Property(e => e.EffectiveFrom)
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Price).HasPrecision(10, 2);
@@ -190,10 +184,6 @@ public partial class SmartClinicDbContext : DbContext
         modelBuilder.Entity<LabTest>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("LabTests_pkey");
-            entity.HasQueryFilter(e => !e.IsDeleted);
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Unit).HasMaxLength(50);
 
@@ -240,10 +230,6 @@ public partial class SmartClinicDbContext : DbContext
         modelBuilder.Entity<DoctorShift>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("DoctorShifts_pkey");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
 
             entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorShifts)
                 .HasForeignKey(d => d.DoctorId)

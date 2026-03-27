@@ -3,8 +3,9 @@ using System.Collections.Generic;
 
 namespace SmartClinic.Models;
 
-public partial class Medicine : BaseEntity
+public partial class Medicine
 {
+    public int Id { get; set; }
     public string Name { get; set; } = null!;
 
     public string? Unit { get; set; }

@@ -3,9 +3,10 @@ using System.Collections.Generic;
 
 namespace SmartClinic.Models;
 
-public partial class PrescriptionDetail : BaseEntity
+public partial class PrescriptionDetail
 {
 
+    public int Id { get; set; }
     public int? PrescriptionId { get; set; }
 
     public int? MedicineId { get; set; }

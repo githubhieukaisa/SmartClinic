@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SmartClinic.Models
 {
-    public class Room : BaseEntity
+    public class Room
     {
+        public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
 
