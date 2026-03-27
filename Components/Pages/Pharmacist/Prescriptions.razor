@@ -18,8 +18,8 @@
     <!-- Header — khớp với MyPatient/Index -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-foreground">Prescription Queue</h1>
-            <p class="text-muted-foreground mt-1">Pending prescriptions waiting to be dispensed</p>
+            <h1 class="text-3xl font-bold text-foreground">Hàng đợi đơn thuốc</h1>
+            <p class="text-muted-foreground mt-1">Danh sách đơn thuốc đang chờ phát</p>
         </div>
         <div class="flex items-center gap-4">
             <div class="text-right">
@@ -30,13 +30,13 @@
             {
                 <div class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium">
                     <span class="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-                    Updating...
+                    Đang cập nhật...
                 </div>
             }
             <button @onclick="() => LoadDataAsync()"
                     class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
                 <i class="ph ph-arrows-clockwise"></i>
-                Refresh
+                Làm mới
             </button>
         </div>
     </div>
@@ -45,7 +45,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Pending</h4>
+                <h4 class="font-semibold text-foreground text-sm">Đang chờ</h4>
                 <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-hourglass text-xl text-amber-600"></i>
                 </div>
@@ -58,7 +58,7 @@
 
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Total Medicines</h4>
+                <h4 class="font-semibold text-foreground text-sm">Tổng số thuốc</h4>
                 <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                     <i class="ph ph-pill text-xl text-primary"></i>
                 </div>
@@ -71,7 +71,7 @@
 
         <div class="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition">
             <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-foreground text-sm">Total Value</h4>
+                <h4 class="font-semibold text-foreground text-sm">Tổng giá trị</h4>
                 <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                     <i class="ph ph-currency-circle-dollar text-xl text-green-600"></i>
                 </div>
@@ -90,7 +90,7 @@
         <div class="flex items-center justify-between p-6 border-b border-border">
             <div class="flex items-center gap-2">
                 <i class="ph ph-prescription text-xl text-foreground"></i>
-                <h2 class="text-xl font-bold text-foreground">Prescriptions to Dispense</h2>
+                <h2 class="text-xl font-bold text-foreground">Đơn thuốc cần phát</h2>
             </div>
         </div>
 
@@ -99,14 +99,14 @@
             {
                 <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground">
                     <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
-                    <span class="text-sm">Loading...</span>
+                    <span class="text-sm">Đang tải...</span>
                 </div>
             }
             else if (!_prescriptions.Any())
             {
                 <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
                     <i class="ph ph-prescription text-4xl"></i>
-                    <p class="text-sm font-medium">No prescriptions pending</p>
+                    <p class="text-sm font-medium">Không có đơn thuốc nào đang chờ</p>
                 </div>
             }
             else
@@ -116,12 +116,12 @@
                         <tr class="border-b border-border bg-muted/30">
                             <th class="text-center py-3 px-4 font-semibold text-muted-foreground w-10"></th>
                             <th class="text-center py-3 px-5 font-semibold text-muted-foreground">#</th>
-                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Patient</th>
-                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Doctor</th>
-                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Medicines</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Time</th>
-                            <th class="text-right py-3 px-5 font-semibold text-muted-foreground">Total</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Action</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Bệnh nhân</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Bác sĩ</th>
+                            <th class="text-left py-3 px-5 font-semibold text-muted-foreground">Thuốc</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Thời gian</th>
+                            <th class="text-right py-3 px-5 font-semibold text-muted-foreground">Tổng cộng</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -174,9 +174,7 @@
                                                 <span class="text-xs text-foreground">@d.MedicineName</span>
                                             </div>
                                         }
-                                        @if (p.Details.Count > 2)
-                                        {
-                                            <p class="text-xs text-muted-foreground">+@(p.Details.Count - 2) more</p>
+                                            <p class="text-xs text-muted-foreground">+@(p.Details.Count - 2) loại khác</p>
                                         }
                                     </div>
                                 </td>
@@ -196,12 +194,12 @@
                                         @if (_processing.Contains(p.PrescriptionId))
                                         {
                                             <i class="ph ph-spinner-gap animate-spin"></i>
-                                            <span>Dispensing...</span>
+                                            <span>Đang phát...</span>
                                         }
                                         else
                                         {
                                             <i class="ph ph-check-circle"></i>
-                                            <span>Dispense</span>
+                                            <span>Phát thuốc</span>
                                         }
                                     </button>
                                 </td>
@@ -216,11 +214,11 @@
                                             <table class="w-full text-xs">
                                                 <thead>
                                                     <tr class="bg-muted/30">
-                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Medicine</th>
-                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">Qty</th>
-                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">Unit</th>
-                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Instructions</th>
-                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Subtotal</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Tên thuốc</th>
+                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">SL</th>
+                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">ĐVT</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Cách dùng</th>
+                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Thành tiền</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -302,7 +300,7 @@
 
         if (success)
         {
-            ToastService.ShowSuccess("Dispensed successfully! Cashier has been notified.");
+            ToastService.ShowSuccess("Đã phát thuốc thành công! Đã thông báo cho thu ngân.");
             _prescriptions?.RemoveAll(p => p.PrescriptionId == prescriptionId);
             _expanded.Remove(prescriptionId);
         }

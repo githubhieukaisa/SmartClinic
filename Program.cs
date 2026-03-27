@@ -23,6 +23,12 @@ namespace SmartClinic
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
             builder.Services.AddSignalR();
+            
+            // Fix Antiforgery cross-site mismatch cookie errors (e.g. from VNPay return page bookmarks)
+            builder.Services.AddAntiforgery(options => 
+            {
+                options.Cookie.SameSite = SameSiteMode.Lax;
+            });
 
             // Register database
             builder.Services.AddSmartClinicDatabase(builder.Configuration);

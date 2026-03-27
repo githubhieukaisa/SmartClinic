@@ -97,7 +97,7 @@ namespace SmartClinic.Services
                     options.LoginPath = "/login";
                     options.AccessDeniedPath = "/login";
                     options.Cookie.HttpOnly = true;
-                    options.Cookie.SameSite = SameSiteMode.Strict;
+                    options.Cookie.SameSite = SameSiteMode.Lax;
 
                     options.Events = new CookieAuthenticationEvents
                     {
