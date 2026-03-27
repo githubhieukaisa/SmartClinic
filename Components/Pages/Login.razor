@@ -35,41 +35,42 @@
             }
 
             <div>
-                <label for="usernameOrEmail" class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập hoặc Email</label>
-                <InputText id="usernameOrEmail" @bind-Value="loginModel.UsernameOrEmail"
-                           class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
-                           placeholder="Nhập username hoặc email..." />
-                <ValidationMessage For="@(() => loginModel.UsernameOrEmail)" class="mt-1 text-xs text-red-500" />
-            </div>
-
-            <div>
-                <label for="password" class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu</label>
-                <InputText id="password" type="password" @bind-Value="loginModel.Password"
-                           class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
-                           placeholder="••••••••" />
-                <ValidationMessage For="@(() => loginModel.Password)" class="mt-1 text-xs text-red-500" />
-            </div>
-
-            <div class="flex justify-between items-center pt-1">
-                <a href="/forgot-password"
-                   class="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 hover:underline">
-                    Quên mật khẩu?
-                </a>
-
-                <div class="text-sm text-slate-600">
-                    Chưa có tài khoản bệnh nhân?
-                    <a href="/register" class="font-semibold text-blue-600 hover:text-blue-700">Đăng ký ngay</a>
+                <label for="usernameOrEmail" class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập hoặc
+                    Email</label>
+                    <InputText id="usernameOrEmail" @bind-Value="loginModel.UsernameOrEmail"
+                               class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
+                               placeholder="Nhập username hoặc email..." />
+                    <ValidationMessage For="@(() => loginModel.UsernameOrEmail)" class="mt-1 text-xs text-red-500" />
                 </div>
-            </div>
 
-            <div class="pt-2">
-                <Button Type="submit" IsLoading="isLoading">
-                    Đăng Nhập Vào Hệ Thống
-                </Button>
-            </div>
-        </EditForm>
+                <div>
+                    <label for="password" class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu</label>
+                    <InputText id="password" type="password" @bind-Value="loginModel.Password"
+                               class="block w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
+                               placeholder="••••••••" />
+                    <ValidationMessage For="@(() => loginModel.Password)" class="mt-1 text-xs text-red-500" />
+                </div>
+
+                <div class="flex justify-between items-center pt-1">
+                    <a href="/forgot-password"
+                           class="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 hover:underline">
+                        Quên mật khẩu?
+                    </a>
+
+                    <div class="text-sm text-slate-600">
+                        Chưa có tài khoản bệnh nhân?
+                        <a href="/register" class="font-semibold text-blue-600 hover:text-blue-700">Đăng ký ngay</a>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <Button Type="submit" IsLoading="isLoading">
+                        Đăng Nhập Vào Hệ Thống
+                    </Button>
+                </div>
+            </EditForm>
+        </div>
     </div>
-</div>
 
 @code {
     [SupplyParameterFromForm]
@@ -126,14 +127,14 @@ authProperties);
                     {
                         redirectUrl = "/admin/users";
                     }
-                    else if((roleMask & 64) == 64)
+                    else if ((roleMask & 64) == 64)
                     {
                         redirectUrl = "/";
-					}
-                    else if((roleMask & 128) == 128)
+                    }
+                    else if ((roleMask & 128) == 128)
                     {
-                        redirectUrl = "/";
-					}
+                        redirectUrl = "/patient/medical-history";
+                    }
                     else if ((roleMask & 2) == 2)
                     {
                         redirectUrl = "/doctor/dashboard";
@@ -151,7 +152,6 @@ authProperties);
                         redirectUrl = "/cashier/payments";
                     }
                 }
-
                 NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
             }
             else if (HttpContext == null)

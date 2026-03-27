@@ -439,10 +439,65 @@ namespace SmartClinic.Services
 
 
 
+        public async Task<PasswordResetResult> SendHistoryAccessOtpAsync(int ticketId, string email, string patientName)
+        {
+            var normalizedEmail = NormalizeEmail(email);
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                return new PasswordResetResult { Success = false, Message = "Email bệnh nhân không tồn tại." };
+            }
+
+            var cacheKey = $"history-access-otp:{ticketId}";
+            var otp = GenerateOtp();
+            
+            // Hash OTP in cache for security
+            var otpHash = BCrypt.Net.BCrypt.HashPassword(otp);
+
+            try
+            {
+                var subject = "[SmartClinic] Mã OTP yêu cầu xem hồ sơ bệnh án";
+                var body = $"Xin chào {patientName},\n\n" +
+                           $"Bác sĩ đang yêu cầu được xem lịch sử khám bệnh của bạn để phục vụ việc chăm sóc và tư vấn sức khỏe.\n\n" +
+                           $"Mã OTP xác nhận của bạn là: {otp}\n" +
+                           $"Mã này có hiệu lực trong {OtpExpiryMinutes} phút.\n\n" +
+                           "Nếu bạn không phải là người đang thực hiện việc này, vui lòng bỏ qua email này để đảm bảo an toàn thông tin.\n\n" +
+                           "Trân trọng,\n" +
+                           "Đội ngũ SmartClinic";
+                
+                await _emailService.SendEmailAsync(normalizedEmail, subject, body);
+                
+                _memoryCache.Set(cacheKey, otpHash, TimeSpan.FromMinutes(OtpExpiryMinutes));
+
+                return new PasswordResetResult { Success = true, Message = "OTP đã được gửi đến email bệnh nhân." };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send History Access OTP for Ticket {TicketId}", ticketId);
+                return new PasswordResetResult { Success = false, Message = "Lỗi gửi email: " + ex.Message };
+            }
+        }
+
+        public async Task<bool> VerifyHistoryAccessOtpAsync(int ticketId, string otp)
+        {
+            var cacheKey = $"history-access-otp:{ticketId}";
+            if (!_memoryCache.TryGetValue(cacheKey, out string? otpHash) || string.IsNullOrEmpty(otpHash))
+            {
+                return false;
+            }
+
+            var isValid = BCrypt.Net.BCrypt.Verify(otp.Trim(), otpHash);
+            if (isValid)
+            {
+                _memoryCache.Remove(cacheKey); // Clear after success
+            }
+            return isValid;
+        }
+
         private async Task<(int? RoomId, string? RoomName)> GetDoctorRoomContextAsync(User user)
         {
             var activeShift = await _context.DoctorShifts
                 .Include(s => s.Room)
+                .AsNoTracking() // Dùng AsNoTracking cho an toàn vì context thường dùng cho Auth
                 .FirstOrDefaultAsync(s => s.DoctorId == user.Id && s.StatusEnum == DoctorShiftStatus.Active);
 
             if (activeShift is not null)

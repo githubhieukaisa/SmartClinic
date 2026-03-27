@@ -6,12 +6,10 @@
 @rendermode InteractiveServer
 
 <div class="p-6 border-b border-border relative">
-    <button type="button"
-            class="w-full text-left"
-            disabled="@(!_isAuthenticated)"
-            @onclick="ToggleProfileMenu">
+    <button type="button" class="w-full text-left" disabled="@(!_isAuthenticated)" @onclick="ToggleProfileMenu">
         <div class="flex items-center gap-3 @(_isAuthenticated ? "cursor-pointer" : "cursor-not-allowed opacity-70")">
-            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold shrink-0">
+            <div
+                class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold shrink-0">
                 @_userInitial
             </div>
             <div class="min-w-0 flex-1">
@@ -43,10 +41,13 @@
         </div>
     }
 
-    @* DoctorShiftMonitor: Interactive, tự render badge + quản lý timer.
-       Đặt đây để badge hiện ngay bên dưới tên bác sĩ trong sidebar.
-       Component tự kiểm tra role nội bộ, không cần guard bên ngoài. *@
-    <DoctorShiftMonitor />
+    <AuthorizeView Policy="DoctorPolicy">
+        <Authorized>
+            <div class="mt-4 pt-4 border-t border-border/50">
+                <DoctorShiftMonitor />
+            </div>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @code {

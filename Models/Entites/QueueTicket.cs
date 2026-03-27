@@ -40,4 +40,5 @@ public partial class QueueTicket : BaseEntity
 
     public virtual ICollection<LabOrder> LabOrders { get; set; } = new List<LabOrder>();
     public virtual HistoryAccess? HistoryAccess { get; set; }
+    public virtual DoctorEvaluation? Evaluation { get; set; }
 }

@@ -35,6 +35,7 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<LabOrderDetail> LabOrderDetails { get; set; }
     public virtual DbSet<LabPrice> LabPrices { get; set; }
     public virtual DbSet<HistoryAccess> HistoryAccesses { get; set; }
+    public virtual DbSet<DoctorEvaluation> DoctorEvaluations { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
@@ -288,6 +289,39 @@ public partial class SmartClinicDbContext : DbContext
             new LabTest { Id = 5, Name = "Siêu âm tuyến giáp", Unit = "Lần", Description = "Siêu âm màu", DefaultRoomId = 10 },
             new LabTest { Id = 6, Name = "X-Quang ngực thẳng", Unit = "Lần", Description = "Chụp X-quang phổi", DefaultRoomId = 11 }
         );
+
+        // DoctorEvaluation – 1-1 với QueueTicket, không cascade delete
+        modelBuilder.Entity<DoctorEvaluation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.Comment).HasMaxLength(1000);
+            entity.Property(e => e.Rating).HasMaxLength(1);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.SubmittedAt)
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(e => e.QueueTicket)
+                .WithOne(t => t.Evaluation)
+                .HasForeignKey<DoctorEvaluation>(e => e.QueueTicketId)
+                .OnDelete(DeleteBehavior.Restrict) // Không cascade delete
+                .HasConstraintName("DoctorEvaluations_QueueTicketId_fkey");
+
+            entity.HasOne(e => e.Patient)
+                .WithMany()
+                .HasForeignKey(e => e.PatientId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("DoctorEvaluations_PatientId_fkey");
+
+            entity.HasOne(e => e.Doctor)
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("DoctorEvaluations_DoctorId_fkey");
+        });
 
         OnModelCreatingPartial(modelBuilder);
     }

@@ -89,6 +89,7 @@ namespace SmartClinic.Services
                         FullName = u.FullName ?? string.Empty,
                         DoB = u.DoB,
                         PhoneNumber = u.PhoneNumber,
+                        Email = u.Email,
                         Address = u.Address,
                         CreatedAt = u.CreatedAt,
                         Gender = u.Gender
@@ -125,6 +126,7 @@ namespace SmartClinic.Services
                         FullName = u.FullName ?? string.Empty,
                         DoB = u.DoB,
                         PhoneNumber = u.PhoneNumber,
+                        Email = u.Email,
                         Address = u.Address,
                         CreatedAt = u.CreatedAt,
                         Gender = u.Gender

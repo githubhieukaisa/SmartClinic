@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260327173842_CleanHistoryAccess")]
+    partial class CleanHistoryAccess
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,56 +72,9 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 28, 0, 58, 23, 260, DateTimeKind.Local).AddTicks(5600),
+                            CreatedAt = new DateTime(2026, 3, 28, 0, 38, 42, 64, DateTimeKind.Local).AddTicks(1170),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.DoctorEvaluation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<int?>("DoctorId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsSubmitted")
-                        .HasColumnType("boolean");
-
-                    b.Property<int?>("PatientId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("QueueTicketId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("Rating")
-                        .HasMaxLength(1)
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DoctorId");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("QueueTicketId")
-                        .IsUnique();
-
-                    b.ToTable("DoctorEvaluations");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
@@ -685,34 +641,6 @@ namespace SmartClinic.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("SmartClinic.Models.DoctorEvaluation", b =>
-                {
-                    b.HasOne("SmartClinic.Models.User", "Doctor")
-                        .WithMany()
-                        .HasForeignKey("DoctorId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("DoctorEvaluations_DoctorId_fkey");
-
-                    b.HasOne("SmartClinic.Models.User", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("DoctorEvaluations_PatientId_fkey");
-
-                    b.HasOne("SmartClinic.Models.QueueTicket", "QueueTicket")
-                        .WithOne("Evaluation")
-                        .HasForeignKey("SmartClinic.Models.DoctorEvaluation", "QueueTicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("DoctorEvaluations_QueueTicketId_fkey");
-
-                    b.Navigation("Doctor");
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("QueueTicket");
-                });
-
             modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
                 {
                     b.HasOne("SmartClinic.Models.User", "Doctor")
@@ -929,8 +857,6 @@ namespace SmartClinic.Migrations
 
             modelBuilder.Entity("SmartClinic.Models.QueueTicket", b =>
                 {
-                    b.Navigation("Evaluation");
-
                     b.Navigation("HistoryAccess");
 
                     b.Navigation("LabOrders");

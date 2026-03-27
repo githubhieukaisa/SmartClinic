@@ -73,58 +73,102 @@
             </div>
         </div>
 
-        <!-- Visit Card List (Sync Patient History) -->
-        <div class="space-y-4">
-            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <i class="ph ph-clock-counter-clockwise"></i>
-                Danh sách lượt khám (@_totalRecords)
-            </h3>
-
-            @if (!_tickets.Any())
+        <!-- Visit Card List -->
+        <div class="space-y-3">
+            @if (_isLoading)
             {
-                <div class="bg-slate-50 border border-dashed border-slate-300 rounded-2xl py-12 text-center">
-                    <p class="text-slate-400 italic">Không tìm thấy lịch sử khám bệnh nào khớp với từ khóa.</p>
+                <div class="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+                    <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
+                    <span class="text-sm">Đang tải...</span>
+                </div>
+            }
+            else if (!_tickets.Any())
+            {
+                <div class="bg-white border border-dashed border-slate-300 rounded-2xl py-16 text-center shadow-sm">
+                    <i class="ph ph-folder-open text-4xl text-slate-300 mb-3 block"></i>
+                    <p class="text-slate-400 text-sm font-medium">Không tìm thấy kết quả nào khớp.</p>
+                    @if (!string.IsNullOrWhiteSpace(_searchTerm))
+                    {
+                        <p class="text-slate-400 text-xs mt-1">Thử tìm với từ khóa khác.</p>
+                    }
                 </div>
             }
             else
             {
-                <div class="grid gap-4">
+                <!-- Result summary bar -->
+                <div class="flex items-center justify-between px-1 mb-2">
+                    <span class="text-xs text-slate-500 font-medium">
+                        Hiển thị <b class="text-slate-700">@_tickets.Count</b> / <b class="text-slate-700">@_totalRecords</b> ca khám
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(_searchTerm))
+                    {
+                        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold border border-blue-100">
+                            Tìm kiếm: "@_searchTerm"
+                        </span>
+                    }
+                </div>
+
+                <div class="grid gap-3">
                     @foreach (var ticket in _tickets)
                     {
-                        <NavLink href="@($"/medical-record/{ticket.Id}")" 
-                                 class="group block bg-white rounded-2xl border border-slate-200 p-5 hover:border-blue-400 hover:shadow-md transition-all relative no-underline">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div class="space-y-1">
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg uppercase tracking-wider">#@ticket.TicketNumber</span>
-                                        <span class="text-sm font-semibold text-slate-400">@ticket.UpdatedAt?.ToString("dd/MM/yyyy HH:mm")</span>
+                        <NavLink href="@($"/medical-record/{ticket.Id}")"
+                                 class="group block bg-white rounded-2xl border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all no-underline overflow-hidden">
+                            <div class="flex flex-col md:flex-row md:items-stretch">
+                                <!-- Left accent bar -->
+                                <div class="hidden md:flex flex-col items-center justify-center w-20 bg-slate-50 border-r border-slate-100 px-3 py-4 gap-1 shrink-0">
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">STT</span>
+                                    <span class="text-xl font-black text-blue-600">#@ticket.TicketNumber</span>
+                                </div>
+
+                                <!-- Main content -->
+                                <div class="flex-1 p-4 space-y-2">
+                                    <!-- Row 1: date + status -->
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="md:hidden text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">#@ticket.TicketNumber</span>
+                                        <i class="ph ph-calendar text-slate-400 text-xs"></i>
+                                        <span class="text-xs text-slate-500 font-medium">@ticket.UpdatedAt?.ToString("dd/MM/yyyy • HH:mm")</span>
+                                        <span class="ml-auto px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-black rounded-full border border-emerald-100 uppercase tracking-wider">
+                                            ✓ Hoàn tất
+                                        </span>
                                     </div>
-                                    <h4 class="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+
+                                    <!-- Row 2: diagnosis -->
+                                    <h4 class="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">
                                         @(string.IsNullOrWhiteSpace(ticket.Diagnosis) ? "Chưa có chẩn đoán cụ thể" : ticket.Diagnosis)
                                     </h4>
-                                    <p class="text-sm text-slate-500 flex items-center gap-1">
-                                        <i class="ph ph-user"></i>
-                                        Bệnh nhân: <span class="font-medium">@(ticket.PatientUser?.FullName ?? "N/A")</span>
-                                        <span class="mx-2 text-slate-300">|</span>
-                                        <i class="ph ph-door"></i>
-                                        Phòng: <span class="font-medium">@(ticket.Room?.Name ?? "N/A")</span>
-                                    </p>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">Hoàn tất</span>
-                                    <div class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                        <span class="hidden sm:inline text-xs uppercase tracking-widest">Xem hồ sơ</span>
-                                        <i class="ph ph-caret-right"></i>
+
+                                    <!-- Row 3: patient + room -->
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                                        <span class="flex items-center gap-1">
+                                            <i class="ph ph-user"></i>
+                                            <span class="font-medium text-slate-700">@(ticket.PatientUser?.FullName ?? "N/A")</span>
+                                        </span>
+                                        @if (!string.IsNullOrWhiteSpace(ticket.PatientUser?.PhoneNumber))
+                                        {
+                                            <span class="flex items-center gap-1">
+                                                <i class="ph ph-phone"></i>
+                                                @ticket.PatientUser.PhoneNumber
+                                            </span>
+                                        }
+                                        <span class="flex items-center gap-1">
+                                            <i class="ph ph-door"></i>
+                                            @(ticket.Room?.Name ?? "N/A")
+                                        </span>
                                     </div>
+                                </div>
+
+                                <!-- Right caret -->
+                                <div class="flex items-center justify-center w-12 border-l border-slate-100 text-slate-300 group-hover:text-blue-500 group-hover:bg-blue-50 transition-all shrink-0">
+                                    <i class="ph ph-caret-right text-lg"></i>
                                 </div>
                             </div>
                         </NavLink>
                     }
                 </div>
-                
+
                 @if (_totalPages > 1)
                 {
-                    <div class="mt-8">
+                    <div class="mt-6">
                         <Pagination CurrentPage="_currentPage" TotalItems="_totalRecords" PageSize="_pageSize" OnPageChanged="ChangePage" />
                     </div>
                 }

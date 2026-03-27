@@ -94,6 +94,54 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- Rating Widget -->
+                            @{
+                                var eval = ticket.Evaluation;
+                            }
+                            @if (eval != null)
+                            {
+                                <div class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3">
+                                    @if (!eval.IsSubmitted)
+                                    {
+                                        <a href="/feedback/@eval.Id"
+                                           class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-100 transition"
+                                           @onclick:stopPropagation="true">
+                                            <i class="ph ph-star"></i> Đánh giá ngay
+                                        </a>
+                                        <span class="text-xs text-slate-400 italic">Bạn chưa đánh giá lần khám này.</span>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex-1 bg-slate-50/50 p-4 rounded-xl border border-slate-100 mt-1">
+                                            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                                                <div class="flex items-center gap-1">
+                                                    @for (int i = 1; i <= 5; i++)
+                                                    {
+                                                        var starIndex = i;
+                                                        var isActive = starIndex <= (eval.Rating ?? 0);
+                                                        <i class="ph ph-star text-lg @(isActive ? "ph-fill text-amber-500" : "text-slate-300")"></i>
+                                                    }
+                                                    <span class="ml-2 text-sm font-black text-slate-700">@(eval.Rating)/5</span>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white px-2 py-1 rounded-md border border-slate-100">
+                                                    <i class="ph ph-check-circle-fill text-emerald-500"></i>
+                                                    Đã đánh giá • @eval.SubmittedAt?.ToString("dd/MM/yyyy HH:mm")
+                                                </div>
+                                            </div>
+
+                                            @if (!string.IsNullOrWhiteSpace(eval.Comment))
+                                            {
+                                                <div class="relative pl-6 py-1">
+                                                    <i class="ph ph-quotes absolute left-0 top-0 text-slate-300 text-xl opacity-50"></i>
+                                                    <p class="text-xs text-slate-600 italic leading-relaxed">
+                                                        "@eval.Comment"
+                                                    </p>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
                         </NavLink>
                     }
                 </div>
@@ -167,6 +215,7 @@
                     .AsNoTracking()
                     .Include(t => t.Doctor)
                     .Include(t => t.Room)
+                    .Include(t => t.Evaluation)   // Cần để hiện widget đánh giá
                     .Where(t => t.PatientId == _patient.Id && (t.StatusEnum == TicketStatus.Done || t.StatusEnum == TicketStatus.Completed));
 
                 _totalRecords = await query.CountAsync();

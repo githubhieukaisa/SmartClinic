@@ -10,8 +10,6 @@ public partial class HistoryAccess
     public int QueueTicketId { get; set; } 
 
     public bool IsUnlocked { get; set; } = false;
-    public string? UnlockCode { get; set; }
-    public DateTime? CodeExpiryTime { get; set; }
     public DateTime? UnlockedAt { get; set; }
 
     public virtual QueueTicket QueueTicket { get; set; } = null!;

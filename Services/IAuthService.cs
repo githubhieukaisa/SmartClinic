@@ -10,5 +10,9 @@ namespace SmartClinic.Services
         Task<PasswordResetResult> ResetPasswordWithOtpAsync(string email, string otp, string newPassword);
         Task<AuthResponse?> RenewTokenAsync(string oldRefreshToken);
         Task LogoutAsync(int userId);
+
+        // Medical History Access OTP (Distributed via MemoryCache + Email)
+        Task<PasswordResetResult> SendHistoryAccessOtpAsync(int ticketId, string email, string patientName);
+        Task<bool> VerifyHistoryAccessOtpAsync(int ticketId, string otp);
     }
 }
