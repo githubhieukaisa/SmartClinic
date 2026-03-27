@@ -1,0 +1,265 @@
+@page "/doctor/history"
+@using Microsoft.AspNetCore.Authorization
+@using SmartClinic.Components.Common
+@using SmartClinic.Constant
+@using SmartClinic.Models
+@using SmartClinic.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Policy = "DoctorPolicy")]
+@rendermode InteractiveServer
+@inject IDbContextFactory<SmartClinicDbContext> DbFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="p-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900">Lịch sử khám bệnh</h1>
+        <p class="text-slate-500 mt-1">Xem lại tất cả các ca khám bạn đã hoàn thành trên hệ thống.</p>
+    </div>
+
+    @if (_isLoading && !_tickets.Any())
+    {
+        <div class="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
+            <i class="ph ph-spinner-gap text-3xl animate-spin"></i>
+            <span class="text-sm font-medium">Đang tải dữ liệu...</span>
+        </div>
+    }
+    else
+    {
+        <!-- Doctor Brief Profile (Sync Layout) -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-8 flex flex-wrap items-center gap-6">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-black">
+                @(_currentDoctorUser?.FullName?.Substring(0, 1).ToUpper() ?? "D")
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <h2 class="text-xl font-bold text-slate-900">Bác sĩ: @_currentDoctorUser?.FullName</h2>
+                <div class="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
+                    <span class="flex items-center gap-1.5"><i class="ph ph-identification-card"></i> MSBS: #@_currentDoctorId</span>
+                    <span class="flex items-center gap-1.5"><i class="ph ph-phone"></i> @_currentDoctorUser?.PhoneNumber</span>
+                    <span class="flex items-center gap-1.5 bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">
+                        <i class="ph-fill ph-check-circle"></i> Đang trực
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Console (Manual Search Trigger) -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-8 flex flex-wrap items-center gap-6">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                    <i class="ph ph-magnifying-glass text-slate-400 font-bold"></i>
+                    <input type="text" @bind="_searchTerm" @onkeyup="HandleKeyUp"
+                           placeholder="Tìm bệnh nhân (tên, SĐT)..."
+                           class="w-64 bg-transparent outline-none text-sm font-medium" />
+                </div>
+                <button @onclick="HandleSearch" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-sm">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <span>TÌM</span>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-3 ml-auto">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Sắp xếp</span>
+                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-400 transition-colors cursor-pointer group">
+                    <i class="ph ph-sort-ascending text-slate-400 group-hover:text-blue-600 transition-colors"></i>
+                    <select @bind="_sortBy" @onbind:after="LoadHistoryAsync"
+                            class="bg-transparent text-xs font-bold outline-none cursor-pointer text-slate-700">
+                        <option value="newest">Ngày khám: Mới nhất</option>
+                        <option value="oldest">Ngày khám: Cũ nhất</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visit Card List (Sync Patient History) -->
+        <div class="space-y-4">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph ph-clock-counter-clockwise"></i>
+                Danh sách lượt khám (@_totalRecords)
+            </h3>
+
+            @if (!_tickets.Any())
+            {
+                <div class="bg-slate-50 border border-dashed border-slate-300 rounded-2xl py-12 text-center">
+                    <p class="text-slate-400 italic">Không tìm thấy lịch sử khám bệnh nào khớp với từ khóa.</p>
+                </div>
+            }
+            else
+            {
+                <div class="grid gap-4">
+                    @foreach (var ticket in _tickets)
+                    {
+                        <NavLink href="@($"/medical-record/{ticket.Id}")" 
+                                 class="group block bg-white rounded-2xl border border-slate-200 p-5 hover:border-blue-400 hover:shadow-md transition-all relative no-underline">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg uppercase tracking-wider">#@ticket.TicketNumber</span>
+                                        <span class="text-sm font-semibold text-slate-400">@ticket.UpdatedAt?.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                    <h4 class="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                        @(string.IsNullOrWhiteSpace(ticket.Diagnosis) ? "Chưa có chẩn đoán cụ thể" : ticket.Diagnosis)
+                                    </h4>
+                                    <p class="text-sm text-slate-500 flex items-center gap-1">
+                                        <i class="ph ph-user"></i>
+                                        Bệnh nhân: <span class="font-medium">@(ticket.PatientUser?.FullName ?? "N/A")</span>
+                                        <span class="mx-2 text-slate-300">|</span>
+                                        <i class="ph ph-door"></i>
+                                        Phòng: <span class="font-medium">@(ticket.Room?.Name ?? "N/A")</span>
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">Hoàn tất</span>
+                                    <div class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                        <span class="hidden sm:inline text-xs uppercase tracking-widest">Xem hồ sơ</span>
+                                        <i class="ph ph-caret-right"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </NavLink>
+                    }
+                </div>
+                
+                @if (_totalPages > 1)
+                {
+                    <div class="mt-8">
+                        <Pagination CurrentPage="_currentPage" TotalItems="_totalRecords" PageSize="_pageSize" OnPageChanged="ChangePage" />
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<QueueTicket> _tickets = new();
+    private User? _currentDoctorUser;
+    private bool _isLoading = true;
+    private int _currentDoctorId;
+
+    // Pagination & Filter
+    private string _searchTerm = "";
+    private string _sortBy = "newest";
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _totalRecords = 0;
+    private int _totalPages => (int)Math.Ceiling((double)_totalRecords / _pageSize);
+
+    protected override void OnInitialized()
+    {
+        _ = LoadInitialDataAsync();
+    }
+
+    private async Task LoadInitialDataAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (int.TryParse(userId, out int id))
+            {
+                _currentDoctorId = id;
+                
+                using var context = DbFactory.CreateDbContext();
+                _currentDoctorUser = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+                
+                await LoadHistoryAsync();
+            }
+            else
+            {
+                NavigationManager.NavigateTo("/login");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[History] Init Error: {ex.Message}");
+        }
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+
+            var query = context.QueueTickets
+                            .Include(t => t.PatientUser)
+                            .Include(t => t.Room)
+                            .Where(t => t.DoctorId == _currentDoctorId &&
+                                       (t.StatusEnum == TicketStatus.Done || t.StatusEnum == TicketStatus.Completed));
+
+            // Filtering
+            if (!string.IsNullOrEmpty(_searchTerm))
+            {
+                var lowerSearch = _searchTerm.ToLower();
+                query = query.Where(t => (t.PatientUser != null && t.PatientUser.FullName != null &&
+                                          t.PatientUser.FullName.ToLower().Contains(lowerSearch)) ||
+                                         (t.PatientUser != null && t.PatientUser.PhoneNumber != null && t.PatientUser.PhoneNumber.Contains(_searchTerm)));
+            }
+
+            // Sorting
+            query = _sortBy == "newest"
+                ? query.OrderByDescending(t => t.UpdatedAt)
+                : query.OrderBy(t => t.UpdatedAt);
+
+            // Total count for pagination
+            _totalRecords = await query.CountAsync();
+
+            // Pagination
+            _tickets = await query
+                .Skip((_currentPage - 1) * _pageSize)
+                .Take(_pageSize)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[History] Load Error: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            HandleSearch();
+        }
+    }
+
+    private void HandleSearch()
+    {
+        _currentPage = 1; // Reset to page 1 on search
+        _ = LoadHistoryAsync();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page < 1 || page > _totalPages) return;
+        _currentPage = page;
+        await LoadHistoryAsync();
+    }
+
+    private void ViewRecord(int ticketId)
+    {
+        NavigationManager.NavigateTo($"/medical-record/{ticketId}");
+    }
+
+    private string TranslateStatus(TicketStatus status)
+    {
+        return status switch
+        {
+            TicketStatus.Done => "Đã xong",
+            TicketStatus.Completed => "Hoàn tất",
+            _ => status.ToString()
+        };
+    }
+}

@@ -15,6 +15,8 @@
 @inject IToastService ToastService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITicketService TicketService
+@inject DoctorDailyShiftService DailyShiftService
+@implements IAsyncDisposable
 @attribute [Authorize(Policy = "DoctorPolicy")]
 
 <div class="p-8">
@@ -198,10 +200,9 @@
                                                         </td>
                                                         <td class="py-3 px-4 text-right">
                                                             <div class="flex justify-end">
-                                                                <button
-                                                                    @onclick='() => NavigationManager.NavigateTo($"/medical-record/{t.Id}/{t.PatientId}")'
-                                                                    class="flex items-center gap-1.5 px-3 py-1.5 text-primary hover:bg-muted rounded-lg text-xs font-medium transition"
-                                                                    title="Xem hồ sơ bệnh án">
+                                                                <button @onclick='() => NavigationManager.NavigateTo($"/medical-record/{t.Id}")'
+                                                                        class="flex items-center gap-1.5 px-3 py-1.5 text-primary hover:bg-muted rounded-lg text-xs font-medium transition"
+                                                                        title="Xem hồ sơ bệnh án">
                                                                     <i class="ph ph-file-text"></i>
                                                                     Xem hồ sơ
                                                                 </button>
@@ -242,31 +243,35 @@
                                     <i class="ph ph-clock text-xl text-foreground"></i>
                                     <h3 class="text-lg font-bold text-foreground">Ca trực hiện tại</h3>
                                 </div>
-                                @if (_currentShift != null)
+                                @if (DailyShiftService.IsOnDuty && DailyShiftService.CurrentRoomId.HasValue)
                                 {
-                                    <div class="bg-muted/30 rounded-lg p-4 border border-border">
-                                        <div class="flex items-center justify-between mb-3 border-b border-border pb-3">
-                                            <span class="text-sm text-muted-foreground">Phòng khám</span>
-                                            <span class="font-semibold text-foreground">@_currentShift.Room?.Name</span>
+                                    <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
+                                        <div class="flex items-center justify-between mb-3 border-b border-emerald-100 pb-3">
+                                            <span class="text-sm text-emerald-600">Phòng khám</span>
+                                            <span class="font-bold text-emerald-800">Phòng @DailyShiftService.CurrentRoomId.Value</span>
                                         </div>
-                                        <div class="flex items-center justify-between mb-3 border-b border-border pb-3">
-                                            <span class="text-sm text-muted-foreground">Bắt đầu</span>
-                                            <span class="font-medium text-foreground">@_currentShift.StartTime.ToString("HH:mm")</span>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm text-muted-foreground">Trạng thái</span>
-                                            <span
-                                                class="inline-flex py-1 px-2.5 rounded-md text-xs font-semibold bg-green-100 text-green-700">
-                                                Đang hoạt động
+                                        <div class="flex items-center justify-between mb-3 border-b border-emerald-100 pb-3">
+                                            <span class="text-sm text-emerald-600">Trạng thái</span>
+                                            <span class="inline-flex items-center gap-1 text-xs font-black text-emerald-700 uppercase">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                ĐANG TRỰC
                                             </span>
+                                        </div>
+                                        <div class="text-[10px] text-emerald-500 italic text-center mt-2">
+                                            Dữ liệu cập nhật thời gian thực
                                         </div>
                                     </div>
                                 }
                                 else
                                 {
-                                    <div
-                                        class="text-center py-6 text-muted-foreground text-sm border border-dashed border-border rounded-lg bg-muted/20">
-                                        Bạn chưa được phân ca trực nào hôm nay.
+                                    <div class="text-center py-8 rounded-lg border border-dashed border-slate-200 bg-slate-50">
+                                        <div
+                                            class="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+                                            <i class="ph ph-moon text-slate-400 text-xl"></i>
+                                        </div>
+                                        <p class="text-sm font-bold text-slate-500">Ngoài ca trực</p>
+                                        <p class="text-[10px] text-slate-400 mt-1 px-4">Bạn chưa được phân ca trực nào trong khung giờ này.
+                                        </p>
                                     </div>
                                 }
                             </div>
@@ -301,11 +306,28 @@
         {
             var claim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (claim != null && int.TryParse(claim.Value, out int id))
+            {
                 _currentDoctorId = id;
+
+                // Subscribe to shift changes (Initialized by MainLayout)
+                DailyShiftService.OnShiftStateChanged += HandleShiftStateChanged;
+            }
         }
 
-        // Kỹ thuật "Fire and Forget": Render khung Dashboard ngay, nạp data ngầm
+        // Fire and forget
         _ = LoadCompleteDashboardDataAsync();
+    }
+
+    private void HandleShiftStateChanged()
+    {
+        _ = LoadCompleteDashboardDataAsync();
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        DailyShiftService.OnShiftStateChanged -= HandleShiftStateChanged;
+        await ValueTask.CompletedTask;
     }
 
     private async Task LoadCompleteDashboardDataAsync()
@@ -314,22 +336,11 @@
 
         try
         {
-            // 1. Lấy thông tin ca trực (Centralized logic)
-            _currentShift = await PatientService.GetActiveDoctorShiftAsync(_currentDoctorId);
+            // 1. Get room context from centralized DailyShiftService
+            // No need to query DB for shift again - layout handles it.
+            _currentRoomId = DailyShiftService.CurrentRoomId;
 
-            if (_currentShift != null)
-            {
-                _currentRoomId = _currentShift.RoomId;
-                _roomName = _currentShift.Room?.Name;
-            }
-            else
-            {
-                // Nếu không có ca trực, không tự ý nạp phòng mặc định
-                _currentRoomId = null;
-                _roomName = "Hết ca làm việc / Chưa bắt đầu ca";
-            }
-
-            // 2. Lấy dữ liệu thống kê và danh sách bệnh nhân (Centralized logic)
+            // 2. Fetch queue summary using the found roomId
             var summary = await PatientService.GetDoctorDashboardSummaryAsync(_currentDoctorId, _filterPeriod);
 
             TotalCount = summary.TotalCount;

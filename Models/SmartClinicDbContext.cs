@@ -34,6 +34,7 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<LabOrder> LabOrders { get; set; }
     public virtual DbSet<LabOrderDetail> LabOrderDetails { get; set; }
     public virtual DbSet<LabPrice> LabPrices { get; set; }
+    public virtual DbSet<HistoryAccess> HistoryAccesses { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
@@ -249,6 +250,18 @@ public partial class SmartClinicDbContext : DbContext
                 .HasForeignKey(e => e.LabTestId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("LabPrices_LabTestId_fkey");
+        });
+
+        modelBuilder.Entity<HistoryAccess>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("HistoryAccess_pkey");
+            entity.HasIndex(e => e.QueueTicketId).IsUnique();
+            
+            entity.HasOne(d => d.QueueTicket)
+                .WithOne(p => p.HistoryAccess)
+                .HasForeignKey<HistoryAccess>(d => d.QueueTicketId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("HistoryAccess_QueueTicketId_fkey");
         });
 
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))

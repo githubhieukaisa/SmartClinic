@@ -1,7 +1,8 @@
 @page "/patient/medical-history"
-@using SmartClinic.Constant
 @using SmartClinic.Models
+@using SmartClinic.Components.Layout
 @using Microsoft.EntityFrameworkCore
+@using SmartClinic.Constant
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IDbContextFactory<SmartClinicDbContext> DbFactory
 @inject AuthenticationStateProvider AuthStateProvider
@@ -67,7 +68,7 @@
                 <div class="grid gap-4">
                     @foreach (var ticket in _history)
                     {
-                        <NavLink href="@($"/medical-record/{ticket.Id}/{_patient.Id}")" class="group block bg-white rounded-2xl border border-slate-200 p-5 hover:border-blue-400 hover:shadow-md transition-all relative no-underline">
+                        <NavLink href="@($"/medical-record/{ticket.Id}")" class="group block bg-white rounded-2xl border border-slate-200 p-5 hover:border-blue-400 hover:shadow-md transition-all relative no-underline">
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div class="space-y-1">
                                     <div class="flex items-center gap-3">
@@ -88,7 +89,7 @@
                                 <div class="flex items-center gap-3">
                                     <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">Hoàn tất</span>
                                     <div class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                        <span class="hidden sm:inline">Xem chi tiết</span>
+                                        <span class="hidden sm:inline text-xs uppercase tracking-widest">Xem hồ sơ</span>
                                         <i class="ph ph-caret-right"></i>
                                     </div>
                                 </div>
@@ -96,6 +97,16 @@
                         </NavLink>
                     }
                 </div>
+
+                @if (_totalPages > 1)
+                {
+                    <div class="mt-8">
+                        <SmartClinic.Components.Common.Pagination CurrentPage="_currentPage" 
+                                    TotalItems="_totalRecords" 
+                                    PageSize="_pageSize" 
+                                    OnPageChanged="ChangePage" />
+                    </div>
+                }
             }
         </div>
     }
@@ -106,6 +117,12 @@
     private List<QueueTicket> _history = new();
     private bool _isLoading = true;
 
+    // Pagination
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _totalRecords = 0;
+    private int _totalPages => (int)Math.Ceiling((double)_totalRecords / _pageSize);
+
     protected override void OnInitialized()
     {
         _ = LoadDataAsync();
@@ -113,6 +130,7 @@
 
     private async Task LoadDataAsync()
     {
+        _isLoading = true;
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -144,13 +162,19 @@
 
             if (_patient != null)
             {
-                // Get completed tickets for this patient
-                _history = await context.QueueTickets
+                // Get completed tickets for this patient (Paged)
+                var query = context.QueueTickets
                     .AsNoTracking()
                     .Include(t => t.Doctor)
                     .Include(t => t.Room)
-                    .Where(t => t.PatientId == _patient.Id && (t.StatusEnum == TicketStatus.Done || t.StatusEnum == TicketStatus.Completed))
+                    .Where(t => t.PatientId == _patient.Id && (t.StatusEnum == TicketStatus.Done || t.StatusEnum == TicketStatus.Completed));
+
+                _totalRecords = await query.CountAsync();
+
+                _history = await query
                     .OrderByDescending(t => t.CreatedAt)
+                    .Skip((_currentPage - 1) * _pageSize)
+                    .Take(_pageSize)
                     .ToListAsync();
             }
         }
@@ -165,11 +189,17 @@
         }
     }
 
+    private async Task ChangePage(int newPage)
+    {
+        _currentPage = newPage;
+        await LoadDataAsync();
+    }
+
     private void ViewDetails(int ticketId)
     {
         if (_patient != null)
         {
-            NavigationManager.NavigateTo($"/medical-record/{ticketId}/{_patient.Id}");
+            NavigationManager.NavigateTo($"/medical-record/{ticketId}");
         }
     }
 }

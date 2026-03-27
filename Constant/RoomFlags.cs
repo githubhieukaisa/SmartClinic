@@ -4,7 +4,7 @@ namespace SmartClinic.Constant
     public enum RoomFlags : byte
     {
         None = 0,        // M?c ??nh (Inactive, Not Lab)
-        IsActive = 1,    // Bit 1: Giá tr? 1
-        IsLab = 2,       // Bit 2: Giá tr? 2
+        IsActive = 1,    // Bit 1: Giï¿½ tr? 1
+        IsLab = 2,       // Bit 2: Giï¿½ tr? 2
     }
 }

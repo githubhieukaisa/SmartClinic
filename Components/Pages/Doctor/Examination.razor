@@ -18,6 +18,8 @@
 @inject ILabService LabService
 @attribute [Authorize(Policy = "DoctorPolicy")]
 @inject AiService AiService
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 
 <div class="p-8">
@@ -65,7 +67,16 @@
                         </div>
                         <div>
                             <p class="text-xs text-muted-foreground">Tuổi</p>
-                            <p class="text-foreground font-medium">@GetAge(_patient.DoB) tuổi</p>
+                            <p class="text-foreground font-medium">
+                                @if (_patient.DoB.HasValue)
+                                {
+                                    @($"{GetAge(_patient.DoB)} tuổi")
+                                }
+                                else
+                                {
+                                    @("—")
+                                }
+                            </p>
                         </div>
                         <div>
                             <p class="text-xs text-muted-foreground">Số điện thoại</p>
@@ -73,7 +84,7 @@
                         </div>
                         <div>
                             <p class="text-xs text-muted-foreground">Địa chỉ</p>
-                            <p class="text-foreground font-medium">@_patient.Address</p>
+                            <p class="text-foreground font-medium text-sm">@_patient.Address</p>
                         </div>
                     </div>
                 </div>
@@ -82,23 +93,91 @@
                 <div>
                     <h3 class="text-lg font-semibold text-foreground mb-4">Thông tin hàng đợi</h3>
                     <div class="space-y-3">
-                        <div>
-                            <p class="text-xs text-muted-foreground">Số thứ tự</p>
-                            <p class="text-foreground font-medium text-lg">#@TicketId</p>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs text-muted-foreground">Số thứ tự</p>
+                                <p class="text-foreground font-medium text-lg">#@TicketId</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-muted-foreground">Trạng thái</p>
+                                <p class="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
+                                    Đang khám
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-xs text-muted-foreground">Trạng thái</p>
-                            <p class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                Đang khám
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-muted-foreground">Giờ đến</p>
-                            <p class="text-foreground font-medium">@DateTime.Now.ToString("HH:mm")</p>
+                        
+                        <!-- History Access Section -->
+                        <div class="mt-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <i class="ph ph-shield-check"></i> Quyền xem bệnh án cũ
+                            </h4>
+                            
+                            @if (_currentTicket?.HistoryAccess == null)
+                            {
+                                <button @onclick="RequestHistoryAccessAsync" 
+                                        class="w-full py-2.5 bg-primary/10 text-primary border border-primary/20 text-[11px] font-black uppercase tracking-widest rounded-lg hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center gap-2">
+                                    <i class="ph ph-shield-star"></i> YÊU CẦU CẤP QUYỀN (OTP)
+                                </button>
+                            }
+                            else if (!_currentTicket.HistoryAccess.IsUnlocked)
+                            {
+                                <div class="space-y-2">
+                                    <div class="flex gap-2">
+                                        <input @bind="_inputOtp" placeholder="Nhập mã OTP..." 
+                                               class="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20" />
+                                        <button @onclick="VerifyHistoryOtpAsync" 
+                                                class="px-4 py-1.5 bg-primary text-white text-[10px] font-black uppercase rounded-lg hover:bg-primary/90 transition shadow-sm">
+                                            XÁC MINH
+                                        </button>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(_currentTicket.HistoryAccess.UnlockCode))
+                                    {
+                                        <p class="text-[10px] text-amber-600 italic">
+                                            Mã đã gửi cho bệnh nhân. Hết hạn lúc: @_currentTicket.HistoryAccess.CodeExpiryTime?.ToString("HH:mm")
+                                        </p>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex items-center justify-between text-emerald-600">
+                                    <span class="text-xs font-bold flex items-center gap-1">
+                                        <i class="ph ph-check-circle-fill"></i> Đã mở khóa bệnh án
+                                    </span>
+                                    <button @onclick="() => _showHistoryDetails = !_showHistoryDetails" 
+                                            class="text-[10px] underline font-bold uppercase">
+                                        @(_showHistoryDetails ? "Đóng" : "Xem danh sách")
+                                    </button>
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Expanded History Links -->
+            @if (_showHistoryDetails && _pastRecords.Any())
+            {
+                <div class="mt-6 pt-6 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="ph ph-clock-counter-clockwise"></i> Lịch sử khám bệnh trước đây
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        @foreach (var record in _pastRecords)
+                        {
+                            <a href="/medical-record/@record.Id" target="_blank"
+                               class="p-3 border border-slate-200 rounded-xl hover:border-primary hover:bg-slate-50 transition block no-underline">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded">#@record.Id</span>
+                                    <span class="text-[10px] text-slate-400">@record.CreatedAt.ToString("dd/MM/yyyy")</span>
+                                </div>
+                                <p class="text-xs font-bold text-slate-800 line-clamp-1">@(record.Diagnosis ?? "Không có chẩn đoán")</p>
+                                <p class="text-[10px] text-slate-500 mt-1 italic">Bác sĩ: @(record.Doctor?.FullName ?? "—")</p>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
         </div>
 
         <!-- Medical Record Section -->
@@ -247,21 +326,34 @@
     public int PatientId { get; set; }
 
     private int _currentRoomId = 0;
+    private int _currentDoctorId = 0; // Thêm để tracking bác sĩ đang khám
     private User? _patient;
+    private QueueTicket? _currentTicket;
+    private List<QueueTicket> _pastRecords = new();
     private string _diagnosis = "";
     private string _treatmentPlan = "";
     private string _notes = "";
+    private string _inputOtp = "";
     private bool _hasPendingLabs = false;
     private bool _showPrescriptionConfirm = false;
     private bool _isReadOnly = false;
+    private bool _showHistoryDetails = false;
 
     private bool _isLoading = true;
     private string? _errorMessage;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Chạy ngầm việc tải dữ liệu để không block luồng render UI chính
-        // Điều này giúp trang hiện lên ngay lập tức
+        // Lấy DoctorId từ AuthState
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userIdStr = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(userIdStr, out var id)) 
+        {
+            _currentDoctorId = id;
+        }
+
+        // Chạy ngầm việc tải dữ liệu
         _ = LoadDataAsync();
     }
 
@@ -283,20 +375,31 @@
             _hasPendingLabs = await labsTask;
 
             // Lấy thông tin ticket song song với context riêng đã tạo
-            var existingTicket = await context.QueueTickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == TicketId);
+            _currentTicket = await context.QueueTickets
+                .Include(t => t.HistoryAccess)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == TicketId);
 
             if (_patient == null)
             {
                 _errorMessage = $"Không tìm thấy bệnh nhân có ID {PatientId}";
             }
 
-            if (existingTicket != null)
+            if (_currentTicket != null)
             {
-                _isReadOnly = existingTicket.StatusEnum == TicketStatus.Completed || existingTicket.StatusEnum == TicketStatus.Done;
-                _currentRoomId = existingTicket.RoomId;
-                _diagnosis = existingTicket.Diagnosis ?? "";
-                _treatmentPlan = existingTicket.TreatmentPlan ?? "";
-                _notes = existingTicket.AdditionalNotes ?? "";
+                _isReadOnly = _currentTicket.StatusEnum == TicketStatus.Completed || _currentTicket.StatusEnum == TicketStatus.Done;
+                _currentRoomId = _currentTicket.RoomId;
+                _diagnosis = _currentTicket.Diagnosis ?? "";
+                _treatmentPlan = _currentTicket.TreatmentPlan ?? "";
+                _notes = _currentTicket.AdditionalNotes ?? "";
+
+                // Load past records for this patient
+                _pastRecords = await context.QueueTickets
+                    .AsNoTracking()
+                    .Include(t => t.Doctor)
+                    .Where(t => t.PatientId == _currentTicket.PatientId && t.Id != TicketId && (t.StatusEnum == TicketStatus.Completed || t.StatusEnum == TicketStatus.Done))
+                    .OrderByDescending(t => t.CreatedAt)
+                    .ToListAsync();
             }
         }
         catch (Exception ex)
@@ -467,6 +570,88 @@
 
         System.Diagnostics.Debug.WriteLine($"✅ [Examination] Examination completed");
         NavigationManager.NavigateTo("/doctor/my-patients");
+    }
+
+    private async Task RequestHistoryAccessAsync()
+    {
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            var ticket = await context.QueueTickets.Include(t => t.HistoryAccess).FirstOrDefaultAsync(t => t.Id == TicketId);
+            if (ticket == null) return;
+
+            var otp = new Random().Next(100000, 999999).ToString();
+            
+            if (ticket.HistoryAccess == null)
+            {
+                ticket.HistoryAccess = new HistoryAccess
+                {
+                   QueueTicketId = TicketId,
+                   UnlockCode = otp,
+                   CodeExpiryTime = DateTime.Now.AddMinutes(10),
+                   IsUnlocked = false
+                };
+            }
+            else
+            {
+                ticket.HistoryAccess.UnlockCode = otp;
+                ticket.HistoryAccess.CodeExpiryTime = DateTime.Now.AddMinutes(10);
+                ticket.HistoryAccess.IsUnlocked = false;
+            }
+
+            // Đảm bảo DoctorId của ticket trùng với bác sĩ đang thao tác (để query Auth chính xác)
+            if (ticket.DoctorId == null || ticket.DoctorId != _currentDoctorId)
+            {
+                ticket.DoctorId = _currentDoctorId;
+            }
+
+            await context.SaveChangesAsync();
+            _currentTicket = ticket;
+            
+            ToastService.ShowInfo($"Mã OTP đã được tạo: {otp} (Giả định gửi qua SMS/Email)");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Không thể tạo mã yêu cầu: " + ex.Message);
+        }
+    }
+
+    private async Task VerifyHistoryOtpAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_inputOtp)) return;
+
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            var ticket = await context.QueueTickets.Include(t => t.HistoryAccess).FirstOrDefaultAsync(t => t.Id == TicketId);
+            
+            if (ticket?.HistoryAccess == null) return;
+
+            if (ticket.HistoryAccess.UnlockCode == _inputOtp && ticket.HistoryAccess.CodeExpiryTime > DateTime.Now)
+            {
+                ticket.HistoryAccess.IsUnlocked = true;
+                ticket.HistoryAccess.UnlockedAt = DateTime.Now;
+                
+                // Đồng bộ DoctorId (Double check)
+                if (ticket.DoctorId == null || ticket.DoctorId != _currentDoctorId)
+                {
+                    ticket.DoctorId = _currentDoctorId;
+                }
+
+                await context.SaveChangesAsync();
+                _currentTicket = ticket;
+                _showHistoryDetails = true;
+                ToastService.ShowSuccess("Đã xác minh và mở khóa hồ sơ bệnh án!");
+            }
+            else
+            {
+                ToastService.ShowError("Mã OTP không đúng hoặc đã hết hạn.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi xác minh: " + ex.Message);
+        }
     }
 
     private void GoBack()

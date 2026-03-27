@@ -1,7 +1,8 @@
-@page "/medical-record/{TicketId:int}/{PatientId:int}"
+@page "/medical-record/{TicketId:int}"
 @using SmartClinic.Models
 @using SmartClinic.Components.Layout
 @using Microsoft.EntityFrameworkCore
+@using SmartClinic.Constant
 @layout MainLayout
 @rendermode InteractiveServer
 @inject IDbContextFactory<SmartClinicDbContext> DbFactory
@@ -30,7 +31,7 @@
     {
         <div class="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-6">
             <p class="text-yellow-700">@(string.IsNullOrEmpty(_errorMessage) ? "Không tìm thấy thông tin hồ sơ bệnh án." :
-                                                                                                                                                                                                            _errorMessage)</p>
+                                                                                                                                                                                                                                            _errorMessage)</p>
             </div>
         }
     else
@@ -216,7 +217,6 @@
 
 @code {
     [Parameter] public int TicketId { get; set; }
-    [Parameter] public int PatientId { get; set; }
 
     private QueueTicket? _ticket;
     private User? _patient;
@@ -231,20 +231,38 @@
 
     private async Task LoadDataAsync()
     {
+        _isLoading = true;
+        _errorMessage = null;
+
         try
         {
+            // 1. Lấy thông tin người dùng từ AuthState
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
+
+            // Log tất cả claims để chẩn đoán (Xem ở Server Console/Output)
+            System.Diagnostics.Debug.WriteLine($"\n--- [Auth Diagnostic] ---");
+            foreach (var claim in user.Claims)
+            {
+                System.Diagnostics.Debug.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+            }
+
             var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var roleMaskClaim = user.FindFirst("RoleMask")?.Value; // Sử dụng RoleMask thực tế của hệ thống
 
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var currentUserId))
             {
+                System.Diagnostics.Debug.WriteLine("❌ [Auth ERROR] Không tìm thấy NameIdentifier (UserId) trong claims.");
                 NavigationManager.NavigateTo("/login");
                 return;
             }
 
+            int roleMask = 0;
+            int.TryParse(roleMaskClaim, out roleMask);
+
             using var context = DbFactory.CreateDbContext();
 
+            // 2. Tải thông tin hồ sơ bệnh án
             _ticket = await context.QueueTickets
                 .AsNoTracking()
                 .Include(t => t.Doctor)
@@ -259,28 +277,52 @@
 
             if (_ticket == null)
             {
+                System.Diagnostics.Debug.WriteLine($"❌ [Data ERROR] Không tìm thấy Ticket ID: {TicketId}");
                 _errorMessage = "Không tìm thấy hồ sơ bệnh án.";
                 _isLoading = false;
                 return;
             }
 
-            // Authorization: Patient of this ticket, Doctor of this ticket, or Admin
-            // Admin role usually has role claim "Admin" or certain RoleMask bits
-            var isAdmin = user.IsInRole("Admin"); // Check if standard role exists
-
-            if (!isAdmin && currentUserId != _ticket.PatientId && currentUserId != _ticket.DoctorId)
-            {
-                ToastService.ShowError("Bạn không có quyền xem hồ sơ bệnh án này!");
-                NavigationManager.NavigateTo("/unauthorized");
-                return;
-            }
-
             _patient = await context.Users
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == PatientId);
+                .FirstOrDefaultAsync(p => p.Id == _ticket.PatientId);
 
             if (_ticket.Doctor != null)
                 _doctorName = _ticket.Doctor.FullName;
+
+            // --- 3. LOGIC PHÂN QUYỀN (BITWISE ROLE CHECK) ---
+
+            // Định nghĩa các hằng số Role (phù hợp với Login.razor)
+            bool isPatientRole = (roleMask & 128) == 128; // Bit 128: Patient
+            bool isDoctorRole = (roleMask & 2) == 2; // Bit 2: Doctor
+            bool isAdminRole = (roleMask & 16) == 16; // Bit 16: Admin
+
+            // TH1: Là Bệnh nhân của chính hồ sơ này
+            bool isOwnerPatient = isPatientRole && _ticket.PatientId == currentUserId;
+
+            // TH2: Là Bác sĩ thực hiện hồ sơ này
+            bool isOriginalDoctor = isDoctorRole && _ticket.DoctorId == currentUserId;
+
+            // TH3: Bác sĩ được cấp quyền tạm thời (Cross-access qua OTP)
+            bool isGrantedDoctor = false;
+            if (isDoctorRole && !isOriginalDoctor)
+            {
+                // Truy vấn trực tiếp bảng HistoryAccesses để tìm phiên unlock hợp lệ
+                isGrantedDoctor = await context.HistoryAccesses
+                   .AnyAsync(h => h.IsUnlocked == true
+                               && h.QueueTicket.DoctorId == currentUserId
+                               && h.QueueTicket.PatientId == _ticket.PatientId
+                               && h.QueueTicket.StatusEnum != TicketStatus.Done
+                               && h.QueueTicket.StatusEnum != TicketStatus.Completed);
+            }
+
+            System.Diagnostics.Debug.WriteLine($"🔍 [Auth Final] Patient={isOwnerPatient}, OriginalDoc={isOriginalDoctor}, GrantedDoc={isGrantedDoctor}, Admin={isAdminRole}");
+
+            if (!isAdminRole && !isOwnerPatient && !isOriginalDoctor && !isGrantedDoctor)
+            {
+                _errorMessage = "Bạn không có quyền xem hồ sơ bệnh án này. Vui lòng yêu cầu bệnh nhân cấp quyền tại phiên khám hiện tại.";
+                System.Diagnostics.Debug.WriteLine("❌ [Auth REJECTED] Access denied via all tiers.");
+            }
         }
         catch (Exception ex)
         {

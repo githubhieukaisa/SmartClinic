@@ -28,6 +28,11 @@
 					<span>Hàng Đợi</span>
 				</NavLink>
 
+				<NavLink class="@baseClass" href="/doctor/history">
+					<i class="ph ph-clock-counter-clockwise text-lg"></i>
+					<span>Lịch sử khám</span>
+				</NavLink>
+
 				@* Hiện Khám Bệnh khi đang trong tiến trình *@
 				@if (NavManager.Uri.Contains("/doctor/examination/"))
 				{

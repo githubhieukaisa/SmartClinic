@@ -31,7 +31,7 @@ public class DoctorDailyShiftService : IAsyncDisposable
     private List<DoctorShift> _todayShifts = new();
     private System.Threading.Timer? _timer;
     private int _doctorId;
-    private bool _initialized = false;
+    public bool IsInitialized { get; private set; } = false;
 
     // ── Public State ──────────────────────────────────────────────
     public int? CurrentRoomId { get; private set; }
@@ -54,8 +54,8 @@ public class DoctorDailyShiftService : IAsyncDisposable
     public async Task InitializeAsync(int doctorId)
     {
         // Guard: chỉ chạy 1 lần duy nhất trong suốt vòng đời Scoped (1 circuit = 1 tab)
-        if (_initialized) return;
-        _initialized = true;
+        if (IsInitialized) return;
+        IsInitialized = true;
 
         _doctorId = doctorId;
 
