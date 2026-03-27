@@ -94,6 +94,42 @@ namespace SmartClinic
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.Redirect("/login");
             });
+
+            // ── VNPay callback endpoint ─────────────────────────────────────────
+            // Dùng minimal API (không qua Blazor) để tránh lỗi antiforgery + auth cookie
+            // khi VNPay redirect cross-site về app.
+            // Trả HTML + JS thay vì 302 Redirect để cắt chuỗi cross-site redirect,
+            // đảm bảo trình duyệt gửi auth cookie cho navigation tiếp theo.
+            app.MapGet("/api/vnpay-return", async (HttpContext context, ICashierService cashierService) =>
+            {
+                var result = await cashierService.HandleVNPayCallbackAsync(context.Request.Query);
+
+                string redirectUrl;
+                if (result.Success || (result.ErrorMessage != null && result.ErrorMessage.Contains("'Done'")))
+                {
+                    var msg = Uri.EscapeDataString("Thanh toán VNPay thành công!");
+                    redirectUrl = $"/cashier/payments?vnpay_success=true&vnpay_msg={msg}";
+                }
+                else
+                {
+                    var msg = Uri.EscapeDataString(result.ErrorMessage ?? "Thanh toán thất bại");
+                    redirectUrl = $"/cashier/payments?vnpay_error=true&vnpay_msg={msg}";
+                }
+
+                // Trả HTML + JS để tạo navigation mới (same-site), không dùng 302 redirect
+                context.Response.ContentType = "text/html; charset=utf-8";
+                await context.Response.WriteAsync($"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head><meta charset="utf-8"><title>Đang chuyển hướng...</title></head>
+                    <body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f8fafc">
+                        <p>Đang chuyển hướng về trang thanh toán...</p>
+                        <script>window.location.replace('{redirectUrl}');</script>
+                    </body>
+                    </html>
+                """);
+            });
+
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 

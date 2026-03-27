@@ -132,9 +132,9 @@
             using var context = await DbFactory.CreateDbContextAsync();
 
             // Find patient by phone
-            _patient = await context.Patients
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Phone == searchPhone && !p.Flags.HasFlag(PatientFlags.IsDeleted));
+            // _patient = await context.Patients
+            //     .AsNoTracking()
+            //     .FirstOrDefaultAsync(p => p.Phone == searchPhone && !p.Flags.HasFlag(PatientFlags.IsDeleted));
 
             if (_patient != null)
             {
