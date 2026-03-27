@@ -22,12 +22,14 @@ namespace SmartClinic.Services
         {
             // ✅ Đăng ký CÁCH 1: DbContextFactory (cho services)
             services.AddDbContextFactory<SmartClinicDbContext>(options =>
-                options.UseNpgsql(configuration.GetConnectionString("MyCnn")));
+                options.UseNpgsql(configuration.GetConnectionString("MyCnn"))); // Cloud (Supabase)
+                // options.UseNpgsql(configuration.GetConnectionString("MyCnnLocal"))); // Local Postgres
 
             // ✅ Đăng ký CÁCH 2: DbContext bằng Pool (cho pages)
-            // Tạo pool từ factory để pages có thể inject DbContext trực tiếp
             services.AddPooledDbContextFactory<SmartClinicDbContext>(options =>
-                options.UseNpgsql(configuration.GetConnectionString("MyCnn")));
+                options.UseNpgsql(configuration.GetConnectionString("MyCnn"))); // Cloud (Supabase)
+                // options.UseNpgsql(configuration.GetConnectionString("MyCnnLocal"))); // Local Postgres
+
 
             return services;
         }
@@ -64,7 +66,8 @@ namespace SmartClinic.Services
         /// </summary>
         public static IServiceCollection AddSmartClinicHangfire(this IServiceCollection services, IConfiguration configuration)
         {
-            var hangfireConn = configuration.GetConnectionString("HangfireDb");
+            var hangfireConn = configuration.GetConnectionString("HangfireDb"); // Cloud (Supabase)
+            // var hangfireConn = configuration.GetConnectionString("HangfireDbLocal"); // Local Postgres
 
             services.AddHangfire(config => config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -75,7 +78,7 @@ namespace SmartClinic.Services
                     options.UseNpgsqlConnection(hangfireConn);
                 }, new PostgreSqlStorageOptions
                 {
-                    PrepareSchemaIfNecessary = true 
+                    PrepareSchemaIfNecessary = true
                 }));
 
             services.AddHangfireServer(options =>
@@ -153,7 +156,7 @@ namespace SmartClinic.Services
                 options.AddPolicy("AdminPolicy", policy => policy.RequireAssertion(context => HasRole(context, 16)));
                 options.AddPolicy("ManagerPolicy", policy => policy.RequireAssertion(context => HasRole(context, 64)));
                 options.AddPolicy("LabTechPolicy", policy => policy.RequireAssertion(context => HasRole(context, 32)));
-                options.AddPolicy("ManagerPolicy", policy => policy.RequireAssertion(context => HasRole(context, 64)));
+                options.AddPolicy("PatientPolicy", policy => policy.RequireAssertion(context => HasRole(context, 128)));
             });
             return services;
         }

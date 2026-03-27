@@ -119,15 +119,7 @@
                     <span>Đơn thuốc đã gửi — Đang chờ Dược sĩ</span>
                 </div>
 
-                @if (!IsReadOnly)
-                {
-                    @* ── TEST ONLY ───────────────────── *@
-                    <button @onclick="ResetPrescriptionTestAsync"
-                            class="flex items-center gap-2 px-3 py-2 bg-red-500/10 text-red-600 rounded-lg text-sm font-medium hover:bg-red-500/20 transition border border-red-500/30">
-                        <i class="ph ph-trash"></i>
-                        Test: Xoá Toàn Bộ Đơn Thuốc
-                    </button>
-                }
+                @* Test button removed from production *@
             </div>
         }
         else if (!IsReadOnly)

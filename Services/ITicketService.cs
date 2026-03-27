@@ -7,6 +7,6 @@ namespace SmartClinic.Services
     {
         Task<QueueTicket> GenerateTicketAsync(GenerateTicketRequest request);
         Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId = null);
-        Task<Patient?> FindPatientByPhoneAsync(string phone);
+        Task<User?> FindPatientByPhoneAsync(string phone);
     }
 }

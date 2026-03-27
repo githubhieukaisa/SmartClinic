@@ -6,8 +6,6 @@ namespace SmartClinic.Models;
 
 public partial class QueueTicket : BaseEntity
 {
-    public int? PatientId { get; set; }
-
     public int TicketNumber { get; set; }
 
     public TicketStatus StatusEnum { get; set; } = TicketStatus.Waiting;
@@ -29,8 +27,6 @@ public partial class QueueTicket : BaseEntity
 
     public virtual User? UpdatedByUser { get; set; }
 
-    public virtual Patient? Patient { get; set; }
-
     public int RoomId { get; set; }
     public virtual Room Room { get; set; } = null!;
 
@@ -38,6 +34,9 @@ public partial class QueueTicket : BaseEntity
     public string? Diagnosis { get; set; }
     public string? TreatmentPlan { get; set; }
     public string? AdditionalNotes { get; set; }
+
+    public int? PatientId { get; set; }
+    public virtual User? Patient { get; set; }
 
     public virtual ICollection<LabOrder> LabOrders { get; set; } = new List<LabOrder>();
 }

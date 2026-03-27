@@ -82,19 +82,14 @@
     <div class="bg-card rounded-xl border border-border shadow-sm">
         <div class="flex items-center justify-end p-6 border-b border-border">
             <div class="flex items-center gap-2">
-                <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
-                                       CssClass="" OnCalled="RefreshQueueAsync" />
-                <button @onclick="RefreshQueueAsync"
-                        class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
-                    <i class="ph ph-arrows-clockwise"></i>
-                    Làm mới
-                </button>
-                <button @onclick="AddTestQueueTicketAsync"
-                        class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
-                    <i class="ph ph-plus"></i>
-                    Thêm phiếu mẫu
-                </button>
-            </div>
+                    <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
+                                           CssClass="" OnCalled="RefreshQueueAsync" />
+                    <button @onclick="RefreshQueueAsync"
+                            class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                        <i class="ph ph-arrows-clockwise"></i>
+                        Làm mới
+                    </button>
+                </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -154,7 +149,7 @@
                                     @(GetAge(ticket.Patient?.DoB) > 0 ? $"{GetAge(ticket.Patient?.DoB)} tuổi" : "—")
                                 </td>
                                 <td class="py-3 px-5 text-center text-foreground">
-                                    @(ticket.Patient?.Phone ?? "—")
+                                    @(ticket.Patient?.PhoneNumber ?? "—")
                                 </td>
 
                                 @* <td class="py-3 px-5 text-center">

@@ -125,6 +125,10 @@ public class DoctorShiftService : IDoctorShiftService
     // ══════════════════════════════════════════════════════════
     public async Task<(bool Success, string Error)> CreateShiftAsync(CreateShiftDto dto)
     {
+        // ── Validate: Không cho phân lịch trong quá khứ ──
+        if (dto.StartTime < DateTime.Today)
+            return (false, "Không thể phân lịch trực cho ngày trong quá khứ.");
+
         if (dto.EndTime.HasValue && dto.EndTime.Value <= dto.StartTime)
             return (false, "Thời gian kết thúc phải sau thời gian bắt đầu.");
 

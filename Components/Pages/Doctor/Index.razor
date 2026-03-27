@@ -26,20 +26,6 @@
         </div>
         <div class="flex items-center gap-4">
 
-            @* ── TEST ONLY — xóa khi production ───────────────────── *@
-            <button @onclick="AddTestQueueTicketAsync"
-                    class="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-500/20 transition border border-amber-500/30">
-                <i class="ph ph-flask"></i>
-                Thêm vé mẫu
-            </button>
-
-            <button @onclick="SimulateShiftChangeAsync"
-                    class="flex items-center gap-2 px-4 py-2 bg-purple-500/10 text-purple-600 rounded-lg text-sm font-medium hover:bg-purple-500/20 transition border border-purple-500/30">
-                <i class="ph ph-clock"></i>
-                Test: Chuyển sang Phòng 6 sau 1 phút
-            </button>
-            @* ─────────────────────────────────────────────────────────── *@
-
             <div class="text-right">
                 <p class="text-sm font-medium text-foreground">@DateTime.Now.ToString("dddd, dd/MM/yyyy")</p>
                 <p class="text-xs text-muted-foreground">@DateTime.Now.ToString("HH:mm")</p>
@@ -153,7 +139,7 @@
                                                     <td class="py-3 px-4 font-bold text-foreground text-center">@t.TicketNumber</td>
                                                     <td class="py-3 px-4">
                                                         <p class="font-medium text-foreground">@t.Patient?.FullName</p>
-                                                        <p class="text-xs text-muted-foreground mt-0.5">@t.Patient?.Phone</p>
+                                                        <p class="text-xs text-muted-foreground mt-0.5">@t.Patient?.PhoneNumber</p>
                                                     </td>
                                                     <td class="py-3 px-4 text-left">
                                                         <span

@@ -1,0 +1,165 @@
+@page "/patient/medical-history"
+@using SmartClinic.Constant
+@using SmartClinic.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDbContextFactory<SmartClinicDbContext> DbFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="p-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 line-clamp-1">Lịch sử khám bệnh</h1>
+        <p class="text-slate-500 mt-1">Xem lại tất cả các lần thăm khám và kết quả điều trị của bạn.</p>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
+            <i class="ph ph-spinner-gap text-3xl animate-spin"></i>
+            <span class="text-sm font-medium">Đang tải dữ liệu...</span>
+        </div>
+    }
+    else if (_patient == null)
+    {
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+            <i class="ph ph-user-focus text-4xl text-amber-500 mb-3"></i>
+            <h3 class="text-lg font-bold text-amber-900">Không tìm thấy thông tin bệnh nhân</h3>
+            <p class="text-amber-700 text-sm mt-1">Hệ thống không tìm thấy hồ sơ bệnh nhân khớp với tài khoản này. Vui lòng liên hệ bộ phận lễ tân.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Patient Brief Profile -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-8 flex flex-wrap items-center gap-6">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-black">
+                @(_patient.FullName.Substring(0, 1).ToUpper())
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <h2 class="text-xl font-bold text-slate-900">@_patient.FullName</h2>
+                <div class="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
+                    <span class="flex items-center gap-1.5"><i class="ph ph-phone"></i> @_patient.Phone</span>
+                    <span class="flex items-center gap-1.5"><i class="ph ph-gender-intersex"></i> @(_patient.Gender ? "Nam" : "Nữ")</span>
+                    @if (_patient.DoB.HasValue)
+                    {
+                        <span class="flex items-center gap-1.5"><i class="ph ph-calendar-blank"></i> @_patient.DoB.Value.ToString("dd/MM/yyyy")</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Visit History List -->
+        <div class="space-y-4">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph ph-clock-counter-clockwise"></i>
+                Danh sách lượt khám (@_history.Count)
+            </h3>
+
+            @if (!_history.Any())
+            {
+                <div class="bg-slate-50 border border-dashed border-slate-300 rounded-2xl py-12 text-center">
+                    <p class="text-slate-400 italic">Bạn chưa có lịch sử khám bệnh nào trên hệ thống.</p>
+                </div>
+            }
+            else
+            {
+                <div class="grid gap-4">
+                    @foreach (var ticket in _history)
+                    {
+                        <div class="group bg-white rounded-2xl border border-slate-200 p-5 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer relative"
+                             @onclick="() => ViewDetails(ticket.Id)">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg uppercase tracking-wider">#@ticket.TicketNumber</span>
+                                        <span class="text-sm font-semibold text-slate-400">@ticket.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                    <h4 class="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                        @(string.IsNullOrWhiteSpace(ticket.Diagnosis) ? "Chưa có chẩn đoán cụ thể" : ticket.Diagnosis)
+                                    </h4>
+                                    <p class="text-sm text-slate-500 flex items-center gap-1">
+                                        <i class="ph ph-user-md"></i>
+                                        Bác sĩ: <span class="font-medium">@(ticket.Doctor?.FullName ?? "N/A")</span>
+                                        <span class="mx-2 text-slate-300">|</span>
+                                        <i class="ph ph-door"></i>
+                                        Phòng: <span class="font-medium">@(ticket.Room?.Name ?? "N/A")</span>
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">Hoàn tất</span>
+                                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                        <i class="ph-bold ph-caret-right"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private Patient? _patient;
+    private List<QueueTicket> _history = new();
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                NavigationManager.NavigateTo("/login");
+                return;
+            }
+
+            // Identify patient by username or phone
+            var username = user.Identity.Name?.Trim();
+            var phoneClaim = user.FindFirst("PhoneNumber")?.Value ?? user.FindFirst(System.Security.Claims.ClaimTypes.MobilePhone)?.Value;
+            var searchPhone = phoneClaim ?? username;
+
+            if (string.IsNullOrEmpty(searchPhone))
+            {
+                _isLoading = false;
+                return;
+            }
+
+            using var context = await DbFactory.CreateDbContextAsync();
+
+            // Find patient by phone
+            _patient = await context.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Phone == searchPhone && !p.Flags.HasFlag(PatientFlags.IsDeleted));
+
+            if (_patient != null)
+            {
+                // Get completed tickets for this patient
+                _history = await context.QueueTickets
+                    .AsNoTracking()
+                    .Include(t => t.Doctor)
+                    .Include(t => t.Room)
+                    .Where(t => t.PatientId == _patient.Id && (t.StatusEnum == TicketStatus.Done || t.StatusEnum == TicketStatus.Completed))
+                    .OrderByDescending(t => t.CreatedAt)
+                    .ToListAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MedicalHistory] Error: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ViewDetails(int ticketId)
+    {
+        NavigationManager.NavigateTo($"/patient/medical-history/{ticketId}");
+    }
+}
