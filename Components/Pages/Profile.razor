@@ -54,6 +54,10 @@
             {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 text-sm">
                     <div>
+                        <p class="text-slate-500">Tên đăng nhập</p>
+                        <p class="font-medium text-slate-800">@currentUser.Username</p>
+                    </div>
+                    <div>
                         <p class="text-slate-500">Họ và tên</p>
                         <p class="font-medium text-slate-800">@DisplayName</p>
                     </div>
@@ -97,6 +101,12 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
+                                <label class="block mb-1 text-sm font-medium text-slate-700">Tên đăng nhập <span class="text-red-500">*</span></label>
+                                <InputText @bind-Value="editModel.Username"
+                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                <ValidationMessage For="@(() => editModel.Username)" class="text-xs text-red-500 mt-1" />
+                            </div>
+                            <div>
                                 <label class="block mb-1 text-sm font-medium text-slate-700">Họ và tên <span class="text-red-500">*</span></label>
                                 <InputText @bind-Value="editModel.FullName"
                                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -131,6 +141,31 @@
                                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                         </div>
 
+                        <div class="mt-6 border-t border-slate-200 pt-4">
+                            <p class="text-sm font-semibold text-slate-800">Đổi mật khẩu (không bắt buộc)</p>
+                            <p class="text-xs text-slate-500 mt-1">Chỉ nhập khi bạn muốn thay đổi mật khẩu.</p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                <div>
+                                    <label class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu hiện tại</label>
+                                    <InputText type="password" @bind-Value="editModel.CurrentPassword"
+                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                    <ValidationMessage For="@(() => editModel.CurrentPassword)" class="text-xs text-red-500 mt-1" />
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu mới</label>
+                                    <InputText type="password" @bind-Value="editModel.NewPassword"
+                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                    <ValidationMessage For="@(() => editModel.NewPassword)" class="text-xs text-red-500 mt-1" />
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-sm font-medium text-slate-700">Xác nhận mật khẩu mới</label>
+                                    <InputText type="password" @bind-Value="editModel.ConfirmNewPassword"
+                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mt-6 flex items-center gap-3">
                             <button type="submit"
                                     disabled="@isSaving"
@@ -155,7 +190,7 @@
     public string? Mode { get; set; }
 
     private User? currentUser;
-    private ProfileUpdateModel editModel = new();
+    private ProfileUpdateDto editModel = new();
 
     private bool isLoading = true;
     private bool isSaving;
@@ -211,8 +246,9 @@
                 return;
             }
 
-            editModel = new ProfileUpdateModel
+            editModel = new ProfileUpdateDto
             {
+                Username = currentUser.Username,
                 FullName = currentUser.FullName ?? currentUser.Username,
                 Email = currentUser.Email,
                 PhoneNumber = currentUser.PhoneNumber,
@@ -245,8 +281,9 @@
             return;
         }
 
-        editModel = new ProfileUpdateModel
+        editModel = new ProfileUpdateDto
         {
+            Username = currentUser.Username,
             FullName = currentUser.FullName ?? currentUser.Username,
             Email = currentUser.Email,
             PhoneNumber = currentUser.PhoneNumber,
@@ -269,31 +306,29 @@
 
         try
         {
-            var dto = new EditUserDto
+            var result = await UserService.UpdateProfileAsync(currentUser.Id, editModel);
+            if (!result.Success)
             {
-                FullName = editModel.FullName,
-                Email = editModel.Email,
-                PhoneNumber = editModel.PhoneNumber,
-                Address = editModel.Address,
-                Gender = editModel.Gender,
-                RoleMask = currentUser.RoleMask
-            };
-
-            var success = await UserService.UpdateUserAsync(currentUser.Id, dto);
-            if (!success)
-            {
-                saveError = "Cập nhật hồ sơ thất bại.";
+                saveError = result.Message;
                 return;
             }
 
-            currentUser.FullName = dto.FullName;
-            currentUser.Email = dto.Email;
-            currentUser.PhoneNumber = dto.PhoneNumber;
-            currentUser.Address = dto.Address;
-            currentUser.Gender = dto.Gender;
+            currentUser.Username = (editModel.Username ?? string.Empty).Trim();
+            currentUser.FullName = (editModel.FullName ?? string.Empty).Trim();
+            currentUser.Email = NormalizeOptional(editModel.Email);
+            currentUser.PhoneNumber = NormalizeOptional(editModel.PhoneNumber);
+            currentUser.Address = NormalizeOptional(editModel.Address);
+            currentUser.Gender = editModel.Gender;
 
-            saveSuccess = "Đã cập nhật hồ sơ thành công.";
-            isEditing = false;
+            editModel.CurrentPassword = null;
+            editModel.NewPassword = null;
+            editModel.ConfirmNewPassword = null;
+
+            saveSuccess = result.Message;
+            if (result.HasChanges)
+            {
+                isEditing = false;
+            }
         }
         catch (Exception ex)
         {
@@ -307,6 +342,12 @@
 
     private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "Chưa cập nhật" : value;
 
+    private static string? NormalizeOptional(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
     private static string GenderText(bool? gender) => gender switch
     {
         true => "Nam",
@@ -315,20 +356,4 @@
     };
 
     private static string DobText(DateOnly? dob) => dob?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật";
-
-    private sealed class ProfileUpdateModel
-    {
-        [Required(ErrorMessage = "Vui lòng nhập họ và tên!")]
-        [MaxLength(100, ErrorMessage = "Họ và tên tối đa 100 ký tự!")]
-        public string FullName { get; set; } = string.Empty;
-
-        [EmailAddress(ErrorMessage = "Email không hợp lệ!")]
-        public string? Email { get; set; }
-
-        [Phone(ErrorMessage = "Số điện thoại không hợp lệ!")]
-        public string? PhoneNumber { get; set; }
-
-        public string? Address { get; set; }
-        public bool? Gender { get; set; }
-    }
 }
