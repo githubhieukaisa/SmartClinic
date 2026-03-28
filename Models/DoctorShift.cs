@@ -18,8 +18,8 @@ namespace SmartClinic.Models
         public DateTime Date { get; set; }
 
         public int Capacity { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-        public virtual ICollection<Slot> Slots { get; set; } = new List<Slot>();
 
         [NotMapped]
         public string ComputedStatus
