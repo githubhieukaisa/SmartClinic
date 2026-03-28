@@ -518,25 +518,9 @@ namespace SmartClinic.Services
 
             var activeShift = activeShifts.FirstOrDefault(s => s.ComputedStatus == "Đang trực");
 
-            if (activeShift is not null)
-            {
-                return (null, null);
-            }
-            //Chờ sửa thêm ca thời gian để lấy ca trực đang diễn ra, tạm thời lấy ca trực có trạng thái Active (đang diễn ra)
-
-            var activeShift = await _context.DoctorShifts
-                .AsNoTracking()
-                .Where(s => s.DoctorId == user.Id && s.StatusEnum == DoctorShiftStatus.Active)
-                .Select(s => new
-                {
-                    s.RoomId,
-                    RoomName = s.Room.Name
-                })
-                .FirstOrDefaultAsync();
-
-            return activeShift is null
-                ? (null, null)
-                : (activeShift.RoomId, activeShift.RoomName);
+            return activeShift is not null
+                ? (activeShift.RoomId, activeShift.Room?.Name)
+                : (null, null);
         }
 
         private sealed class PasswordResetOtpSession
