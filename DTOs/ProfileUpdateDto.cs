@@ -26,7 +26,7 @@ namespace SmartClinic.DTOs
 
         [MinLength(6, ErrorMessage = "Mật khẩu hiện tại phải có ít nhất 6 ký tự!")]
         public string? CurrentPassword { get; set; }
-
+        [Compare("NewPassword", ErrorMessage = "Mật khẩu xác nhận không khớp!")]
         public string? ConfirmNewPassword { get; set; }
     }
 

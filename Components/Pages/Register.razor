@@ -3,9 +3,15 @@
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Components
+@using Blazored.Toast.Services
+@rendermode InteractiveServer
+@implements IDisposable
 
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
+@inject IToastService ToastService
 
 <div class="relative min-h-screen overflow-hidden bg-gradient-to-br from-cyan-50 via-white to-emerald-50 px-4 py-10 sm:px-6">
     <div class="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-cyan-200/40 blur-3xl"></div>
@@ -24,8 +30,9 @@
             </h1>
 
             <p class="mt-5 text-lg leading-relaxed text-slate-600">
-                Nếu bạn là bác sĩ hoặc nhân sự bệnh viện và muốn đi khám như một bệnh nhân,
-                hệ thống sẽ tự động cộng thêm quyền <strong>Patient (RoleMask = 128)</strong> vào tài khoản hiện có.
+                Nếu bạn đã có tài khoản nội bộ (ví dụ bác sĩ, lễ tân, quản trị, quản lý, …) và muốn đi khám với tư cách bệnh nhân,
+                chỉ cần xác thực đúng — hệ thống sẽ <strong>gắn thêm quyền bệnh nhân</strong> mà
+                <strong>không đổi</strong> tên đăng nhập, mật khẩu hay email.
             </p>
 
             <div class="mt-10 grid gap-4">
@@ -35,7 +42,7 @@
                 </div>
                 <div class="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                     <p class="text-sm font-semibold text-slate-800">2) Chưa có tài khoản?</p>
-                    <p class="mt-1 text-sm text-slate-600">Hệ thống tạo tài khoản mới và gán duy nhất quyền Patient (128).</p>
+                    <p class="mt-1 text-sm text-slate-600">Điền form và nhận <strong>mã OTP qua email</strong>; nhập đúng mã thì tài khoản bệnh nhân mới được tạo.</p>
                 </div>
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <p class="text-sm font-semibold text-slate-800">3) Bảo mật</p>
@@ -47,12 +54,13 @@
         <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
             <div class="mb-6">
                 <h2 class="text-3xl font-black tracking-tight text-slate-900">Đăng ký tài khoản bệnh nhân</h2>
-                <p class="mt-2 text-sm text-slate-500">Chỉ áp dụng cho role Patient (128).</p>
+                <p class="mt-2 text-sm text-slate-500">
+                    Dành cho người chưa có tài khoản, hoặc nhân viên đã có tài khoản nội bộ và muốn thêm quyền bệnh nhân.
+                    <span class="block mt-1 text-slate-400">Tài khoản <strong>mới</strong>: điền đủ thông tin, hệ thống gửi OTP đến email rồi mới hoàn tất. <strong>Nhân viên nội bộ</strong>: chỉ cần tên đăng nhập (hoặc email) và mật khẩu — không qua OTP.</span>
+                </p>
             </div>
 
-            <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="registerForm" class="space-y-4">
-                <DataAnnotationsValidator />
-
+            <div class="space-y-4">
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">@errorMessage</div>
@@ -63,6 +71,68 @@
                     <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">@successMessage</div>
                 }
 
+                @if (awaitingEmailOtp)
+                {
+                    <div class="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+                        <p class="font-semibold">Xác nhận email</p>
+                        <p class="mt-1 text-cyan-800">Kiểm tra hộp thư <strong>@sentToEmail</strong> (và mục Spam). Nhập mã OTP bên dưới để tạo tài khoản.</p>
+                    </div>
+
+                    <EditForm EditContext="@otpEditContext" FormName="registerOtpForm" class="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                        <DataAnnotationsValidator />
+                        <div>
+                            <label for="regOtp" class="mb-1 block text-sm font-semibold text-slate-700">Mã OTP (6 chữ số)</label>
+                            <InputText id="regOtp" @bind-Value="otpConfirmModel.Otp" autocomplete="one-time-code"
+                                       class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 tracking-widest"
+                                       placeholder="000000" />
+                            <ValidationMessage For="@(() => otpConfirmModel.Otp)" class="mt-1 text-xs text-red-500" />
+                        </div>
+                        <button type="button"
+                                @onclick="HandleConfirmOtpClick"
+                                disabled="@isOtpLoading"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-70">
+                            @if (isOtpLoading)
+                            {
+                                <span class="inline-block h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+                                <span>Đang xác nhận...</span>
+                            }
+                            else
+                            {
+                                <span>Xác minh OTP</span>
+                            }
+                        </button>
+                    </EditForm>
+
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <button type="button"
+                                @onclick="HandleResendRegistrationOtp"
+                                disabled="@(otpResendCooldownSeconds > 0 || isResendingOtp || isOtpLoading)"
+                                class="font-semibold text-cyan-700 hover:text-cyan-800 disabled:cursor-not-allowed disabled:opacity-50">
+                            @if (isResendingOtp)
+                            {
+                                <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-600/30 border-t-cyan-600 align-middle"></span>
+                                <span class="ml-1">Đang gửi...</span>
+                            }
+                            else if (otpResendCooldownSeconds > 0)
+                            {
+                                @:Gửi lại OTP (@otpResendCooldownSeconds s)
+                            }
+                            else
+                            {
+                                @:Gửi lại OTP
+                            }
+                        </button>
+                        <button type="button"
+                                @onclick="BackFromEmailOtpStep"
+                                class="font-medium text-slate-500 hover:text-slate-700">
+                            ← Sửa thông tin đăng ký
+                        </button>
+                    </div>
+                }
+                else
+                {
+                <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="registerForm" class="space-y-4">
+                <DataAnnotationsValidator />
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
                         <label for="username" class="mb-1 block text-sm font-semibold text-slate-700">Tên đăng nhập</label>
@@ -85,7 +155,7 @@
                         <label for="email" class="mb-1 block text-sm font-semibold text-slate-700">Email</label>
                         <InputText id="email" @bind-Value="registerModel.Email"
                                    class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
-                                   placeholder="name@example.com" />
+                                   placeholder="name@example.com" autocomplete="email" />
                         <ValidationMessage For="@(() => registerModel.Email)" class="mt-1 text-xs text-red-500" />
                     </div>
                     <div>
@@ -102,7 +172,6 @@
                         <label for="gender" class="mb-1 block text-sm font-semibold text-slate-700">Giới tính</label>
                         <InputSelect id="gender" @bind-Value="registerModel.Gender"
                                      class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100">
-                            <option value="">Chọn giới tính</option>
                             <option value="true">Nam</option>
                             <option value="false">Nữ</option>
                         </InputSelect>
@@ -110,7 +179,9 @@
                     <div>
                         <label for="dob" class="mb-1 block text-sm font-semibold text-slate-700">Ngày sinh</label>
                         <InputDate id="dob" @bind-Value="registerModel.DoB" Type="InputDateType.Date"
+                                   max="@MaxDateOfBirthString"
                                    class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100" />
+                        <ValidationMessage For="@(() => registerModel.DoB)" class="mt-1 text-xs text-red-500" />
                     </div>
                 </div>
 
@@ -119,6 +190,7 @@
                     <InputText id="address" @bind-Value="registerModel.Address"
                                class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
                                placeholder="Số nhà, đường, quận/huyện..." />
+                    <ValidationMessage For="@(() => registerModel.Address)" class="mt-1 text-xs text-red-500" />
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-2">
@@ -138,32 +210,67 @@
                     </div>
                 </div>
 
-                <button type="submit"
-                        disabled="@isLoading"
-                        class="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70">
-                    @(isLoading ? "Đang tạo hồ sơ..." : "Đăng ký tài khoản bệnh nhân")
-                </button>
+                    <button type="submit"
+                            disabled="@isLoading"
+                            aria-busy="@isLoading"
+                            class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70">
+                        @if (isLoading)
+                        {
+                            <svg class="h-5 w-5 shrink-0 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Đang gửi / xử lý...</span>
+                        }
+                        else
+                        {
+                            <span>Tiếp tục đăng ký</span>
+                        }
+                    </button>
+                </EditForm>
+                }
 
                 <div class="text-center text-sm text-slate-600">
                     Đã có tài khoản?
                     <a href="/login" class="font-semibold text-cyan-700 hover:text-cyan-800">Đăng nhập ngay</a>
                 </div>
-            </EditForm>
+            </div>
         </section>
     </div>
 </div>
 
 @code {
+    private static readonly string MaxDateOfBirthString = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    private const int OtpResendCooldownSeconds = 60;
+
     [SupplyParameterFromForm]
     private RegisterModel registerModel { get; set; } = default!;
 
+    private readonly OtpConfirmModel otpConfirmModel = new();
+    private EditContext otpEditContext = default!;
+
     private bool isLoading;
+    private bool isOtpLoading;
+    private bool isResendingOtp;
+    private bool awaitingEmailOtp;
+    private string sentToEmail = string.Empty;
+    private int otpResendCooldownSeconds;
+    private System.Threading.Timer? otpCooldownTimer;
     private string? errorMessage;
     private string? successMessage;
 
     protected override void OnInitialized()
     {
         registerModel ??= new RegisterModel();
+        otpEditContext = new EditContext(otpConfirmModel);
+    }
+
+    private async Task HandleConfirmOtpClick()
+    {
+        if (!otpEditContext.Validate())
+            return;
+
+        await HandleConfirmOtp();
     }
 
     private async Task HandleRegister()
@@ -186,23 +293,38 @@
                 DoB = registerModel.DoB
             });
 
+            if (result.AwaitingEmailOtp)
+            {
+                awaitingEmailOtp = true;
+                sentToEmail = registerModel.Email?.Trim() ?? string.Empty;
+                successMessage = result.Message;
+                errorMessage = null;
+                otpConfirmModel.Otp = string.Empty;
+                ToastService.ShowSuccess("Đã gửi mã xác nhận đến email. Vui lòng kiểm tra hộp thư.");
+                StartOtpResendCooldown();
+                return;
+            }
+
             if (!result.Success)
             {
                 errorMessage = result.Message;
+                ToastService.ShowError(result.Message);
                 return;
             }
 
             successMessage = result.Message + " Đang chuyển sang đăng nhập...";
+            ToastService.ShowSuccess("Đã xử lý thành công. Đang chuyển đến trang đăng nhập...");
             await Task.Delay(1300);
             NavigationManager.NavigateTo("/login");
         }
         catch (NavigationException)
         {
-            //Allow navigation exception
+            // Allow navigation exception
         }
         catch (Exception ex)
         {
             errorMessage = "Lỗi hệ thống: " + ex.Message;
+            ToastService.ShowError("Lỗi hệ thống: " + ex.Message);
         }
         finally
         {
@@ -210,7 +332,123 @@
         }
     }
 
-    public class RegisterModel
+    private async Task HandleConfirmOtp()
+    {
+        isOtpLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await AuthService.ConfirmPatientRegistrationAsync(sentToEmail, otpConfirmModel.Otp);
+
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                ToastService.ShowError(result.Message);
+                return;
+            }
+
+            StopOtpResendCooldown();
+            awaitingEmailOtp = false;
+            successMessage = result.Message + " Đang chuyển sang đăng nhập...";
+            ToastService.ShowSuccess("Đăng ký thành công! Đang chuyển đến trang đăng nhập...");
+            await Task.Delay(1300);
+            NavigationManager.NavigateTo("/login");
+        }
+        catch (NavigationException)
+        {
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Lỗi hệ thống: " + ex.Message;
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isOtpLoading = false;
+        }
+    }
+
+    private async Task HandleResendRegistrationOtp()
+    {
+        if (otpResendCooldownSeconds > 0 || string.IsNullOrWhiteSpace(sentToEmail))
+            return;
+
+        isResendingOtp = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await AuthService.ResendPatientRegistrationOtpAsync(sentToEmail);
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                ToastService.ShowWarning(result.Message);
+                return;
+            }
+
+            ToastService.ShowSuccess(result.Message);
+            StartOtpResendCooldown();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Lỗi: " + ex.Message;
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isResendingOtp = false;
+        }
+    }
+
+    private void BackFromEmailOtpStep()
+    {
+        awaitingEmailOtp = false;
+        successMessage = null;
+        errorMessage = null;
+        otpConfirmModel.Otp = string.Empty;
+        StopOtpResendCooldown();
+    }
+
+    private void StartOtpResendCooldown()
+    {
+        otpResendCooldownSeconds = OtpResendCooldownSeconds;
+        StopOtpResendCooldown();
+        otpCooldownTimer = new System.Threading.Timer(async _ =>
+        {
+            otpResendCooldownSeconds--;
+            if (otpResendCooldownSeconds <= 0)
+            {
+                otpResendCooldownSeconds = 0;
+                StopOtpResendCooldown();
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }, null, 1000, 1000);
+    }
+
+    private void StopOtpResendCooldown()
+    {
+        otpCooldownTimer?.Dispose();
+        otpCooldownTimer = null;
+    }
+
+    public void Dispose()
+    {
+        StopOtpResendCooldown();
+    }
+
+    public class OtpConfirmModel
+    {
+        [Required(ErrorMessage = "Vui lòng nhập mã OTP!")]
+        [RegularExpression(@"^\d{6}$", ErrorMessage = "OTP gồm đúng 6 chữ số.")]
+        public string Otp { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Client: bắt buộc tối thiểu cho mọi trường hợp. Các trường hồ sơ đầy đủ chỉ bắt buộc trên server khi tạo tài khoản mới.
+    /// </summary>
+    public class RegisterModel : IValidatableObject
     {
         [Required(ErrorMessage = "Vui lòng nhập tên đăng nhập!")]
         [MaxLength(50, ErrorMessage = "Tên đăng nhập tối đa 50 ký tự!")]
@@ -223,12 +461,12 @@
         [EmailAddress(ErrorMessage = "Email không hợp lệ!")]
         public string? Email { get; set; }
 
-        [Phone(ErrorMessage = "Số điện thoại không hợp lệ!")]
         public string? PhoneNumber { get; set; }
 
+        [MaxLength(300, ErrorMessage = "Địa chỉ tối đa 300 ký tự!")]
         public string? Address { get; set; }
 
-        public bool? Gender { get; set; }
+        public bool Gender { get; set; } = false;
 
         public DateOnly? DoB { get; set; }
 
@@ -239,5 +477,26 @@
         [Required(ErrorMessage = "Vui lòng nhập lại mật khẩu!")]
         [Compare(nameof(Password), ErrorMessage = "Mật khẩu xác nhận không khớp!")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (DoB.HasValue && DoB.Value > DateOnly.FromDateTime(DateTime.Today))
+            {
+                yield return new ValidationResult(
+                    "Ngày sinh phải không sau ngày hôm nay.",
+                    new[] { nameof(DoB) });
+            }
+
+            if (!string.IsNullOrWhiteSpace(PhoneNumber))
+            {
+                var compact = Regex.Replace(PhoneNumber.Trim(), @"\s+", "");
+                if (!Regex.IsMatch(compact, @"^(0|\+84)[0-9]{9}$", RegexOptions.CultureInvariant))
+                {
+                    yield return new ValidationResult(
+                        "Số điện thoại không hợp lệ. Dùng dạng 0xxxxxxxxx hoặc +84xxxxxxxxx (10 số sau mã quốc gia).",
+                        new[] { nameof(PhoneNumber) });
+                }
+            }
+        }
     }
 }

@@ -1,5 +1,10 @@
-﻿@inherits LayoutComponentBase
+@using Blazored.Toast
+@using Blazored.Toast.Configuration
+@inherits LayoutComponentBase
 
 <main class="min-h-screen bg-slate-50 dark:bg-slate-900">
     @Body
 </main>
+
+<BlazoredToasts Position="ToastPosition.BottomRight" Timeout="4" IconType="IconType.Blazored"
+                @rendermode="InteractiveServer" />
