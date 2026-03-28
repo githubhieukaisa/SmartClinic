@@ -198,15 +198,15 @@ namespace SmartClinic.Services
 
                 // Sort by priority: Examining → Testing → Calling → Waiting
                 var sortedTickets = tickets
-                    .OrderBy(t => 
-                        t.StatusEnum == TicketStatus.Examinating ? 0 : 
-                        t.StatusEnum == TicketStatus.Testing ? 1 : 
+                    .OrderBy(t =>
+                        t.StatusEnum == TicketStatus.Examinating ? 0 :
+                        t.StatusEnum == TicketStatus.Testing ? 1 :
                         t.StatusEnum == TicketStatus.Calling ? 2 : 3)
                     .ThenByDescending(t => t.UpdatedAt ?? t.CreatedAt)
                     .ToList();
- 
-                 System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {sortedTickets.Count} queue tickets");
-                 return sortedTickets;
+
+                System.Diagnostics.Debug.WriteLine($"✅ [PatientService] Found {sortedTickets.Count} queue tickets");
+                return sortedTickets;
             }
             catch (Exception ex)
             {
