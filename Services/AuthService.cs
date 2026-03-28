@@ -1,4 +1,4 @@
-﻿using BCrypt.Net;
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
@@ -15,6 +15,14 @@ namespace SmartClinic.Services
     public class AuthService : IAuthService
     {
         private const int PatientRoleMask = 128;
+        // Khớp với AddCustomAuthorization (ServiceExtensions): bit vai trò nội bộ (không tính Patient).
+        private const int ReceptionRoleMask = 1;
+        private const int DoctorRoleMask = 2;
+        private const int PharmacistRoleMask = 4;
+        private const int CashierRoleMask = 8;
+        private const int AdminRoleMask = 16;
+        private const int LabTechRoleMask = 32;
+        private const int ManagerRoleMask = 64;
         private const int OtpExpiryMinutes = 5;
         private const int OtpResendCooldownSeconds = 60;
         private const int MaxOtpAttempts = 5;
@@ -128,25 +136,25 @@ namespace SmartClinic.Services
                     return new PatientRegistrationResult
                     {
                         Success = true,
-                        Message = "Tài khoản đã có quyền bệnh nhân. Bạn có thể đăng nhập ngay.",
+                        Message = "Tài khoản này đã có quyền bệnh nhân. Vui lòng đăng nhập bằng tên đăng nhập và mật khẩu hiện tại.",
                         AddedPatientRoleToExistingUser = true
                     };
                 }
 
+                // Chỉ khi chưa là bệnh nhân: gắn thêm Patient. Nếu đã có vai trò nội bộ khác, giữ nguyên đăng nhập/mật khẩu/email.
+                var nonPatientRolesBefore = targetUser.RoleMask & ~PatientRoleMask;
                 targetUser.RoleMask |= PatientRoleMask;
-                targetUser.FullName = request.FullName.Trim();
-                targetUser.Email = normalizedEmail;
-                targetUser.PhoneNumber = normalizedPhone;
-                targetUser.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
-                targetUser.Gender = request.Gender;
-                targetUser.DoB = request.DoB;
 
                 await _context.SaveChangesAsync();
+
+                var message = nonPatientRolesBefore != 0
+                    ? BuildStaffPatientActivationMessage(nonPatientRolesBefore)
+                    : "Đã bổ sung quyền bệnh nhân cho tài khoản hiện có. Bạn có thể đăng nhập ngay.";
 
                 return new PatientRegistrationResult
                 {
                     Success = true,
-                    Message = "Đã thêm quyền bệnh nhân vào tài khoản hiện có.",
+                    Message = message,
                     AddedPatientRoleToExistingUser = true
                 };
             }
@@ -171,9 +179,41 @@ namespace SmartClinic.Services
             return new PatientRegistrationResult
             {
                 Success = true,
-                Message = "Đăng ký tài khoản bệnh nhân thành công.",
+                Message = "Đăng ký tài khoản bệnh nhân thành công. Vui lòng đăng nhập bằng thông tin vừa tạo.",
                 AddedPatientRoleToExistingUser = false
             };
+        }
+
+        /// <summary>
+        /// Thông báo khi tài khoản nội bộ (bác sĩ, lễ tân, ...) được gắn thêm quyền bệnh nhân — không đổi mật khẩu/email.
+        /// </summary>
+        private static string BuildStaffPatientActivationMessage(int nonPatientRoleMask)
+        {
+            var roleLabels = DescribeStaffRoleLabels(nonPatientRoleMask);
+            var rolePhrase = string.IsNullOrEmpty(roleLabels)
+                ? "tài khoản nội bộ"
+                : $"tài khoản nội bộ của bạn (đang có vai trò: {roleLabels})";
+
+            return $"Đã kích hoạt quyền bệnh nhân trên {rolePhrase}. " +
+                   "Tên đăng nhập, mật khẩu và email trong hệ thống không thay đổi. " +
+                   "Sau khi đăng nhập, bạn có thể dùng cùng tài khoản này khi đến khám với tư cách bệnh nhân.";
+        }
+
+        private static string DescribeStaffRoleLabels(int mask)
+        {
+            if (mask == 0)
+                return string.Empty;
+
+            var parts = new List<string>();
+            if ((mask & ReceptionRoleMask) == ReceptionRoleMask) parts.Add("lễ tân");
+            if ((mask & DoctorRoleMask) == DoctorRoleMask) parts.Add("bác sĩ");
+            if ((mask & PharmacistRoleMask) == PharmacistRoleMask) parts.Add("dược sĩ");
+            if ((mask & CashierRoleMask) == CashierRoleMask) parts.Add("thu ngân");
+            if ((mask & AdminRoleMask) == AdminRoleMask) parts.Add("quản trị viên");
+            if ((mask & LabTechRoleMask) == LabTechRoleMask) parts.Add("kỹ thuật viên xét nghiệm");
+            if ((mask & ManagerRoleMask) == ManagerRoleMask) parts.Add("quản lý");
+
+            return string.Join(", ", parts);
         }
 
         public async Task<PasswordResetResult> SendPasswordResetOtpAsync(string email)
@@ -197,8 +237,8 @@ namespace SmartClinic.Services
             {
                 return new PasswordResetResult
                 {
-                    Success = true,
-                    Message = "Nếu email tồn tại trong hệ thống, OTP đã được gửi."
+                    Success = false,
+                    Message = "Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại."
                 };
             }
 
@@ -514,11 +554,12 @@ namespace SmartClinic.Services
             {
                 return (null, null);
             }
-            //Chờ sửa thêm ca thời gian để lấy ca trực đang diễn ra, tạm thời lấy ca trực có trạng thái Active (đang diễn ra)
+            // Chờ đồng bộ schema DB (StatusEnum/EndTime), tạm thời lấy ca gần nhất của bác sĩ.
 
             var activeShift = await _context.DoctorShifts
                 .AsNoTracking()
-                .Where(s => s.DoctorId == user.Id && s.StatusEnum == DoctorShiftStatus.Active)
+                .Where(s => s.DoctorId == user.Id)
+                .OrderByDescending(s => s.Id)
                 .Select(s => new
                 {
                     s.RoomId,

@@ -3,9 +3,12 @@
 @using SmartClinic.Models
 @using SmartClinic.Services
 @using System.ComponentModel.DataAnnotations
+@using Blazored.Toast.Services
+@rendermode InteractiveServer
 
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
+@inject IToastService ToastService
 
 <div class="relative min-h-screen overflow-hidden bg-gradient-to-br from-cyan-50 via-white to-emerald-50 px-4 py-10 sm:px-6">
     <div class="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-cyan-200/40 blur-3xl"></div>
@@ -24,8 +27,9 @@
             </h1>
 
             <p class="mt-5 text-lg leading-relaxed text-slate-600">
-                Nếu bạn là bác sĩ hoặc nhân sự bệnh viện và muốn đi khám như một bệnh nhân,
-                hệ thống sẽ tự động cộng thêm quyền <strong>Patient (RoleMask = 128)</strong> vào tài khoản hiện có.
+                Nếu bạn đã có tài khoản nội bộ (ví dụ bác sĩ, lễ tân, quản trị, quản lý, …) và muốn đi khám với tư cách bệnh nhân,
+                chỉ cần xác thực đúng — hệ thống sẽ <strong>gắn thêm quyền Patient (128)</strong> mà
+                <strong>không đổi</strong> tên đăng nhập, mật khẩu hay email.
             </p>
 
             <div class="mt-10 grid gap-4">
@@ -47,7 +51,7 @@
         <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
             <div class="mb-6">
                 <h2 class="text-3xl font-black tracking-tight text-slate-900">Đăng ký tài khoản bệnh nhân</h2>
-                <p class="mt-2 text-sm text-slate-500">Chỉ áp dụng cho role Patient (128).</p>
+                <p class="mt-2 text-sm text-slate-500">Dành cho người chưa có tài khoản, hoặc nhân viên đã có tài khoản nội bộ và muốn thêm quyền bệnh nhân (Patient = 128).</p>
             </div>
 
             <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="registerForm" class="space-y-4">
@@ -140,8 +144,20 @@
 
                 <button type="submit"
                         disabled="@isLoading"
-                        class="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70">
-                    @(isLoading ? "Đang tạo hồ sơ..." : "Đăng ký tài khoản bệnh nhân")
+                        aria-busy="@isLoading"
+                        class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70">
+                    @if (isLoading)
+                    {
+                        <svg class="h-5 w-5 shrink-0 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Đang tạo hồ sơ...</span>
+                    }
+                    else
+                    {
+                        <span>Đăng ký tài khoản bệnh nhân</span>
+                    }
                 </button>
 
                 <div class="text-center text-sm text-slate-600">
@@ -189,20 +205,23 @@
             if (!result.Success)
             {
                 errorMessage = result.Message;
+                ToastService.ShowError(result.Message);
                 return;
             }
 
             successMessage = result.Message + " Đang chuyển sang đăng nhập...";
+            ToastService.ShowSuccess("Đã xử lý thành công. Đang chuyển đến trang đăng nhập...");
             await Task.Delay(1300);
             NavigationManager.NavigateTo("/login");
         }
         catch (NavigationException)
         {
-            //Allow navigation exception
+            // Allow navigation exception
         }
         catch (Exception ex)
         {
             errorMessage = "Lỗi hệ thống: " + ex.Message;
+            ToastService.ShowError("Lỗi hệ thống: " + ex.Message);
         }
         finally
         {
