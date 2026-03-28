@@ -65,6 +65,32 @@
     </div>
 }
 
+@* ══════════ PREVIEW BAR (khi đang xem trước) ══════════ *@
+@if (previewItems.Any())
+{
+    <div class="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-300 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-amber-800">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            <span class="font-medium text-sm">Đang xem trước: @previewItems.Count ca trực sẽ được tạo</span>
+            @if (previewItems.Any(p => p.IsOverwrite))
+            {
+                <span class="text-xs text-red-600">(@previewItems.Count(p => p.IsOverwrite) ca ghi đè)</span>
+            }
+        </div>
+        <div class="flex items-center gap-2">
+            <button @onclick="CancelPreview"
+                    class="px-4 py-2 bg-white text-slate-600 rounded-lg hover:bg-slate-100 transition font-medium text-sm border border-slate-300">
+                Hủy
+            </button>
+            <button @onclick="ConfirmAutoSchedule" disabled="@isSaving"
+                    class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors font-medium text-sm shadow-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                @(isSaving ? "Đang lưu..." : "Xác nhận lưu")
+            </button>
+        </div>
+    </div>
+}
+
 @if (isLoading)
 {
     <div class="bg-white rounded-xl shadow-sm p-12 text-center text-slate-400">
@@ -191,32 +217,6 @@ else
     </div>
 }
 
-@* ══════════ PREVIEW BAR (khi đang xem trước) ══════════ *@
-@if (previewItems.Any())
-{
-    <div class="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-300 flex items-center justify-between">
-        <div class="flex items-center gap-2 text-amber-800">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-            <span class="font-medium text-sm">Đang xem trước: @previewItems.Count ca trực sẽ được tạo</span>
-            @if (previewItems.Any(p => p.IsOverwrite))
-            {
-                <span class="text-xs text-red-600">(@previewItems.Count(p => p.IsOverwrite) ca ghi đè)</span>
-            }
-        </div>
-        <div class="flex items-center gap-2">
-            <button @onclick="CancelPreview"
-                    class="px-4 py-2 bg-white text-slate-600 rounded-lg hover:bg-slate-100 transition font-medium text-sm border border-slate-300">
-                Hủy
-            </button>
-            <button @onclick="ConfirmAutoSchedule" disabled="@isSaving"
-                    class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors font-medium text-sm shadow-sm">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                @(isSaving ? "Đang lưu..." : "Xác nhận lưu")
-            </button>
-        </div>
-    </div>
-}
-
 @* ══════════ MODAL PHÂN LỊCH TỰ ĐỘNG ══════════ *@
 @if (showAutoScheduleModal)
 {
@@ -275,7 +275,13 @@ else
                                 <input type="checkbox" checked="@autoRequest.SelectedDoctorIds.Contains(doc.Id)"
                                        @onchange="(e) => ToggleDoctor(doc.Id, (bool)(e.Value ?? false))"
                                        class="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
-                                @(doc.FullName ?? doc.Username)
+                                <span>
+                                    @(doc.FullName ?? doc.Username)
+                                    @if (doc.Department != null)
+                                    {
+                                        <span class="text-[10px] text-slate-400 ml-1">(@doc.Department.Name)</span>
+                                    }
+                                </span>
                             </label>
                         }
                     </div>
@@ -529,9 +535,9 @@ else
         {
             FromDate = currentWeekMonday,
             ToDate = currentWeekMonday.AddDays(6),
-            SelectedDoctorIds = doctors.Select(d => d.Id).ToList(),
-            SelectedRoomIds = rooms.Select(r => r.Id).ToList(),
-            SelectedShiftDefinitionIds = shiftDefinitions.Select(s => s.Id).ToList(),
+            SelectedDoctorIds = new(),
+            SelectedRoomIds = new(),
+            SelectedShiftDefinitionIds = new(),
             OverwriteExisting = false
         };
         showAutoScheduleModal = true;
