@@ -1,0 +1,379 @@
+@page "/patient/appointments"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Blazored.Toast.Services
+@using SmartClinic.Services
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "PatientPolicy")]
+@inject IAppointmentService AppointmentService
+@inject IDoctorShiftService ShiftService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IToastService Toast
+
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+
+    @* ── Header ── *@
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-foreground flex items-center gap-2">
+                <i class="ph ph-calendar-plus text-primary"></i>
+                Đặt Lịch Khám Bệnh
+            </h1>
+            <p class="text-sm text-muted-foreground mt-1">Chọn bác sĩ và ca khám phù hợp với bạn</p>
+        </div>
+        <a href="/patient/my-bookings"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card hover:bg-muted transition text-sm font-medium">
+            <i class="ph ph-calendar-check"></i>
+            Xem lịch hẹn của tôi
+        </a>
+    </div>
+
+    @* ── Bộ lọc ── *@
+    <div class="bg-card border border-border rounded-2xl p-5 shadow-sm">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            @* Ngày *@
+            <div>
+                <label class="block text-xs font-medium text-muted-foreground mb-1">Ngày khám</label>
+                <input type="date" class="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                       value="@_dateFilter?.ToString("yyyy-MM-dd")"
+                       min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                       @onchange="OnDateFilterChanged" />
+            </div>
+
+            @* Bác sĩ dropdown *@
+            <div>
+                <label class="block text-xs font-medium text-muted-foreground mb-1">Bác sĩ</label>
+                <select class="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                        @onchange="OnDoctorFilterChanged">
+                    <option value="0">Tất cả bác sĩ</option>
+                    @if (_doctors != null)
+                    {
+                        @foreach (var d in _doctors)
+                        {
+                            <option value="@d.Id">@(d.FullName ?? d.Username)</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            @* Tìm tên bác sĩ *@
+            <div>
+                <label class="block text-xs font-medium text-muted-foreground mb-1">Tìm kiếm</label>
+                <input type="text" placeholder="Nhập tên bác sĩ..."
+                       class="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                       @bind="_searchDoctor" @bind:event="oninput"
+                       @onkeyup="OnSearchChanged" />
+            </div>
+
+            @* Sắp xếp *@
+            <div>
+                <label class="block text-xs font-medium text-muted-foreground mb-1">Sắp xếp theo</label>
+                <select class="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                        @onchange="OnSortChanged">
+                    <option value="time">Thời gian (sớm → muộn)</option>
+                    <option value="rating">Đánh giá (cao → thấp)</option>
+                    <option value="capacity">Chỗ trống (nhiều → ít)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    @* ── Loading ── *@
+    @if (_isLoading)
+    {
+        <div class="flex items-center justify-center py-16">
+            <div class="flex flex-col items-center gap-3">
+                <i class="ph ph-spinner-gap text-4xl text-primary animate-spin"></i>
+                <span class="text-sm text-muted-foreground">Đang tải danh sách ca khám...</span>
+            </div>
+        </div>
+    }
+    else if (_shifts == null || _shifts.Count == 0)
+    {
+        <div class="flex flex-col items-center justify-center py-16 text-center">
+            <i class="ph ph-calendar-x text-5xl text-muted-foreground/40 mb-3"></i>
+            <p class="text-lg font-medium text-muted-foreground">Không tìm thấy ca khám nào</p>
+            <p class="text-sm text-muted-foreground/70 mt-1">Thử thay đổi bộ lọc hoặc chọn ngày khác</p>
+        </div>
+    }
+    else
+    {
+        @* ── Danh sách ca khám (Group theo ngày) ── *@
+        @foreach (var dayGroup in _shifts.GroupBy(s => s.Date.Date).OrderBy(g => g.Key))
+        {
+            <div class="space-y-3">
+                @* Đầu ngày *@
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full">
+                        <i class="ph ph-calendar-blank text-sm"></i>
+                        <span class="text-sm font-semibold">@dayGroup.Key.ToString("dddd, dd/MM/yyyy")</span>
+                    </div>
+                    <div class="flex-1 h-px bg-border"></div>
+                    <span class="text-xs text-muted-foreground">@dayGroup.Count() ca còn chỗ</span>
+                </div>
+
+                @* Cards *@
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    @foreach (var shift in dayGroup)
+                    {
+                        <div class="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group">
+                            @* Header: Bác sĩ + Rating *@
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <i class="ph ph-user-circle text-xl text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-foreground text-sm">@shift.DoctorName</p>
+                                        <p class="text-xs text-muted-foreground">@shift.DepartmentName</p>
+                                    </div>
+                                </div>
+                                @* Rating *@
+                                <button class="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 transition cursor-pointer"
+                                        @onclick="() => ShowFeedback(shift.DoctorId, shift.DoctorName)"
+                                        title="Xem đánh giá">
+                                    <i class="ph-fill ph-star text-amber-500 text-sm"></i>
+                                    <span class="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                        @(shift.DoctorReviewCount > 0 ? shift.DoctorAvgRating.ToString("0.1") : "—")
+                                    </span>
+                                    <span class="text-xs text-muted-foreground">(@shift.DoctorReviewCount)</span>
+                                </button>
+                            </div>
+
+                            @* Thông tin ca *@
+                            <div class="space-y-2 mb-4">
+                                <div class="flex items-center gap-2 text-sm">
+                                    <i class="ph ph-clock text-muted-foreground w-4"></i>
+                                    <span class="font-medium text-foreground">@shift.ShiftName</span>
+                                    <span class="text-muted-foreground">
+                                        (@shift.StartTime.ToString(@"hh\:mm") – @shift.EndTime.ToString(@"hh\:mm"))
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-2 text-sm">
+                                    <i class="ph ph-map-pin text-muted-foreground w-4"></i>
+                                    <span class="text-foreground">@shift.RoomName</span>
+                                    <span class="text-muted-foreground">— @shift.RoomLocation</span>
+                                </div>
+                            </div>
+
+                            @* Capacity bar + Đặt *@
+                            <div class="flex items-center justify-between">
+                                <div class="flex-1 mr-4">
+                                    <div class="flex items-center justify-between text-xs mb-1">
+                                        <span class="text-muted-foreground">Còn trống</span>
+                                        <span class="font-semibold @(shift.RemainCapacity <= 2 ? "text-red-500" : "text-emerald-600")">
+                                            @shift.RemainCapacity/@shift.Capacity
+                                        </span>
+                                    </div>
+                                    <div class="w-full h-2 rounded-full bg-border overflow-hidden">
+                                        @{
+                                            var pct = shift.Capacity > 0 ? (double)shift.RemainCapacity / shift.Capacity * 100 : 0;
+                                            var barColor = pct <= 20 ? "bg-red-500" : pct <= 50 ? "bg-amber-500" : "bg-emerald-500";
+                                        }
+                                        <div class="h-full rounded-full transition-all @barColor" style="width: @(pct)%"></div>
+                                    </div>
+                                </div>
+                                <button class="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                        disabled="@_bookingInProgress"
+                                        @onclick="() => BookShift(shift)">
+                                    <i class="ph ph-check-circle mr-1"></i>
+                                    Đặt lịch
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@* ── Modal xem đánh giá bác sĩ ── *@
+@if (_showFeedbackModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @onclick="CloseFeedbackModal">
+        <div class="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col"
+             @onclick:stopPropagation="true">
+            @* Header *@
+            <div class="flex items-center justify-between px-6 py-4 border-b border-border">
+                <div>
+                    <h2 class="text-lg font-bold text-foreground">Đánh giá bác sĩ</h2>
+                    <p class="text-sm text-muted-foreground">@_feedbackDoctorName</p>
+                </div>
+                <button class="p-2 rounded-lg hover:bg-muted transition" @onclick="CloseFeedbackModal">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            @* Content *@
+            <div class="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                @if (_feedbacks == null)
+                {
+                    <div class="text-center py-8">
+                        <i class="ph ph-spinner-gap text-3xl text-primary animate-spin"></i>
+                    </div>
+                }
+                else if (_feedbacks.Count == 0)
+                {
+                    <div class="text-center py-8">
+                        <i class="ph ph-chat-circle-dots text-4xl text-muted-foreground/30 mb-2"></i>
+                        <p class="text-sm text-muted-foreground">Chưa có đánh giá nào</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var fb in _feedbacks)
+                    {
+                        <div class="bg-muted/50 rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-1">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        var starIndex = i;
+                                        <i class="@(starIndex <= fb.Rating ? "ph-fill ph-star text-amber-500" : "ph ph-star text-muted-foreground/30") text-sm"></i>
+                                    }
+                                </div>
+                                <span class="text-xs text-muted-foreground">
+                                    @(fb.SubmittedAt?.ToString("dd/MM/yyyy") ?? "")
+                                </span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(fb.Comment))
+                            {
+                                <p class="text-sm text-foreground">@fb.Comment</p>
+                            }
+                            <p class="text-xs text-muted-foreground mt-1">
+                                — @(string.IsNullOrWhiteSpace(fb.PatientName) ? "Ẩn danh" : fb.PatientName)
+                            </p>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AppointmentShiftDto>? _shifts;
+    private List<SmartClinic.Models.User>? _doctors;
+    private List<DoctorFeedbackSummaryDto>? _feedbacks;
+
+    private DateTime? _dateFilter;
+    private int _doctorFilter;
+    private string? _searchDoctor;
+    private string _sortBy = "time";
+    private bool _isLoading = true;
+    private bool _bookingInProgress;
+    private bool _showFeedbackModal;
+    private string _feedbackDoctorName = "";
+    private int _patientId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim != null) int.TryParse(userIdClaim.Value, out _patientId);
+
+        _doctors = await ShiftService.GetDoctorsAsync();
+        await LoadShiftsAsync();
+    }
+
+    private async Task LoadShiftsAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        _shifts = await AppointmentService.GetAvailableShiftsAsync(_dateFilter, _doctorFilter > 0 ? _doctorFilter : null, _searchDoctor);
+        ApplySort();
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private void ApplySort()
+    {
+        if (_shifts == null) return;
+        _shifts = _sortBy switch
+        {
+            "rating" => _shifts.OrderByDescending(s => s.DoctorAvgRating).ThenBy(s => s.Date).ThenBy(s => s.StartTime).ToList(),
+            "capacity" => _shifts.OrderByDescending(s => s.RemainCapacity).ThenBy(s => s.Date).ThenBy(s => s.StartTime).ToList(),
+            _ => _shifts.OrderBy(s => s.Date).ThenBy(s => s.StartTime).ToList()
+        };
+    }
+
+    private async Task OnDateFilterChanged(ChangeEventArgs e)
+    {
+        _dateFilter = DateTime.TryParse(e.Value?.ToString(), out var d) ? d : null;
+        await LoadShiftsAsync();
+    }
+
+    private async Task OnDoctorFilterChanged(ChangeEventArgs e)
+    {
+        int.TryParse(e.Value?.ToString(), out _doctorFilter);
+        await LoadShiftsAsync();
+    }
+
+    private System.Timers.Timer? _debounceTimer;
+    private async Task OnSearchChanged()
+    {
+        _debounceTimer?.Stop();
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Timers.Timer(400);
+        _debounceTimer.Elapsed += async (_, _) =>
+        {
+            _debounceTimer?.Stop();
+            await InvokeAsync(LoadShiftsAsync);
+        };
+        _debounceTimer.AutoReset = false;
+        _debounceTimer.Start();
+    }
+
+    private async Task OnSortChanged(ChangeEventArgs e)
+    {
+        _sortBy = e.Value?.ToString() ?? "time";
+        ApplySort();
+        StateHasChanged();
+    }
+
+    private async Task BookShift(AppointmentShiftDto shift)
+    {
+        if (_patientId <= 0)
+        {
+            Toast.ShowError("Không xác định được tài khoản bệnh nhân.");
+            return;
+        }
+
+        _bookingInProgress = true;
+        StateHasChanged();
+
+        var (success, msg) = await AppointmentService.BookAppointmentAsync(_patientId, shift.ShiftId);
+
+        if (success)
+        {
+            Toast.ShowSuccess(msg);
+            await LoadShiftsAsync();
+        }
+        else
+        {
+            Toast.ShowError(msg);
+        }
+
+        _bookingInProgress = false;
+        StateHasChanged();
+    }
+
+    private async Task ShowFeedback(int doctorId, string doctorName)
+    {
+        _feedbackDoctorName = doctorName;
+        _feedbacks = null;
+        _showFeedbackModal = true;
+        StateHasChanged();
+
+        _feedbacks = await AppointmentService.GetDoctorFeedbacksAsync(doctorId);
+        StateHasChanged();
+    }
+
+    private void CloseFeedbackModal()
+    {
+        _showFeedbackModal = false;
+    }
+}

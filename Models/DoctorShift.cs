@@ -18,6 +18,7 @@ namespace SmartClinic.Models
         public DateTime Date { get; set; }
 
         public int Capacity { get; set; }
+        public int RemainCapacity { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
 
