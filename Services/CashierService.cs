@@ -42,10 +42,9 @@ namespace SmartClinic.Services
 
         // ─── Cash payment ─────────────────────────────────────────────────────────
 
-        public async Task<(bool Success, string ErrorMessage)> ProcessPaymentAsync(int prescriptionId)
+        public async Task<(bool Success, string ErrorMessage)> ProcessPaymentAsync(ProcessPaymentRequestDto request, int? cashierId = null)
         {
-            // prescriptionId here is actually the TicketId (mapped in DTO)
-            return await FinalizePaymentAsync(prescriptionId, "Cash");
+            return await FinalizePaymentAsync(request.TicketId, request.PaymentMethod, request.AmountReceived, cashierId);
         }
 
         // ─── VNPay ────────────────────────────────────────────────────────────────
@@ -68,13 +67,21 @@ namespace SmartClinic.Services
             if (!int.TryParse(parts[0], out var ticketId))
                 return (false, "Invalid transaction reference.");
 
-            return await FinalizePaymentAsync(ticketId, "VNPay");
+            // For VNPay, amount received is practically exactly the total amount.
+            // But we don't have it here directly, so we pass 0 and let Finalize override it or we can parse from vnp_Amount.
+            decimal vnpAmount = 0;
+            if (query.TryGetValue("vnp_Amount", out var amtStr) && decimal.TryParse(amtStr, out var amt))
+            {
+                vnpAmount = amt / 100m; // VNPay multiplies by 100
+            }
+
+            return await FinalizePaymentAsync(ticketId, "VNPay", vnpAmount, null);
         }
 
         // ─── Shared finalization ──────────────────────────────────────────────────
 
         private async Task<(bool Success, string ErrorMessage)> FinalizePaymentAsync(
-            int ticketId, string paymentMethod)
+            int ticketId, string paymentMethod, decimal amountReceived, int? cashierId)
         {
             System.Diagnostics.Debug.WriteLine(
                 $"[CashierService] Finalizing payment ({paymentMethod}) for ticket #{ticketId}");
@@ -91,12 +98,35 @@ namespace SmartClinic.Services
                 if (ticket.StatusEnum != TicketStatus.Completed)
                     return (false, $"Ticket is '{ticket.StatusEnum}', cannot process payment.");
 
-                // ── Freeze TotalAmount to prevent future price changes & secure audit logs ──
-                decimal preCalcAmount = ticket.Prescription?.TotalAmount 
+                // Calculate the final exact amount required
+                decimal exactTotal = ticket.Prescription?.TotalAmount 
                             ?? ticket.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) 
                             ?? 0m;
-                ticket.TotalAmount = preCalcAmount;
+                
+                // For VNPay if amount is 0/missing, assume full payment.
+                if (paymentMethod == "VNPay" && amountReceived == 0)
+                    amountReceived = exactTotal;
 
+                if (amountReceived < exactTotal && paymentMethod == "Cash")
+                    return (false, $"Số tiền khách đưa ({amountReceived:N0}đ) không đủ để thanh toán ({exactTotal:N0}đ).");
+
+                // ── Insert Payment Record ──
+                var paymentRecord = new SmartClinic.Models.Entites.Payment
+                {
+                    TicketId = ticketId,
+                    PaymentMethod = paymentMethod,
+                    TotalAmount = exactTotal,
+                    AmountReceived = amountReceived,
+                    ChangeAmount = amountReceived - exactTotal,
+                    CashierId = cashierId,
+                    PaymentTime = DateTime.UtcNow,
+                    Status = "Success"
+                };
+                
+                _context.Payments.Add(paymentRecord);
+
+                // ── Freeze TotalAmount to prevent future price changes & secure audit logs ──
+                ticket.TotalAmount = exactTotal;
                 ticket.StatusEnum = TicketStatus.Done;
 
                 if (ticket.Prescription != null)
@@ -119,6 +149,52 @@ namespace SmartClinic.Services
                 System.Diagnostics.Debug.WriteLine($"[CashierService] ERROR: {ex.Message}");
                 return (false, "System error during payment.");
             }
+        }
+
+        // ─── Payment History ──────────────────────────────────────────────────────
+
+        public async Task<List<PaymentHistoryDto>> GetPaymentHistoryAsync(DateTime date, int? cashierId = null)
+        {
+            // Do thời gian thanh toán lưu là UTC (DateTime.UtcNow), 
+            // nên một giao dịch lúc 00:11 sáng nay (ICT) sẽ có giờ UTC là 17:11 ngày hôm qua.
+            // Để chắc chắn lấy đủ, ta query một khoảng rộng hơn rồi lọc lại theo Giờ địa phương (ToLocalTime).
+            var searchDate = date.Date;
+            var minUtc = searchDate.AddDays(-1);
+            var maxUtc = searchDate.AddDays(2);
+
+            var query = _context.Payments
+                .AsNoTracking()
+                .Include(p => p.Ticket)
+                    .ThenInclude(t => t!.PatientUser)
+                .Include(p => p.Cashier)
+                .Where(p => p.PaymentTime >= minUtc && p.PaymentTime < maxUtc);
+
+            if (cashierId.HasValue)
+            {
+                query = query.Where(p => p.CashierId == cashierId.Value);
+            }
+
+            var results = await query
+                .OrderByDescending(p => p.PaymentTime)
+                .ToListAsync();
+
+            // Lọc lại chính xác theo ngày địa phương của Server (vốn là múi giờ phòng khám)
+            return results
+                .Where(p => p.PaymentTime.ToLocalTime().Date == searchDate)
+                .Select(p => new PaymentHistoryDto
+                {
+                    PaymentId = p.Id,
+                    TicketId = p.TicketId,
+                    PatientName = p.Ticket?.PatientUser?.FullName ?? "—",
+                    PaymentMethod = p.PaymentMethod,
+                    TotalAmount = p.TotalAmount,
+                    AmountReceived = p.AmountReceived,
+                    ChangeAmount = p.ChangeAmount,
+                    Status = p.Status,
+                    PaymentTime = p.PaymentTime,
+                    CashierName = p.Cashier != null ? (p.Cashier.FullName ?? p.Cashier.Username) : "—"
+                })
+                .ToList();
         }
 
         // ─── Helper ───────────────────────────────────────────────────────────────
