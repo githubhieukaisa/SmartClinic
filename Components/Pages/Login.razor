@@ -151,6 +151,10 @@ authProperties);
                     {
                         redirectUrl = "/cashier/payments";
                     }
+                    else if ((roleMask & 4) == 4)
+                    {
+                        redirectUrl = "/pharmacist/prescriptions";
+                    }
                 }
                 NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
             }

@@ -91,6 +91,12 @@ namespace SmartClinic.Services
                 if (ticket.StatusEnum != TicketStatus.Completed)
                     return (false, $"Ticket is '{ticket.StatusEnum}', cannot process payment.");
 
+                // ── Freeze TotalAmount to prevent future price changes & secure audit logs ──
+                decimal preCalcAmount = ticket.Prescription?.TotalAmount 
+                            ?? ticket.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) 
+                            ?? 0m;
+                ticket.TotalAmount = preCalcAmount;
+
                 ticket.StatusEnum = TicketStatus.Done;
 
                 if (ticket.Prescription != null)

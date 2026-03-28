@@ -7,6 +7,7 @@
 @attribute [Authorize(Policy = "PatientPolicy")]
 @inject IAppointmentService AppointmentService
 @inject IDoctorShiftService ShiftService
+@inject IDepartmentService DepartmentService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IToastService Toast
 
@@ -30,7 +31,7 @@
 
     @* ── Bộ lọc ── *@
     <div class="bg-card border border-border rounded-2xl p-5 shadow-sm">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             @* Ngày *@
             <div>
                 <label class="block text-xs font-medium text-muted-foreground mb-1">Ngày khám</label>
@@ -38,6 +39,22 @@
                        value="@_dateFilter?.ToString("yyyy-MM-dd")"
                        min="@DateTime.Today.ToString("yyyy-MM-dd")"
                        @onchange="OnDateFilterChanged" />
+            </div>
+
+            @* Khoa dropdown *@
+            <div>
+                <label class="block text-xs font-medium text-muted-foreground mb-1">Khoa khám</label>
+                <select class="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                        @onchange="OnDepartmentFilterChanged">
+                    <option value="0">Tất cả khoa</option>
+                    @if (_departments != null)
+                    {
+                        @foreach (var dep in _departments)
+                        {
+                            <option value="@dep.Id">@dep.Name</option>
+                        }
+                    }
+                </select>
             </div>
 
             @* Bác sĩ dropdown *@
@@ -132,10 +149,12 @@
                                 <button class="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 transition cursor-pointer"
                                         @onclick="() => ShowFeedback(shift.DoctorId, shift.DoctorName)"
                                         title="Xem đánh giá">
-                                    <i class="ph-fill ph-star text-amber-500 text-sm"></i>
-                                    <span class="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                                        @(shift.DoctorReviewCount > 0 ? shift.DoctorAvgRating.ToString("0.1") : "—")
-                                    </span>
+                                    <div class="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 rounded-md ml-auto">
+                                        <i class="ph-fill ph-star text-sm text-amber-500"></i>
+                                        <span class="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                            @(shift.DoctorReviewCount > 0 ? shift.DoctorAvgRating.ToString("0.0") : "—")
+                                        </span>
+                                    </div>
                                     <span class="text-xs text-muted-foreground">(@shift.DoctorReviewCount)</span>
                                 </button>
                             </div>
@@ -255,10 +274,12 @@
 @code {
     private List<AppointmentShiftDto>? _shifts;
     private List<SmartClinic.Models.User>? _doctors;
+    private List<SmartClinic.Models.Department>? _departments;
     private List<DoctorFeedbackSummaryDto>? _feedbacks;
 
     private DateTime? _dateFilter;
     private int _doctorFilter;
+    private int _departmentFilter;
     private string? _searchDoctor;
     private string _sortBy = "time";
     private bool _isLoading = true;
@@ -273,6 +294,7 @@
         var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (userIdClaim != null) int.TryParse(userIdClaim.Value, out _patientId);
 
+        _departments = await DepartmentService.GetAllDepartmentsAsync();
         _doctors = await ShiftService.GetDoctorsAsync();
         await LoadShiftsAsync();
     }
@@ -282,7 +304,7 @@
         _isLoading = true;
         StateHasChanged();
 
-        _shifts = await AppointmentService.GetAvailableShiftsAsync(_dateFilter, _doctorFilter > 0 ? _doctorFilter : null, _searchDoctor);
+        _shifts = await AppointmentService.GetAvailableShiftsAsync(_dateFilter, _doctorFilter > 0 ? _doctorFilter : null, _departmentFilter > 0 ? _departmentFilter : null, _searchDoctor);
         ApplySort();
 
         _isLoading = false;
@@ -309,6 +331,12 @@
     private async Task OnDoctorFilterChanged(ChangeEventArgs e)
     {
         int.TryParse(e.Value?.ToString(), out _doctorFilter);
+        await LoadShiftsAsync();
+    }
+
+    private async Task OnDepartmentFilterChanged(ChangeEventArgs e)
+    {
+        int.TryParse(e.Value?.ToString(), out _departmentFilter);
         await LoadShiftsAsync();
     }
 
