@@ -142,6 +142,15 @@ namespace SmartClinic
                     TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
                 });
 
+            RecurringJob.AddOrUpdate<WeeklyScheduleReminderJob>(
+                "weekly-schedule-reminder", 
+                job => job.ExecuteAsync(), 
+                "0 17 * * 5", // 17:00 Thứ 6 hàng tuần
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")
+                });
+
             //app.MapPost("/api/test-checkin", async (ITicketService ticketService) =>
             //{
             //    try

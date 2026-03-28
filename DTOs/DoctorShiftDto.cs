@@ -17,6 +17,8 @@ public class DoctorShiftDisplayDto
     public DateTime StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public string Status { get; set; } = string.Empty;
+    public int Capacity { get; set; }
+    public string ShiftName { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -31,8 +33,19 @@ public class CreateShiftDto
     [Required(ErrorMessage = "Vui lòng chọn phòng")]
     public int RoomId { get; set; }
 
-    [Required(ErrorMessage = "Vui lòng chọn thời gian bắt đầu")]
-    public DateTime StartTime { get; set; } = DateTime.Today.AddHours(8);
+    [Required(ErrorMessage = "Vui lòng chọn ngày trực")]
+    public DateTime Date { get; set; } = DateTime.Today;
 
-    public DateTime? EndTime { get; set; }
+    [Required(ErrorMessage = "Vui lòng chọn ca trực")]
+    public int ShiftDefinitionId { get; set; }
+}
+
+public class DoctorShiftWeeklyUpdateDto
+{
+    public int Id { get; set; } // 0 if new, otherwise existing shift ID
+    public int DoctorId { get; set; }
+    public int RoomId { get; set; }
+    public DateTime Date { get; set; }
+    public int ShiftDefinitionId { get; set; }
+    public bool IsDeleted { get; set; }
 }
