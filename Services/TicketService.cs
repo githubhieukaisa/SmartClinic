@@ -12,14 +12,14 @@ namespace SmartClinic.Services
     {
         private const int PatientRoleMask = 128;
 
-        private readonly SmartClinicDbContext _context;
+        private readonly IDbContextFactory<SmartClinicDbContext> _dbContextFactory;
         private readonly IQueueService _queueService;
         private readonly IHubContext<QueueHub> _hubContext;
         private readonly IHubContext<PatientHub> _patientHubContext;
 
-        public TicketService(SmartClinicDbContext context, IQueueService queueService, IHubContext<QueueHub> hubContext, IHubContext<PatientHub> patientHubContext)
+        public TicketService(IDbContextFactory<SmartClinicDbContext> dbContextFactory, IQueueService queueService, IHubContext<QueueHub> hubContext, IHubContext<PatientHub> patientHubContext)
         {
-            _context = context;
+            _dbContextFactory = dbContextFactory;
             _queueService = queueService;
             _hubContext = hubContext;
             _patientHubContext = patientHubContext;
@@ -31,6 +31,7 @@ namespace SmartClinic.Services
 
             var normalizedPhone = phone.Trim();
 
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             return await _context.Users
                 .FirstOrDefaultAsync(u =>
                     u.PhoneNumber == normalizedPhone &&
@@ -45,12 +46,14 @@ namespace SmartClinic.Services
                 request.DepartmentId,
                 request.UserId,
                 request.PatientGender,
-                request.DoctorShiftId);
+                request.DoctorShiftId,
+                request.IsEmergency,
+                request.IsPriority);
         }
 
         public async Task<QueueTicket> GenerateTicketAsync(string patientName, string? patientPhone, int departmentId, int? userId = null)
         {
-            return await GenerateTicketAsync(patientName, patientPhone, departmentId, userId, true, null);
+            return await GenerateTicketAsync(patientName, patientPhone, departmentId, userId, true, null, false, false);
         }
 
         public async Task<List<ReceptionRoomLiveItemDto>> GetAvailableShiftsAsync(int departmentId)
@@ -64,6 +67,7 @@ namespace SmartClinic.Services
             var today = now.Date;
             var nowTime = now.TimeOfDay;
 
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             var shifts = await _context.DoctorShifts
                 .AsNoTracking()
                 .Include(s => s.Doctor)
@@ -144,6 +148,7 @@ namespace SmartClinic.Services
 
         private async Task<List<ReceptionAppointmentItemDto>> GetTodayAppointmentItemsAsync(DateTime today)
         {
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             var appointmentTickets = await _context.QueueTickets
                 .AsNoTracking()
                 .Include(t => t.PatientUser)
@@ -210,6 +215,7 @@ namespace SmartClinic.Services
 
         private async Task<Dictionary<int, int>> GetWaitingCountByRoomAsync(DateTime today)
         {
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             return await _context.QueueTickets
                 .AsNoTracking()
                 .Where(t => t.StatusEnum == TicketStatus.Waiting && t.CreatedAt.Date == today)
@@ -223,6 +229,7 @@ namespace SmartClinic.Services
             TimeSpan nowTime,
             IReadOnlyDictionary<int, int> waitingCountByRoom)
         {
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             var todayShifts = await _context.DoctorShifts
                 .AsNoTracking()
                 .Include(s => s.Doctor)
@@ -281,6 +288,7 @@ namespace SmartClinic.Services
 
         public async Task<AppointmentCheckInResultDto> ConfirmAppointmentCheckInAsync(int ticketId, int? receptionistUserId = null)
         {
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
@@ -370,7 +378,9 @@ namespace SmartClinic.Services
             int departmentId,
             int? userId,
             bool patientGender,
-            int? doctorShiftId)
+            int? doctorShiftId,
+            bool isEmergency,
+            bool isPriority)
         {
             var normalizedName = patientName?.Trim();
             if (string.IsNullOrWhiteSpace(normalizedName))
@@ -391,6 +401,7 @@ namespace SmartClinic.Services
             var todayDate = now.Date;
             var currentTime = now.TimeOfDay;
 
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
@@ -405,32 +416,50 @@ namespace SmartClinic.Services
                     throw new BusinessException("Bác sĩ/ca trực không thuộc chuyên khoa đã chọn hoặc phòng không còn hoạt động.");
                 }
 
-                if (!IsShiftActive(selectedShift, todayDate, currentTime))
+                // === Kịch bản A: Cấp cứu — bypass time & capacity ===
+                if (isEmergency)
                 {
-                    throw new BusinessException("Ca trực đã hết hiệu lực tại thời điểm hiện tại. Vui lòng chọn bác sĩ khác.");
+                    // Chỉ bypass, không cần check time hay capacity
+                    if (selectedShift.RemainCapacity > 0)
+                    {
+                        selectedShift.RemainCapacity -= 1;
+                    }
+                    // Nếu hết capacity thì vẫn cho vào, không trừ
                 }
-
-                if (selectedShift.RemainCapacity <= 0)
+                else
                 {
-                    throw new BusinessException("Bác sĩ/Phòng này đã nhận đủ tối đa bệnh nhân trong ca. Vui lòng chọn bác sĩ khác hoặc hẹn buổi sau!");
+                    // === Kịch bản B & C: Ưu tiên & Thường — check bình thường ===
+                    if (!IsShiftActive(selectedShift, todayDate, currentTime))
+                    {
+                        throw new BusinessException("Ca trực đã hết hiệu lực tại thời điểm hiện tại. Vui lòng chọn bác sĩ khác.");
+                    }
+
+                    if (selectedShift.RemainCapacity <= 0)
+                    {
+                        throw new BusinessException("Bác sĩ/Phòng này đã nhận đủ tối đa bệnh nhân trong ca. Vui lòng chọn bác sĩ khác hoặc hẹn buổi sau!");
+                    }
+
+                    selectedShift.RemainCapacity -= 1;
                 }
 
                 var nextTicketNumber = await _context.Database
                     .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
                     .SingleAsync();
 
-                selectedShift.RemainCapacity -= 1;
+                // Xác định Status và UpdatedAt theo kịch bản
+                var ticketStatus = isEmergency ? TicketStatus.Emergency : TicketStatus.Waiting;
+                var ticketUpdatedAt = isPriority ? now.AddMinutes(-30) : now;
 
                 var ticket = new QueueTicket
                 {
                     PatientId = patient.Id,
                     TicketNumber = nextTicketNumber,
-                    StatusEnum = TicketStatus.Waiting,
+                    StatusEnum = ticketStatus,
                     RoomId = selectedShift.RoomId,
                     DoctorId = selectedShift.DoctorId,
                     DoctorShiftId = selectedShift.Id,
                     CreatedAt = now,
-                    UpdatedAt = now,
+                    UpdatedAt = ticketUpdatedAt,
                     CreatedBy = userId,
                     Room = selectedShift.Room
                 };
@@ -469,6 +498,7 @@ namespace SmartClinic.Services
 
         private async Task<User> GetOrCreatePatientAsync(string patientName, string? patientPhone, bool patientGender)
         {
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             if (!string.IsNullOrWhiteSpace(patientPhone))
             {
                 var existingPatient = await _context.Users.FirstOrDefaultAsync(u =>
@@ -492,7 +522,6 @@ namespace SmartClinic.Services
                 RoleMask = PatientRoleMask,
                 IsActive = true
             };
-
             _context.Users.Add(walkInPatient);
             await _context.SaveChangesAsync();
 
@@ -501,6 +530,7 @@ namespace SmartClinic.Services
 
         private async Task<int> ResolveLeastBusyShiftIdAsync(int departmentId, DateTime todayDate, TimeSpan currentTime)
         {
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             var activeShifts = await _context.DoctorShifts
                 .AsNoTracking()
                 .Where(s =>
@@ -508,7 +538,8 @@ namespace SmartClinic.Services
                     (s.Room.Flags & RoomFlags.IsActive) != 0 &&
                     s.Date == todayDate &&
                     s.ShiftDefinition.StartTime <= currentTime &&
-                    s.ShiftDefinition.EndTime >= currentTime)
+                    s.ShiftDefinition.EndTime >= currentTime &&
+                    s.RemainCapacity > 0)
                 .Select(s => new
                 {
                     s.Id,
@@ -557,6 +588,7 @@ namespace SmartClinic.Services
 
         private async Task<DoctorShift> LockAndLoadDoctorShiftAsync(int doctorShiftId)
         {
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
             await _context.Database.ExecuteSqlRawAsync(
                 "SELECT \"Id\" FROM \"DoctorShifts\" WHERE \"Id\" = {0} FOR UPDATE",
                 doctorShiftId);

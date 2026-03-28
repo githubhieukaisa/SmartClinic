@@ -1,4 +1,4 @@
-﻿namespace SmartClinic.DTOs
+namespace SmartClinic.DTOs
 {
     public class GenerateTicketRequest
     {
@@ -8,5 +8,7 @@
         public int? DoctorShiftId { get; set; }
         public bool PatientGender { get; set; } = true; // true = Nam, false = Nữ
         public int? UserId { get; set; }
+        public bool IsEmergency { get; set; }
+        public bool IsPriority { get; set; }
     }
 }

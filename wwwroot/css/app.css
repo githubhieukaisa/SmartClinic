@@ -146,6 +146,8 @@
     --text-4xl--line-height: calc(2.5 / 2.25);
     --text-5xl: 3rem;
     --text-5xl--line-height: 1;
+    --text-6xl: 3.75rem;
+    --text-6xl--line-height: 1;
     --text-7xl: 4.5rem;
     --text-7xl--line-height: 1;
     --text-9xl: 8rem;
@@ -1206,6 +1208,9 @@
   .border-t-white {
     border-top-color: var(--color-white);
   }
+  .\!bg-amber-500 {
+    background-color: var(--color-amber-500) !important;
+  }
   .\!bg-rose-600 {
     background-color: var(--color-rose-600) !important;
   }
@@ -1439,6 +1444,9 @@
   }
   .bg-rose-100 {
     background-color: var(--color-rose-100);
+  }
+  .bg-rose-600 {
+    background-color: var(--color-rose-600);
   }
   .bg-sidebar {
     background-color: var(--sidebar);
@@ -1757,6 +1765,10 @@
   .text-5xl {
     font-size: var(--text-5xl);
     line-height: var(--tw-leading, var(--text-5xl--line-height));
+  }
+  .text-6xl {
+    font-size: var(--text-6xl);
+    line-height: var(--tw-leading, var(--text-6xl--line-height));
   }
   .text-7xl {
     font-size: var(--text-7xl);
@@ -2358,6 +2370,13 @@
         @supports (color: color-mix(in lab, red, red)) {
           border-color: color-mix(in oklab, var(--primary) 50%, transparent);
         }
+      }
+    }
+  }
+  .hover\:\!bg-amber-600 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: var(--color-amber-600) !important;
       }
     }
   }

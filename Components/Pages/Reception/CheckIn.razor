@@ -1,4 +1,4 @@
-﻿@page "/checkin"
+@page "/checkin"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
@@ -54,6 +54,35 @@
 						</div>
 
 						<div>
+							<label class="block mb-1 text-sm font-medium text-slate-700">Loại ca</label>
+							<div class="flex gap-2">
+								<button type="button"
+										@onclick="() => SetTicketType(TicketType.Normal)"
+										class="@GetTicketTypeClass(TicketType.Normal)">
+									Thường
+								</button>
+								<button type="button"
+										@onclick="() => SetTicketType(TicketType.Priority)"
+										class="@GetTicketTypeClass(TicketType.Priority)">
+									⭐ Ưu tiên
+								</button>
+								<button type="button"
+										@onclick="() => SetTicketType(TicketType.Emergency)"
+										class="@GetTicketTypeClass(TicketType.Emergency)">
+									🚨 Cấp cứu
+								</button>
+							</div>
+							@if (selectedTicketType == TicketType.Emergency)
+							{
+								<span class="text-xs text-rose-600 mt-1 block">Bypass giới hạn ca và sức chứa. Luôn đứng đầu hàng đợi.</span>
+							}
+							else if (selectedTicketType == TicketType.Priority)
+							{
+								<span class="text-xs text-amber-600 mt-1 block">Ưu tiên xếp trước ~3-5 vị trí trong hàng đợi.</span>
+							}
+						</div>
+
+						<div>
 							<label class="block mb-1 text-sm font-medium text-slate-700">Tên bệnh nhân</label>
 							<input type="text"
 								   @bind="patientName"
@@ -91,8 +120,8 @@
 							<Button IsLoading="isLoading"
 									OnClick="HandleGetTicket"
 									Disabled="@(string.IsNullOrWhiteSpace(patientName) || selectedDepartmentId == 0)"
-									class="w-full disabled:opacity-50 disabled:cursor-not-allowed">
-								Cấp Số
+									class="@GetSubmitButtonClass()">
+								@GetSubmitButtonText()
 							</Button>
 						</div>
 					</div>
@@ -128,9 +157,10 @@
 									var effectiveRemain = GetEffectiveRemainCapacity(shift);
 									var isFull = effectiveRemain <= 0;
 									var isSelected = selectedDoctorShiftId == shift.DoctorShiftId;
+									var canSelect = !isFull || selectedTicketType == TicketType.Emergency;
 
 									<div @onclick="() => SelectDoctorShift(shift)"
-										 class="rounded-xl border p-4 transition-all duration-200 @(isFull ? "cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200" : "cursor-pointer bg-white border-slate-200 hover:bg-slate-100") @(isSelected ? "ring-2 ring-blue-500 border-blue-200" : string.Empty)">
+										 class="rounded-xl border p-4 transition-all duration-200 @(!canSelect ? "cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200" : "cursor-pointer bg-white border-slate-200 hover:bg-slate-100") @(isSelected ? "ring-2 ring-blue-500 border-blue-200" : string.Empty)">
 										<div class="flex items-start justify-between gap-3">
 											<div>
 												<p class="font-semibold text-slate-800 @(isFull ? "text-slate-500" : string.Empty)">@shift.DoctorName - @shift.RoomName</p>
@@ -170,6 +200,15 @@
 
 					<h4 class="text-2xl font-semibold text-green-800">Cấp số thành công!</h4>
 					<p class="mt-2 text-base text-green-600">Bệnh nhân: <span class="font-medium text-green-900">@patientName</span></p>
+
+					@if (selectedTicketType == TicketType.Emergency)
+					{
+						<span class="mt-2 inline-block px-3 py-1 text-sm font-bold text-white bg-rose-600 rounded-full">🚨 CẤP CỨU</span>
+					}
+					else if (selectedTicketType == TicketType.Priority)
+					{
+						<span class="mt-2 inline-block px-3 py-1 text-sm font-bold text-white bg-amber-500 rounded-full">⭐ ƯU TIÊN</span>
+					}
 
 					<div class="w-full mt-6 text-center">
 						<span class="block text-sm font-semibold tracking-wider text-green-600 uppercase">Số thứ tự của bạn</span>
@@ -270,7 +309,9 @@
 				DepartmentId = selectedDepartmentId,
 				DoctorShiftId = selectedDoctorShiftId,
 				PatientGender = patientGender,
-				UserId = currentUserId
+				UserId = currentUserId,
+				IsEmergency = selectedTicketType == TicketType.Emergency,
+				IsPriority = selectedTicketType == TicketType.Priority
 			};
 
 			generatedTicket = await TicketService.GenerateTicketAsync(ticketRequest);
@@ -369,11 +410,13 @@
 		availableShifts.Clear();
 		generatedTicket = null;
 		isExistingPatient = false;
+		selectedTicketType = TicketType.Normal;
 	}
 
 	private void SelectDoctorShift(ReceptionRoomLiveItemDto shift)
 	{
-		if (GetEffectiveRemainCapacity(shift) <= 0)
+		var canSelect = GetEffectiveRemainCapacity(shift) > 0 || selectedTicketType == TicketType.Emergency;
+		if (!canSelect)
 		{
 			return;
 		}
@@ -393,8 +436,52 @@
 
 	private static int GetEffectiveRemainCapacity(ReceptionRoomLiveItemDto shift)
 	{
-		var rawRemain = shift.RemainCapacity - shift.WaitingCount;
-		return Math.Clamp(rawRemain, 0, shift.Capacity);
+		return Math.Clamp(shift.RemainCapacity, 0, shift.Capacity);
+	}
+
+	// === Ticket Type ===
+	private enum TicketType { Normal, Priority, Emergency }
+	private TicketType selectedTicketType = TicketType.Normal;
+
+	private void SetTicketType(TicketType type)
+	{
+		selectedTicketType = type;
+	}
+
+	private string GetTicketTypeClass(TicketType type)
+	{
+		var baseClass = "flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200";
+		if (selectedTicketType == type)
+		{
+			return type switch
+			{
+				TicketType.Emergency => $"{baseClass} bg-rose-600 text-white shadow-md",
+				TicketType.Priority => $"{baseClass} bg-amber-500 text-white shadow-md",
+				_ => $"{baseClass} bg-blue-500 text-white shadow-md"
+			};
+		}
+		return $"{baseClass} bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200";
+	}
+
+	private string GetSubmitButtonClass()
+	{
+		var baseClass = "w-full disabled:opacity-50 disabled:cursor-not-allowed";
+		return selectedTicketType switch
+		{
+			TicketType.Emergency => $"{baseClass} !bg-rose-600 hover:!bg-rose-700",
+			TicketType.Priority => $"{baseClass} !bg-amber-500 hover:!bg-amber-600",
+			_ => baseClass
+		};
+	}
+
+	private string GetSubmitButtonText()
+	{
+		return selectedTicketType switch
+		{
+			TicketType.Emergency => "🚨 Cấp Số Cấp Cứu",
+			TicketType.Priority => "⭐ Cấp Số Ưu Tiên",
+			_ => "Cấp Số"
+		};
 	}
 }
 
