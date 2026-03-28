@@ -10,6 +10,7 @@ namespace SmartClinic.Constant
         Cancelled = 5,
         Done = 6,
         Testing = 7,
-        Appointment = 8
+        Appointment = 8,
+        Emergency = 9
     }
 }

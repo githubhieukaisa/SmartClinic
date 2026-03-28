@@ -1,0 +1,347 @@
+@page "/reception/appointments"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Blazored.Toast.Services
+@using SmartClinic.Constant
+@using SmartClinic.DTOs
+@using SmartClinic.Services
+@using SmartClinic.Services.Exceptions
+@attribute [Authorize(Policy = "ReceptionPolicy")]
+@inject ITicketService TicketService
+@inject IToastService ToastService
+@inject NavigationManager NavigationManager
+@inject ILogger<Appointments> Logger
+@rendermode InteractiveServer
+
+<div class="min-h-screen bg-slate-50 p-4 sm:p-6">
+    <div class="mx-auto max-w-7xl space-y-5">
+        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div class="w-full lg:max-w-2xl">
+                    <label class="text-sm font-semibold text-slate-700">Tìm nhanh lịch hẹn</label>
+                    <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <InputText @bind-Value="searchKeyword"
+                                   @onkeydown="HandleSearchKeyDown"
+                                   placeholder="Nhập SĐT hoặc Mã lịch hẹn..."
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                        <button type="button"
+                                @onclick="SearchAppointmentsAsync"
+                                disabled="@isLoading"
+                                class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
+                            Tìm kiếm
+                        </button>
+                    </div>
+                </div>
+
+                <button type="button"
+                        @onclick="OpenWalkInPage"
+                        class="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">
+                    Tạo ca Khám Nhanh
+                </button>
+            </div>
+        </section>
+
+        <section class="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
+            <article class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 sm:text-lg">Lịch hẹn Online hôm nay</h2>
+                        <p class="text-xs text-slate-500 sm:text-sm">Bấm Check-in để cấp STT và đưa khách vào hàng chờ.</p>
+                    </div>
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">@appointmentTickets.Count</span>
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="flex items-center justify-center px-4 py-16 text-slate-500">
+                        <span class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600"></span>
+                        <span class="ml-2 text-sm">Đang tải dữ liệu...</span>
+                    </div>
+                }
+                else if (!appointmentTickets.Any())
+                {
+                    <div class="px-4 py-16 text-center text-sm text-slate-500 sm:px-5">
+                        Không có lịch hẹn phù hợp trong hôm nay.
+                    </div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                    <th class="px-4 py-3 sm:px-5">Mã vé</th>
+                                    <th class="px-4 py-3">Giờ hẹn</th>
+                                    <th class="px-4 py-3">Tên khách</th>
+                                    <th class="px-4 py-3">SĐT</th>
+                                    <th class="px-4 py-3">Trạng thái</th>
+                                    <th class="px-4 py-3 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var ticket in appointmentTickets)
+                                {
+                                    <tr class="border-t border-slate-100 @GetAppointmentRowClass(ticket.Status)">
+                                        <td class="px-4 py-3 align-top sm:px-5">
+                                            <p class="font-semibold text-slate-800">@ticket.BookingCode</p>
+                                            @if (ticket.TicketNumber > 0)
+                                            {
+                                                <p class="mt-0.5 text-xs font-medium text-emerald-700">STT: @ticket.TicketNumber</p>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 align-top text-slate-700">
+                                            <p>@ticket.ShiftStartTime.ToString(@"hh\:mm") - @ticket.ShiftEndTime.ToString(@"hh\:mm")</p>
+                                            <p class="mt-0.5 text-xs text-slate-500">@ticket.ShiftName</p>
+                                        </td>
+                                        <td class="px-4 py-3 align-top text-slate-800">
+                                            <p class="font-medium">@ticket.PatientName</p>
+                                            <p class="mt-0.5 text-xs text-slate-500">@ticket.DoctorName · @ticket.RoomName</p>
+                                        </td>
+                                        <td class="px-4 py-3 align-top text-slate-700">@ticket.PatientPhone</td>
+                                        <td class="px-4 py-3 align-top">
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold @GetStatusBadgeClass(ticket.Status)">
+                                                @GetStatusLabel(ticket.Status)
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-right align-top">
+                                            @if (ticket.CanCheckIn)
+                                            {
+                                                <button type="button"
+                                                        @onclick="() => HandleAppointmentCheckInAsync(ticket)"
+                                                        disabled="@(isCheckingIn && checkingInTicketId == ticket.TicketId)"
+                                                        class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
+                                                    @if (isCheckingIn && checkingInTicketId == ticket.TicketId)
+                                                    {
+                                                        <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                                        <span class="ml-1.5">Đang xử lý...</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>Check-in</span>
+                                                    }
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-xs font-medium text-emerald-700">Đã check-in</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+
+            <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div class="mb-4">
+                    <h2 class="text-base font-bold text-slate-900 sm:text-lg">Tình trạng Phòng khám Live</h2>
+                    <p class="text-xs text-slate-500 sm:text-sm">Theo dõi nhanh phòng nào đang vắng để điều phối khách.</p>
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="flex items-center justify-center py-10 text-sm text-slate-500">Đang cập nhật...</div>
+                }
+                else if (!liveRooms.Any())
+                {
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                        Chưa có ca khám nào trong hôm nay.
+                    </div>
+                }
+                else
+                {
+                    <div class="space-y-3">
+                        @foreach (var room in liveRooms)
+                        {
+                            <div class="rounded-xl border p-3.5 @GetLiveCardClass(room)">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-bold text-slate-900">BS. @room.DoctorName</p>
+                                        <p class="mt-0.5 text-xs text-slate-600">@room.RoomName · @room.ShiftName</p>
+                                        <p class="mt-0.5 text-xs text-slate-500">@room.ShiftStartTime.ToString(@"hh\:mm") - @room.ShiftEndTime.ToString(@"hh\:mm")</p>
+                                    </div>
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold @(room.IsActiveNow ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600")">
+                                        @(room.IsActiveNow ? "Đang trực" : GetInactiveShiftLabel(room))
+                                    </span>
+                                </div>
+
+                                <div class="mt-3 flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                                    <span class="text-xs font-medium text-slate-600">Đang chờ</span>
+                                    <span class="text-lg font-black text-slate-800">@room.WaitingCount</span>
+                                </div>
+
+                                @if (room.IsLeastBusy)
+                                {
+                                    <p class="mt-2 text-xs font-semibold text-emerald-700">Phòng này hiện đang vắng nhất.</p>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+        </section>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string searchKeyword = string.Empty;
+    private bool isLoading;
+    private bool isCheckingIn;
+    private int? checkingInTicketId;
+    private int? currentUserId;
+
+    private List<ReceptionAppointmentItemDto> appointmentTickets = new();
+    private List<ReceptionRoomLiveItemDto> liveRooms = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentUserIdAsync();
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadCurrentUserIdAsync()
+    {
+        if (AuthenticationStateTask is null)
+            return;
+
+        var authState = await AuthenticationStateTask;
+        var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!int.TryParse(userIdClaim, out var parsedUserId))
+        {
+            Logger.LogWarning("Unable to parse UserId claim. Value: {UserIdClaim}", userIdClaim);
+            return;
+        }
+
+        currentUserId = parsedUserId;
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            var dashboard = await TicketService.GetReceptionDashboardAsync(searchKeyword);
+            appointmentTickets = dashboard.AppointmentTickets;
+            liveRooms = dashboard.LiveRooms;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Load reception appointment dashboard failed. Keyword: {Keyword}", searchKeyword);
+            ToastService.ShowError("Không thể tải danh sách lịch hẹn.");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchAppointmentsAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await SearchAppointmentsAsync();
+        }
+    }
+
+    private async Task HandleAppointmentCheckInAsync(ReceptionAppointmentItemDto ticket)
+    {
+        if (isCheckingIn || !ticket.CanCheckIn)
+            return;
+
+        isCheckingIn = true;
+        checkingInTicketId = ticket.TicketId;
+
+        try
+        {
+            var result = await TicketService.ConfirmAppointmentCheckInAsync(ticket.TicketId, currentUserId);
+            ToastService.ShowSuccess($"Khách {result.PatientName} - Số thứ tự {result.NewStt} - Đi vào phòng {result.RoomName}");
+            await LoadDashboardAsync();
+        }
+        catch (BusinessException bex)
+        {
+            ToastService.ShowWarning(bex.Message);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Appointment check-in failed. TicketId: {TicketId}", ticket.TicketId);
+            ToastService.ShowError("Đã xảy ra lỗi khi check-in lịch hẹn.");
+        }
+        finally
+        {
+            isCheckingIn = false;
+            checkingInTicketId = null;
+        }
+    }
+
+    private void OpenWalkInPage()
+    {
+        NavigationManager.NavigateTo("/checkin");
+    }
+
+    private static string GetAppointmentRowClass(TicketStatus status)
+    {
+        return status switch
+        {
+            TicketStatus.Waiting => "bg-emerald-50/70",
+            TicketStatus.Appointment => "bg-white",
+            _ => "bg-slate-50"
+        };
+    }
+
+    private static string GetStatusBadgeClass(TicketStatus status)
+    {
+        return status switch
+        {
+            TicketStatus.Appointment => "bg-blue-100 text-blue-700",
+            TicketStatus.Waiting => "bg-emerald-100 text-emerald-700",
+            TicketStatus.Calling => "bg-amber-100 text-amber-700",
+            TicketStatus.Cancelled => "bg-rose-100 text-rose-700",
+            _ => "bg-slate-100 text-slate-700"
+        };
+    }
+
+    private static string GetStatusLabel(TicketStatus status)
+    {
+        return status switch
+        {
+            TicketStatus.Appointment => "Chờ check-in",
+            TicketStatus.Waiting => "Đã check-in",
+            TicketStatus.Calling => "Đang gọi",
+            TicketStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetLiveCardClass(ReceptionRoomLiveItemDto room)
+    {
+        if (room.IsLeastBusy)
+            return "border-emerald-300 bg-emerald-50";
+
+        if (room.IsActiveNow)
+            return "border-blue-200 bg-blue-50/60";
+
+        return "border-slate-200 bg-slate-50";
+    }
+
+    private static string GetInactiveShiftLabel(ReceptionRoomLiveItemDto room)
+    {
+        var now = DateTime.Now.TimeOfDay;
+
+        if (now < room.ShiftStartTime)
+            return "Sắp diễn ra";
+
+        return "Đã kết thúc";
+    }
+}
