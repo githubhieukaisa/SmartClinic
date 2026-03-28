@@ -37,6 +37,8 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<HistoryAccess> HistoryAccesses { get; set; }
     public virtual DbSet<DoctorEvaluation> DoctorEvaluations { get; set; }
 
+    public virtual DbSet<ShiftDefinition> ShiftDefinitions { get; set; }
+    public virtual DbSet<Slot> Slots { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
 
@@ -233,6 +235,13 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("DoctorShifts_pkey");
 
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.Property(e => e.Date).HasColumnType("date");
+            entity.Property(e => e.Capacity).HasDefaultValue(10);
+
             entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorShifts)
                 .HasForeignKey(d => d.DoctorId)
                 .HasConstraintName("DoctorShifts_DoctorId_fkey");
@@ -240,6 +249,46 @@ public partial class SmartClinicDbContext : DbContext
             entity.HasOne(d => d.Room).WithMany(p => p.DoctorShifts)
                 .HasForeignKey(d => d.RoomId)
                 .HasConstraintName("DoctorShifts_RoomId_fkey");
+
+            entity.HasOne(d => d.ShiftDefinition).WithMany()
+                .HasForeignKey(d => d.ShiftDefinitionId)
+                .HasConstraintName("DoctorShifts_ShiftDefinitionId_fkey");
+        });
+
+        modelBuilder.Entity<ShiftDefinition>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("ShiftDefinitions_pkey");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
+
+            // Seed Data cho 3 ca mặc định
+            entity.HasData(
+                new ShiftDefinition { Id = 1, Name = "Ca Sáng", StartTime = new TimeSpan(7, 30, 0), EndTime = new TimeSpan(11, 30, 0), SortOrder = 1 },
+                new ShiftDefinition { Id = 2, Name = "Ca Chiều", StartTime = new TimeSpan(13, 30, 0), EndTime = new TimeSpan(17, 30, 0), SortOrder = 2 },
+                new ShiftDefinition { Id = 3, Name = "Ca Tối", StartTime = new TimeSpan(18, 0, 0), EndTime = new TimeSpan(21, 0, 0), SortOrder = 3 }
+            );
+        });
+
+        modelBuilder.Entity<Slot>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("Slots_pkey");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.DoctorShift).WithMany(p => p.Slots)
+                .HasForeignKey(d => d.DoctorShiftId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("Slots_DoctorShiftId_fkey");
+
+            entity.HasOne(d => d.Patient).WithMany()
+                .HasForeignKey(d => d.PatientId)
+                .HasConstraintName("Slots_PatientId_fkey");
         });
 
         modelBuilder.Entity<LabPrice>(entity =>
@@ -257,7 +306,7 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("HistoryAccess_pkey");
             entity.HasIndex(e => e.QueueTicketId).IsUnique();
-            
+
             entity.HasOne(d => d.QueueTicket)
                 .WithOne(p => p.HistoryAccess)
                 .HasForeignKey<HistoryAccess>(d => d.QueueTicketId)

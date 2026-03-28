@@ -22,6 +22,7 @@
 
         // Subscribe to SignalR events
         SignalRService.OnPatientQueueUpdated += HandlePatientQueueUpdatedAsync;
+        SignalRService.OnSystemNotificationReceived += HandleSystemNotificationAsync;
 
         System.Diagnostics.Debug.WriteLine("[ToastHandler] Subscribed to SignalR events");
     }
@@ -80,6 +81,26 @@
         });
     }
 
+    private async void HandleSystemNotificationAsync(string message)
+    {
+        System.Diagnostics.Debug.WriteLine($"[ToastHandler] SignalR Event: SystemNotification - {message}");
+
+        await InvokeAsync(() =>
+        {
+            try
+            {
+                Toaster.ShowInfo($"🔔 {message}", settings =>
+                {
+                    settings.AdditionalClasses = "toast-centered";
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ToastHandler] Error in HandleSystemNotification: {ex.Message}");
+            }
+        });
+    }
+
     /// <summary>
     /// Cleanup when component is disposed
     /// </summary>
@@ -89,6 +110,7 @@
         
         // Unsubscribe from events
         SignalRService.OnPatientQueueUpdated -= HandlePatientQueueUpdatedAsync;
+        SignalRService.OnSystemNotificationReceived -= HandleSystemNotificationAsync;
         
         System.Diagnostics.Debug.WriteLine("[ToastHandler] Unsubscribed from SignalR events");
         

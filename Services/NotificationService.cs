@@ -36,6 +36,7 @@ public class NotificationService : IAsyncDisposable
     // OnPatientQueueUpdated now passes patient name for toast notification
     public event Action<string>? OnPatientQueueUpdated;
     public event Action<int>? OnQueueStatusUpdated;
+    public event Action<string>? OnSystemNotificationReceived;
 
     public NotificationService()
     {
@@ -238,6 +239,13 @@ public class NotificationService : IAsyncDisposable
             System.Diagnostics.Debug.WriteLine("⚠️ [NotificationService.RegisterEventHandlers] HubConnection is null");
             return;
         }
+
+        // Handle System Notifications sent from Hangfire or other system tasks
+        _hubConnection.On<string>("SystemNotification", (message) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"🔵 [NotificationService] Received SystemNotification: {message}");
+            OnSystemNotificationReceived?.Invoke(message);
+        });
 
         // Handle QueueTicketUpdated event - when a new patient is added to queue
         _hubConnection.On("QueueTicketUpdated", async (JsonElement data) =>

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Constant;
 using SmartClinic.DTOs;
@@ -90,26 +90,37 @@ namespace SmartClinic.Services
 
                 var today = DateTime.UtcNow;
 
-                // 2. Tìm phòng trống nhất
-                var selectedRoomInfo = await _context.Rooms
+                var todayDate = DateTime.Today;
+                var nowTime = DateTime.Now;
+
+                // 2. Tìm phòng đang Active (Có ca trực hiện hành)
+                var roomsWithShifts = await _context.Rooms
+                    .Include(r => r.DoctorShifts)
+                        .ThenInclude(ds => ds.ShiftDefinition)
                     .Where(r => r.DepartmentId == departmentId 
                         && (r.Flags & RoomFlags.IsActive) != 0
-                        && r.DoctorShifts.Any(ds => ds.StartTime <= today && (ds.EndTime == null || ds.EndTime >= today)))
+                        && r.DoctorShifts.Any(ds => ds.Date == todayDate))
+                    .ToListAsync();
+                    
+                var activeRooms = roomsWithShifts
+                    .Where(r => r.DoctorShifts.Any(ds => ds.Date == todayDate && ds.ComputedStatus == "Đang trực"))
                     .Select(r => new
                     {
                         Room = r,
                         WaitingCount = _context.QueueTickets.Count(t =>
-                            t.RoomId == r.Id &&
-                            t.StatusEnum == TicketStatus.Waiting &&
-                            t.CreatedAt >= today)
+                           t.RoomId == r.Id &&
+                           t.StatusEnum == TicketStatus.Waiting &&
+                           t.CreatedAt.Date == todayDate) // Lọc chờ theo ngày
                     })
                     .OrderBy(x => x.WaitingCount)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
-                if (selectedRoomInfo == null)
+                if (activeRooms == null)
                 {
                     throw new BusinessException("Hiện tại không có phòng nào mở cửa cho khoa này!");
                 }
+
+                var selectedRoomInfo = activeRooms;
 
                 // 3. Lấy số tự tăng
                 var nextTicketNumber = await _context.Database
