@@ -138,6 +138,16 @@
 		@* Patient Links *@
 		<AuthorizeView Policy="PatientPolicy">
 			<Authorized>
+				<NavLink class="@baseClass" href="/patient/appointments" Match="NavLinkMatch.All">
+					<i class="ph ph-calendar-plus text-lg"></i>
+					<span>Đặt Lịch Khám</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="/patient/my-bookings" Match="NavLinkMatch.All">
+					<i class="ph ph-calendar-check text-lg"></i>
+					<span>Lịch Hẹn Của Tôi</span>
+				</NavLink>
+
 				<NavLink class="@baseClass" href="/patient/medical-history" Match="NavLinkMatch.All">
 					<i class="ph ph-folder-user text-lg"></i>
 					<span>Hồ sơ của tôi</span>

@@ -1,4 +1,4 @@
-﻿namespace SmartClinic.Constant
+namespace SmartClinic.Constant
 {
     public enum TicketStatus : byte
     {
@@ -9,6 +9,7 @@
         Completed = 4,
         Cancelled = 5,
         Done = 6,
-        Testing = 7
+        Testing = 7,
+        Appointment = 8
     }
 }
