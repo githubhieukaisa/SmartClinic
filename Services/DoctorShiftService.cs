@@ -12,6 +12,8 @@ public interface IDoctorShiftService
     Task<List<Room>> GetRoomsAsync();
     Task<(bool Success, string Error)> CreateShiftAsync(CreateShiftDto dto);
     Task<bool> DeleteShiftAsync(int id);
+    Task<List<ShiftDefinition>> GetShiftDefinitionsAsync();
+    Task<(bool Success, string Error)> BulkSaveShiftsAsync(List<DoctorShiftWeeklyUpdateDto> updates);
 }
 
 /// <summary>
@@ -50,26 +52,30 @@ public class DoctorShiftService : IDoctorShiftService
         var fromDate = from.Date;
         var toDate = to.Date.AddDays(1);
 
-        return await ctx.DoctorShifts
+        var shifts = await ctx.DoctorShifts
             .AsNoTracking()
             .Include(s => s.Doctor)
             .Include(s => s.Room)
                 .ThenInclude(r => r.Department)
-            .Where(s => s.StartTime < toDate && (s.EndTime == null || s.EndTime >= fromDate))
-            .OrderBy(s => s.StartTime)
-            .Select(s => new DoctorShiftDisplayDto
-            {
-                Id = s.Id,
-                DoctorId = s.DoctorId,
-                DoctorName = s.Doctor.FullName ?? s.Doctor.Username,
-                RoomId = s.RoomId,
-                RoomName = s.Room.Name,
-                DepartmentName = s.Room.Department.Name,
-                StartTime = s.StartTime,
-                EndTime = s.EndTime,
-                Status = s.StatusEnum == DoctorShiftStatus.Active ? "Đang trực" : "Đã kết thúc"
-            })
+            .Include(s => s.ShiftDefinition)
+            .Where(s => s.Date >= fromDate && s.Date < toDate)
+            .OrderBy(s => s.Date).ThenBy(s => s.ShiftDefinition.StartTime)
             .ToListAsync();
+
+        return shifts.Select(s => new DoctorShiftDisplayDto
+        {
+            Id = s.Id,
+            DoctorId = s.DoctorId,
+            DoctorName = s.Doctor.FullName ?? s.Doctor.Username,
+            RoomId = s.RoomId,
+            RoomName = s.Room.Name,
+            DepartmentName = s.Room.Department.Name,
+            StartTime = s.Date.Date.Add(s.ShiftDefinition.StartTime),
+            EndTime = s.Date.Date.Add(s.ShiftDefinition.EndTime),
+            Status = s.ComputedStatus,
+            Capacity = s.Capacity,
+            ShiftName = s.ShiftDefinition.Name
+        }).ToList();
     }
 
     // ══════════════════════════════════════════════════════════
@@ -125,49 +131,39 @@ public class DoctorShiftService : IDoctorShiftService
     // ══════════════════════════════════════════════════════════
     public async Task<(bool Success, string Error)> CreateShiftAsync(CreateShiftDto dto)
     {
-        // ── Validate: Không cho phân lịch trong quá khứ ──
-        if (dto.StartTime < DateTime.Today)
+        if (dto.Date < DateTime.Today)
             return (false, "Không thể phân lịch trực cho ngày trong quá khứ.");
-
-        if (dto.EndTime.HasValue && dto.EndTime.Value <= dto.StartTime)
-            return (false, "Thời gian kết thúc phải sau thời gian bắt đầu.");
-
-        var newStart = dto.StartTime;
-        var newEnd = dto.EndTime;
 
         await using var ctx = await _factory.CreateDbContextAsync();
 
-        // ── Validate: Doctor không trùng lịch ──
         var doctorOverlap = await ctx.DoctorShifts
             .AnyAsync(s => s.DoctorId == dto.DoctorId
-                        && s.StatusEnum == DoctorShiftStatus.Active
-                        && s.StartTime < (newEnd ?? DateTime.MaxValue)
-                        && (s.EndTime == null || s.EndTime > newStart));
+                        && s.Date == dto.Date.Date
+                        && s.ShiftDefinitionId == dto.ShiftDefinitionId);
 
         if (doctorOverlap)
-            return (false, "Bác sĩ này đã có ca trực trùng thời gian. Vui lòng chọn khung giờ khác.");
+            return (false, "Bác sĩ này đã có ca trực trùng thời gian. Vui lòng chọn ca khác.");
 
-        // ── Validate: Room không trùng lịch ──
         var roomOverlap = await ctx.DoctorShifts
             .AnyAsync(s => s.RoomId == dto.RoomId
-                        && s.StatusEnum == DoctorShiftStatus.Active
-                        && s.StartTime < (newEnd ?? DateTime.MaxValue)
-                        && (s.EndTime == null || s.EndTime > newStart));
+                        && s.Date == dto.Date.Date
+                        && s.ShiftDefinitionId == dto.ShiftDefinitionId);
 
         if (roomOverlap)
-            return (false, "Phòng này đã có bác sĩ khác trực trùng thời gian. Vui lòng chọn phòng hoặc khung giờ khác.");
+            return (false, "Phòng này đã có bác sĩ khác trực trùng ca. Vui lòng chọn phòng/ca khác.");
 
-        // ── Fix sequence lệch (do Doctor/Index.razor ép Id thủ công) ──
+        // Lấy db pattern chuẩn nhất, fix sequence
         await ctx.Database.ExecuteSqlRawAsync(
             "SELECT setval(pg_get_serial_sequence('\"DoctorShifts\"', 'Id'), COALESCE(MAX(\"Id\"), 0) + 1, false) FROM \"DoctorShifts\"");
 
+        // Sinh DoctorShift và tự động sinh 10 Slot nhờ Capacity
         var shift = new DoctorShift
         {
             DoctorId = dto.DoctorId,
             RoomId = dto.RoomId,
-            StartTime = dto.StartTime,
-            EndTime = dto.EndTime,
-            StatusEnum = DoctorShiftStatus.Active
+            Date = dto.Date.Date,
+            ShiftDefinitionId = dto.ShiftDefinitionId,
+            Capacity = 10
         };
 
         ctx.DoctorShifts.Add(shift);
@@ -189,5 +185,88 @@ public class DoctorShiftService : IDoctorShiftService
         ctx.DoctorShifts.Remove(shift);
         await ctx.SaveChangesAsync();
         return true;
+    }
+    // ══════════════════════════════════════════════════════════
+    // 6. LẤY DANH SÁCH CA TRỰC (ShiftDefinitions)
+    // ══════════════════════════════════════════════════════════
+    public async Task<List<ShiftDefinition>> GetShiftDefinitionsAsync()
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+        return await ctx.ShiftDefinitions.AsNoTracking().OrderBy(s => s.SortOrder).ToListAsync();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 7. LƯU LỊCH TUẦN (BULK SAVE)
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> BulkSaveShiftsAsync(List<DoctorShiftWeeklyUpdateDto> updates)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        foreach (var update in updates)
+        {
+            if (update.Date.Date < DateTime.Today)
+            {
+                return (false, $"Không thể thao tác trên ca trực trong quá khứ (Ngày {update.Date:dd/MM/yyyy}).");
+            }
+
+            if (update.IsDeleted)
+            {
+                if (update.Id > 0)
+                {
+                    var shift = await ctx.DoctorShifts.Include(s => s.ShiftDefinition).FirstOrDefaultAsync(s => s.Id == update.Id);
+                    if (shift != null)
+                    {
+                        if (shift.ComputedStatus == "Đã hoàn thành")
+                        {
+                            return (false, $"Không thể xóa ca trực ngày {shift.Date:dd/MM/yyyy} vì ca trực này đã hoàn thành.");
+                        }
+
+                        ctx.DoctorShifts.Remove(shift);
+                    }
+                }
+            }
+            else
+            {
+                if (update.Id == 0)
+                {
+                    // Thêm mới
+                    // KT trùng lịch
+                    var overlap = await ctx.DoctorShifts.AnyAsync(s => 
+                        s.Date == update.Date.Date && s.ShiftDefinitionId == update.ShiftDefinitionId &&
+                        (s.DoctorId == update.DoctorId || s.RoomId == update.RoomId));
+                    if (overlap) return (false, $"Phát hiện trùng lịch tại ngày {update.Date:dd/MM/yyyy}. Một bác sĩ hoặc phòng không thể có 2 ca trùng thời gian.");
+
+                    var shift = new DoctorShift
+                    {
+                        DoctorId = update.DoctorId,
+                        RoomId = update.RoomId,
+                        Date = update.Date.Date,
+                        ShiftDefinitionId = update.ShiftDefinitionId,
+                        Capacity = 10
+                    };
+                    ctx.DoctorShifts.Add(shift);
+                }
+                else
+                {
+                    // Cập nhật existing (thường chỉ update DoctorId)
+                    var shift = await ctx.DoctorShifts.Include(s => s.ShiftDefinition).FirstOrDefaultAsync(s => s.Id == update.Id);
+                    if (shift != null && shift.DoctorId != update.DoctorId)
+                    {
+                        if (shift.ComputedStatus == "Đã hoàn thành")
+                        {
+                            return (false, $"Không thể chuyển đổi bác sĩ ở ca trực ngày {shift.Date:dd/MM/yyyy} vì ca trực này đã hoàn thành.");
+                        }
+
+                        var overlap = await ctx.DoctorShifts.AnyAsync(s => s.Id != update.Id && s.DoctorId == update.DoctorId && s.Date == update.Date.Date && s.ShiftDefinitionId == update.ShiftDefinitionId);
+                        if (overlap) return (false, $"Bác sĩ mới được chọn đã có lịch trực khác trong cùng thời gian vào ngày {update.Date:dd/MM/yyyy}.");
+
+                        shift.DoctorId = update.DoctorId;
+                    }
+                }
+            }
+        }
+
+        await ctx.SaveChangesAsync();
+        return (true, string.Empty);
     }
 }

@@ -37,6 +37,7 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<HistoryAccess> HistoryAccesses { get; set; }
     public virtual DbSet<DoctorEvaluation> DoctorEvaluations { get; set; }
 
+    public virtual DbSet<ShiftDefinition> ShiftDefinitions { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
 
@@ -233,6 +234,13 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("DoctorShifts_pkey");
 
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.Property(e => e.Date).HasColumnType("date");
+            entity.Property(e => e.Capacity).HasDefaultValue(10);
+
             entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorShifts)
                 .HasForeignKey(d => d.DoctorId)
                 .HasConstraintName("DoctorShifts_DoctorId_fkey");
@@ -240,7 +248,26 @@ public partial class SmartClinicDbContext : DbContext
             entity.HasOne(d => d.Room).WithMany(p => p.DoctorShifts)
                 .HasForeignKey(d => d.RoomId)
                 .HasConstraintName("DoctorShifts_RoomId_fkey");
+
+            entity.HasOne(d => d.ShiftDefinition).WithMany()
+                .HasForeignKey(d => d.ShiftDefinitionId)
+                .HasConstraintName("DoctorShifts_ShiftDefinitionId_fkey");
         });
+
+        modelBuilder.Entity<ShiftDefinition>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("ShiftDefinitions_pkey");
+
+            entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
+
+            // Seed Data cho 3 ca mặc định
+            entity.HasData(
+                new ShiftDefinition { Id = 1, Name = "Ca Sáng", StartTime = new TimeSpan(7, 30, 0), EndTime = new TimeSpan(11, 30, 0), SortOrder = 1 },
+                new ShiftDefinition { Id = 2, Name = "Ca Chiều", StartTime = new TimeSpan(13, 30, 0), EndTime = new TimeSpan(17, 30, 0), SortOrder = 2 },
+                new ShiftDefinition { Id = 3, Name = "Ca Tối", StartTime = new TimeSpan(18, 0, 0), EndTime = new TimeSpan(21, 0, 0), SortOrder = 3 }
+            );
+        });
+
 
         modelBuilder.Entity<LabPrice>(entity =>
         {
@@ -257,7 +284,7 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("HistoryAccess_pkey");
             entity.HasIndex(e => e.QueueTicketId).IsUnique();
-            
+
             entity.HasOne(d => d.QueueTicket)
                 .WithOne(p => p.HistoryAccess)
                 .HasForeignKey<HistoryAccess>(d => d.QueueTicketId)
@@ -328,17 +355,20 @@ public partial class SmartClinicDbContext : DbContext
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        // 1. Lấy tất cả các Entity kế thừa từ BaseEntity đang ở trạng thái "Chuẩn bị thêm mới"
-        var entries = ChangeTracker.Entries<BaseEntity>()
-            .Where(e => e.State == EntityState.Added);
-
-        // 2. Tính toán giờ Việt Nam chuẩn (Unspecified để PostgreSQL không chửi)
+        // 1. Lấy tất cả các Entity (kể cả Slot/ShiftDefinition không còn là BaseEntity)
         var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var vnTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone);
         var unspecifiedVnTime = DateTime.SpecifyKind(vnTime, DateTimeKind.Unspecified);
 
-        // 3. Tự động gán giờ cho tất cả
-        foreach (var entry in entries)
+        var baseEntries = ChangeTracker.Entries<BaseEntity>().Where(e => e.State == EntityState.Added);
+        foreach (var entry in baseEntries)
+        {
+            entry.Entity.CreatedAt = unspecifiedVnTime;
+        }
+
+
+        var doctorShiftEntries = ChangeTracker.Entries<DoctorShift>().Where(e => e.State == EntityState.Added);
+        foreach (var entry in doctorShiftEntries)
         {
             entry.Entity.CreatedAt = unspecifiedVnTime;
         }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260328025925_AddMissingCreatedAtDoctorShift")]
+    partial class AddMissingCreatedAtDoctorShift
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,56 +72,9 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 28, 14, 58, 57, 99, DateTimeKind.Local).AddTicks(8477),
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8828),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.DoctorEvaluation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<int?>("DoctorId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsSubmitted")
-                        .HasColumnType("boolean");
-
-                    b.Property<int?>("PatientId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("QueueTicketId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("Rating")
-                        .HasMaxLength(1)
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DoctorId");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("QueueTicketId")
-                        .IsUnique();
-
-                    b.ToTable("DoctorEvaluations");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
@@ -161,32 +117,6 @@ namespace SmartClinic.Migrations
                     b.HasIndex("ShiftDefinitionId");
 
                     b.ToTable("DoctorShifts");
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.HistoryAccess", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsUnlocked")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("QueueTicketId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UnlockedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id")
-                        .HasName("HistoryAccess_pkey");
-
-                    b.HasIndex("QueueTicketId")
-                        .IsUnique();
-
-                    b.ToTable("HistoryAccesses");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.LabOrder", b =>
@@ -267,6 +197,9 @@ namespace SmartClinic.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<DateTime>("EffectiveDate")
                         .HasColumnType("timestamp without time zone");
 
@@ -291,6 +224,11 @@ namespace SmartClinic.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<int?>("DefaultRoomId")
                         .HasColumnType("integer");
@@ -321,6 +259,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 1,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8882),
                             DefaultRoomId = 9,
                             Description = "Xét nghiệm máu cơ bản",
                             IsDeleted = false,
@@ -330,6 +269,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 2,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8885),
                             DefaultRoomId = 9,
                             Description = "Kiểm tra tiểu đường",
                             IsDeleted = false,
@@ -339,6 +279,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 3,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8887),
                             DefaultRoomId = 9,
                             Description = "AST, ALT, Creatinin, Ure...",
                             IsDeleted = false,
@@ -348,6 +289,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 4,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8888),
                             DefaultRoomId = 10,
                             Description = "Siêu âm màu",
                             IsDeleted = false,
@@ -357,6 +299,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 5,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8890),
                             DefaultRoomId = 10,
                             Description = "Siêu âm màu",
                             IsDeleted = false,
@@ -366,6 +309,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 6,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8891),
                             DefaultRoomId = 11,
                             Description = "Chụp X-quang phổi",
                             IsDeleted = false,
@@ -381,6 +325,11 @@ namespace SmartClinic.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -410,6 +359,11 @@ namespace SmartClinic.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.Property<DateTime>("EffectiveFrom")
                         .HasColumnType("timestamp without time zone");
 
@@ -426,6 +380,44 @@ namespace SmartClinic.Migrations
                     b.HasIndex("MedicineId");
 
                     b.ToTable("MedicinePrices");
+                });
+
+            modelBuilder.Entity("SmartClinic.Models.Patient", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly?>("DoB")
+                        .HasColumnType("date");
+
+                    b.Property<short>("Flags")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id")
+                        .HasName("Patients_pkey");
+
+                    b.ToTable("Patients");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.Prescription", b =>
@@ -474,6 +466,9 @@ namespace SmartClinic.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("MedicineId")
                         .HasColumnType("integer");
@@ -578,6 +573,9 @@ namespace SmartClinic.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<int>("DepartmentId")
                         .HasColumnType("integer");
 
@@ -602,6 +600,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 9,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8858),
                             DepartmentId = 8,
                             Flags = (byte)3,
                             Location = "Tầng 2",
@@ -610,6 +609,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 10,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8862),
                             DepartmentId = 8,
                             Flags = (byte)3,
                             Location = "Tầng 2",
@@ -618,6 +618,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 11,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(8864),
                             DepartmentId = 8,
                             Flags = (byte)3,
                             Location = "Tầng 1",
@@ -632,6 +633,11 @@ namespace SmartClinic.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("interval");
@@ -656,6 +662,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 1,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(7065),
                             EndTime = new TimeSpan(0, 11, 30, 0, 0),
                             Name = "Ca Sáng",
                             SortOrder = 1,
@@ -664,6 +671,7 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 2,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(7080),
                             EndTime = new TimeSpan(0, 17, 30, 0, 0),
                             Name = "Ca Chiều",
                             SortOrder = 2,
@@ -672,11 +680,47 @@ namespace SmartClinic.Migrations
                         new
                         {
                             Id = 3,
+                            CreatedAt = new DateTime(2026, 3, 28, 9, 59, 24, 447, DateTimeKind.Local).AddTicks(7082),
                             EndTime = new TimeSpan(0, 21, 0, 0, 0),
                             Name = "Ca Tối",
                             SortOrder = 3,
                             StartTime = new TimeSpan(0, 18, 0, 0, 0)
                         });
+                });
+
+            modelBuilder.Entity("SmartClinic.Models.Slot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("DoctorShiftId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsBooked")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("PatientId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SlotNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id")
+                        .HasName("Slots_pkey");
+
+                    b.HasIndex("DoctorShiftId");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("Slots");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.User", b =>
@@ -688,16 +732,12 @@ namespace SmartClinic.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Address")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateOnly?>("DoB")
-                        .HasColumnType("date");
 
                     b.Property<string>("Email")
                         .HasColumnType("text");
@@ -720,8 +760,7 @@ namespace SmartClinic.Migrations
                         .HasColumnType("character varying(255)");
 
                     b.Property<string>("PhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<string>("RefreshToken")
                         .HasColumnType("text");
@@ -746,34 +785,6 @@ namespace SmartClinic.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.DoctorEvaluation", b =>
-                {
-                    b.HasOne("SmartClinic.Models.User", "Doctor")
-                        .WithMany()
-                        .HasForeignKey("DoctorId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("DoctorEvaluations_DoctorId_fkey");
-
-                    b.HasOne("SmartClinic.Models.User", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("DoctorEvaluations_PatientId_fkey");
-
-                    b.HasOne("SmartClinic.Models.QueueTicket", "QueueTicket")
-                        .WithOne("Evaluation")
-                        .HasForeignKey("SmartClinic.Models.DoctorEvaluation", "QueueTicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("DoctorEvaluations_QueueTicketId_fkey");
-
-                    b.Navigation("Doctor");
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("QueueTicket");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
@@ -804,18 +815,6 @@ namespace SmartClinic.Migrations
                     b.Navigation("Room");
 
                     b.Navigation("ShiftDefinition");
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.HistoryAccess", b =>
-                {
-                    b.HasOne("SmartClinic.Models.QueueTicket", "QueueTicket")
-                        .WithOne("HistoryAccess")
-                        .HasForeignKey("SmartClinic.Models.HistoryAccess", "QueueTicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("HistoryAccess_QueueTicketId_fkey");
-
-                    b.Navigation("QueueTicket");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.LabOrder", b =>
@@ -925,13 +924,13 @@ namespace SmartClinic.Migrations
                         .HasConstraintName("QueueTickets_CreatedBy_fkey");
 
                     b.HasOne("SmartClinic.Models.User", "Doctor")
-                        .WithMany("DoctorTickets")
+                        .WithMany("QueueTickets")
                         .HasForeignKey("DoctorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("QueueTickets_DoctorId_fkey");
 
-                    b.HasOne("SmartClinic.Models.User", "PatientUser")
-                        .WithMany("PatientTickets")
+                    b.HasOne("SmartClinic.Models.Patient", "Patient")
+                        .WithMany("QueueTickets")
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("QueueTickets_PatientId_fkey");
@@ -952,7 +951,7 @@ namespace SmartClinic.Migrations
 
                     b.Navigation("Doctor");
 
-                    b.Navigation("PatientUser");
+                    b.Navigation("Patient");
 
                     b.Navigation("Room");
 
@@ -970,9 +969,34 @@ namespace SmartClinic.Migrations
                     b.Navigation("Department");
                 });
 
+            modelBuilder.Entity("SmartClinic.Models.Slot", b =>
+                {
+                    b.HasOne("SmartClinic.Models.DoctorShift", "DoctorShift")
+                        .WithMany("Slots")
+                        .HasForeignKey("DoctorShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("Slots_DoctorShiftId_fkey");
+
+                    b.HasOne("SmartClinic.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("Slots_PatientId_fkey");
+
+                    b.Navigation("DoctorShift");
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("SmartClinic.Models.Department", b =>
                 {
                     b.Navigation("Rooms");
+                });
+
+            modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
+                {
+                    b.Navigation("Slots");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.LabOrder", b =>
@@ -994,6 +1018,11 @@ namespace SmartClinic.Migrations
                     b.Navigation("PrescriptionDetails");
                 });
 
+            modelBuilder.Entity("SmartClinic.Models.Patient", b =>
+                {
+                    b.Navigation("QueueTickets");
+                });
+
             modelBuilder.Entity("SmartClinic.Models.Prescription", b =>
                 {
                     b.Navigation("PrescriptionDetails");
@@ -1001,10 +1030,6 @@ namespace SmartClinic.Migrations
 
             modelBuilder.Entity("SmartClinic.Models.QueueTicket", b =>
                 {
-                    b.Navigation("Evaluation");
-
-                    b.Navigation("HistoryAccess");
-
                     b.Navigation("LabOrders");
 
                     b.Navigation("Prescription");
@@ -1021,9 +1046,7 @@ namespace SmartClinic.Migrations
                 {
                     b.Navigation("DoctorShifts");
 
-                    b.Navigation("DoctorTickets");
-
-                    b.Navigation("PatientTickets");
+                    b.Navigation("QueueTickets");
                 });
 #pragma warning restore 612, 618
         }

@@ -36,6 +36,7 @@ public class DoctorDailyShiftService : IAsyncDisposable
     // ── Public State ──────────────────────────────────────────────
     public int? CurrentRoomId { get; private set; }
     public bool IsOnDuty { get; private set; }
+    public DoctorShift? CurrentShift { get; private set; }
 
     /// <summary>Blazor subscribes to this event to call StateHasChanged().</summary>
     public event Action? OnShiftStateChanged;
@@ -62,17 +63,14 @@ public class DoctorDailyShiftService : IAsyncDisposable
         await using var ctx = await _dbFactory.CreateDbContextAsync();
 
         var today = DateTime.Today;
-        var tomorrow = today.AddDays(1);
 
-        // Lấy tất cả ca trực hôm nay, đang Active, sort theo StartTime
         _todayShifts = await ctx.DoctorShifts
             .AsNoTracking()
-            .Where(s => s.DoctorId == _doctorId
-                     && s.StatusEnum == DoctorShiftStatus.Active
-                     && s.StartTime >= today
-                     && s.StartTime < tomorrow)
-            .OrderBy(s => s.StartTime)
+            .Include(s => s.ShiftDefinition)
+            .Where(s => s.DoctorId == _doctorId && s.Date == today)
             .ToListAsync();
+
+        _todayShifts = _todayShifts.OrderBy(s => s.ShiftDefinition.StartTime).ToList();
 
         System.Diagnostics.Debug.WriteLine(
             $"[DailyShiftService] Loaded {_todayShifts.Count} shifts for Doctor {_doctorId}");
@@ -90,21 +88,16 @@ public class DoctorDailyShiftService : IAsyncDisposable
 
         // Tìm ca đang diễn ra (StartTime <= now < EndTime)
         var activeShift = _todayShifts
-            .FirstOrDefault(s => s.StartTime <= now
-                              && (s.EndTime == null || s.EndTime > now));
+            .FirstOrDefault(s => s.Date.Date.Add(s.ShiftDefinition.StartTime) <= now
+                              && s.Date.Date.Add(s.ShiftDefinition.EndTime) > now);
 
         if (activeShift != null)
         {
             // ── ĐANG TRỰC ──────────────────────────────────────────
-            await SetOnDutyAsync(activeShift.RoomId);
+            await SetOnDutyAsync(activeShift);
 
-            // Đặt timer one-off bắn đúng lúc ca này kết thúc
-            if (activeShift.EndTime.HasValue)
-            {
-                ScheduleNextTick(activeShift.EndTime.Value, now,
-                    label: $"End of shift in Room {activeShift.RoomId}");
-            }
-            // Nếu EndTime = null, ca vô thời hạn → không set timer, không tự ngắt
+            ScheduleNextTick(activeShift.Date.Date.Add(activeShift.ShiftDefinition.EndTime), now,
+                label: $"End of shift in Room {activeShift.RoomId}");
         }
         else
         {
@@ -113,11 +106,11 @@ public class DoctorDailyShiftService : IAsyncDisposable
 
             // Tìm ca tiếp theo trong ngày hôm nay
             var nextShift = _todayShifts
-                .FirstOrDefault(s => s.StartTime > now);
+                .FirstOrDefault(s => s.Date.Date.Add(s.ShiftDefinition.StartTime) > now);
 
             if (nextShift != null)
             {
-                ScheduleNextTick(nextShift.StartTime, now,
+                ScheduleNextTick(nextShift.Date.Date.Add(nextShift.ShiftDefinition.StartTime), now,
                     label: $"Start of next shift in Room {nextShift.RoomId}");
             }
             // Nếu không còn ca nào hôm nay → không set timer, nghỉ đến sáng mai
@@ -127,12 +120,14 @@ public class DoctorDailyShiftService : IAsyncDisposable
     // ══════════════════════════════════════════════════════════════
     // 3. HELPERS: SET STATE + NOTIFY UI
     // ══════════════════════════════════════════════════════════════
-    private async Task SetOnDutyAsync(int roomId)
+    private async Task SetOnDutyAsync(DoctorShift shift)
     {
+        var roomId = shift.RoomId;
         var previousRoom = CurrentRoomId;
 
         IsOnDuty = true;
         CurrentRoomId = roomId;
+        CurrentShift = shift;
 
         // Chuyển phòng SignalR nếu cần
         if (previousRoom.HasValue && previousRoom.Value != roomId)
@@ -165,6 +160,7 @@ public class DoctorDailyShiftService : IAsyncDisposable
 
         IsOnDuty = false;
         CurrentRoomId = null;
+        CurrentShift = null;
 
         OnShiftStateChanged?.Invoke();
         System.Diagnostics.Debug.WriteLine("[DailyShiftService] ⬜ OFF DUTY");

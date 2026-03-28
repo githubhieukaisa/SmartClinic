@@ -1,6 +1,7 @@
-﻿namespace SmartClinic.Models
+namespace SmartClinic.Models
 {
     using SmartClinic.Constant;
+    using System.ComponentModel.DataAnnotations.Schema;
 
     public class DoctorShift
     {
@@ -11,10 +12,29 @@
         public int RoomId { get; set; }
         public virtual Room Room { get; set; } = null!;
 
-        public DateTime StartTime { get; set; }
-        public DateTime? EndTime { get; set; } // Null nghĩa là ca trực đang diễn ra
+        public int ShiftDefinitionId { get; set; }
+        public virtual ShiftDefinition ShiftDefinition { get; set; } = null!;
 
-        // Trạng thái: "Active" (Đang trực), "Completed" (Đã nghỉ)
-        public DoctorShiftStatus StatusEnum { get; set; } = DoctorShiftStatus.Active;
+        public DateTime Date { get; set; }
+
+        public int Capacity { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+
+        [NotMapped]
+        public string ComputedStatus
+        {
+            get
+            {
+                if (ShiftDefinition == null) return "Sắp diễn ra"; // Fallback nếu chưa load relate
+                var now = DateTime.Now;
+                var startDateTime = Date.Date.Add(ShiftDefinition.StartTime);
+                var endDateTime = Date.Date.Add(ShiftDefinition.EndTime);
+
+                if (now < startDateTime) return "Sắp diễn ra";
+                if (now > endDateTime) return "Đã hoàn thành";
+                return "Đang trực";
+            }
+        }
     }
 }

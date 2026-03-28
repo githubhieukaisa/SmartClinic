@@ -1,4 +1,4 @@
-using BCrypt.Net;
+﻿using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
@@ -503,7 +503,7 @@ namespace SmartClinic.Services
 
             var cacheKey = $"history-access-otp:{ticketId}";
             var otp = GenerateOtp();
-            
+
             // Hash OTP in cache for security
             var otpHash = BCrypt.Net.BCrypt.HashPassword(otp);
 
@@ -517,9 +517,9 @@ namespace SmartClinic.Services
                            "Nếu bạn không phải là người đang thực hiện việc này, vui lòng bỏ qua email này để đảm bảo an toàn thông tin.\n\n" +
                            "Trân trọng,\n" +
                            "Đội ngũ SmartClinic";
-                
+
                 await _emailService.SendEmailAsync(normalizedEmail, subject, body);
-                
+
                 _memoryCache.Set(cacheKey, otpHash, TimeSpan.FromMinutes(OtpExpiryMinutes));
 
                 return new PasswordResetResult { Success = true, Message = "OTP đã được gửi đến email bệnh nhân." };
