@@ -33,6 +33,13 @@
                 class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition font-medium text-sm border border-slate-300">
             Xóa nháp (Chưa lưu)
         </button>
+        <button @onclick="OpenAutoScheduleModal"
+                class="flex items-center gap-2 px-4 py-2 bg-white text-teal-700 rounded-lg hover:bg-teal-50 transition font-medium text-sm border border-teal-300 shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Phân lịch tự động
+        </button>
         <button @onclick="SaveChanges" disabled="@isSaving"
                 class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors font-medium text-sm shadow-sm">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,8 +113,22 @@ else
                                 var key = GetKey(room.Id, currentDate, shiftDef.Id);
                                 var cellState = currentGridState.ContainsKey(key) ? currentGridState[key] : null;
 
-                                <td class="p-2 border-r border-slate-100 hover:bg-slate-50 transition relative">
-                                    @if (cellState != null)
+                                var previewItem = previewItems.FirstOrDefault(p =>
+                                    p.RoomId == room.Id && p.Date.Date == currentDate.Date && p.ShiftDefinitionId == shiftDef.Id);
+                                var hasPreview = previewItem != null;
+                                <td class="p-2 border-r border-slate-100 hover:bg-slate-50 transition relative @(hasPreview ? "bg-amber-50/80" : "")">
+                                    @if (hasPreview)
+                                    {
+                                        @* ── PREVIEW: hiển thị tên BS được phân tự động ── *@
+                                        <div class="text-xs p-1.5 rounded border-2 border-dashed border-amber-400 bg-amber-50 text-amber-800 font-medium text-center">
+                                            @previewItem!.DoctorName
+                                            @if (previewItem.IsOverwrite)
+                                            {
+                                                <div class="text-[10px] text-red-500 font-normal">Ghi đè</div>
+                                            }
+                                        </div>
+                                    }
+                                    else if (cellState != null)
                                     {
                                         var dbShift = originalShifts.FirstOrDefault(s => s.Id == cellState.Id);
                                         bool isCompleted = dbShift != null && dbShift.Status == "Đã hoàn thành";
@@ -136,7 +157,6 @@ else
                                                 <option value="0">- Trống -</option>
                                                 @foreach (var doc in doctors)
                                                 {
-                                                    <!-- If it's pre-selected, it will match -->
                                                     if (cellState.DoctorId == doc.Id)
                                                     {
                                                         <option value="@doc.Id" selected>@doc.FullName</option>
@@ -151,7 +171,6 @@ else
                                         
                                         @if(cellState.Id > 0 && originalGridDocMap.ContainsKey(key) && originalGridDocMap[key] == cellState.DoctorId)
                                         {
-                                            <!-- Chỗ này có thể hiển thị Status Computed của DB shift nếu nó map khớp -->
                                             if (dbShift != null)
                                             {
                                                 <div class="mt-1 flex justify-center">
@@ -169,6 +188,160 @@ else
                 }
             </tbody>
         </table>
+    </div>
+}
+
+@* ══════════ PREVIEW BAR (khi đang xem trước) ══════════ *@
+@if (previewItems.Any())
+{
+    <div class="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-300 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-amber-800">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            <span class="font-medium text-sm">Đang xem trước: @previewItems.Count ca trực sẽ được tạo</span>
+            @if (previewItems.Any(p => p.IsOverwrite))
+            {
+                <span class="text-xs text-red-600">(@previewItems.Count(p => p.IsOverwrite) ca ghi đè)</span>
+            }
+        </div>
+        <div class="flex items-center gap-2">
+            <button @onclick="CancelPreview"
+                    class="px-4 py-2 bg-white text-slate-600 rounded-lg hover:bg-slate-100 transition font-medium text-sm border border-slate-300">
+                Hủy
+            </button>
+            <button @onclick="ConfirmAutoSchedule" disabled="@isSaving"
+                    class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors font-medium text-sm shadow-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                @(isSaving ? "Đang lưu..." : "Xác nhận lưu")
+            </button>
+        </div>
+    </div>
+}
+
+@* ══════════ MODAL PHÂN LỊCH TỰ ĐỘNG ══════════ *@
+@if (showAutoScheduleModal)
+{
+    <div class="fixed inset-0 bg-black/40 z-40 flex items-start justify-center pt-16" @onclick="CloseAutoScheduleModal">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto" @onclick:stopPropagation="true">
+            @* Header *@
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-xl">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">Phân lịch tự động</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Chọn thông số rồi bấm "Xem trước" để kiểm tra kết quả</p>
+                </div>
+                <button @onclick="CloseAutoScheduleModal" class="text-slate-400 hover:text-slate-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            @* Body *@
+            <div class="px-6 py-4 space-y-5">
+                @if (!string.IsNullOrEmpty(autoScheduleError))
+                {
+                    <div class="p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200 flex items-center gap-2">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        @autoScheduleError
+                    </div>
+                }
+
+                @* ── Khoảng ngày ── *@
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Khoảng ngày</label>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 mb-1">Từ ngày</label>
+                            <input type="date" @bind="autoRequest.FromDate" min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none" />
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 mb-1">Đến ngày</label>
+                            <input type="date" @bind="autoRequest.ToDate"
+                                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none" />
+                        </div>
+                    </div>
+                </div>
+
+                @* ── Chọn bác sĩ ── *@
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-semibold text-slate-700">Bác sĩ</label>
+                        <button @onclick="ToggleAllDoctors" class="text-xs text-teal-600 hover:text-teal-800 font-medium">
+                            @(autoRequest.SelectedDoctorIds.Count == doctors.Count ? "Bỏ chọn tất cả" : "Chọn tất cả")
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                        @foreach (var doc in doctors)
+                        {
+                            <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-teal-700">
+                                <input type="checkbox" checked="@autoRequest.SelectedDoctorIds.Contains(doc.Id)"
+                                       @onchange="(e) => ToggleDoctor(doc.Id, (bool)(e.Value ?? false))"
+                                       class="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                                @(doc.FullName ?? doc.Username)
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                @* ── Chọn phòng khám ── *@
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-semibold text-slate-700">Phòng khám</label>
+                        <button @onclick="ToggleAllRooms" class="text-xs text-teal-600 hover:text-teal-800 font-medium">
+                            @(autoRequest.SelectedRoomIds.Count == rooms.Count ? "Bỏ chọn tất cả" : "Chọn tất cả")
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                        @foreach (var room in rooms)
+                        {
+                            <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-teal-700">
+                                <input type="checkbox" checked="@autoRequest.SelectedRoomIds.Contains(room.Id)"
+                                       @onchange="(e) => ToggleRoom(room.Id, (bool)(e.Value ?? false))"
+                                       class="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                                <span>@room.Department?.Name - @room.Name</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                @* ── Chọn ca trực ── *@
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Ca trực</label>
+                    <div class="flex flex-wrap gap-3">
+                        @foreach (var sd in shiftDefinitions)
+                        {
+                            <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-teal-700">
+                                <input type="checkbox" checked="@autoRequest.SelectedShiftDefinitionIds.Contains(sd.Id)"
+                                       @onchange="(e) => ToggleShiftDef(sd.Id, (bool)(e.Value ?? false))"
+                                       class="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                                @sd.Name <span class="text-xs text-slate-400">(@sd.StartTime.ToString(@"hh\:mm") - @sd.EndTime.ToString(@"hh\:mm"))</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                @* ── Tùy chọn ── *@
+                <div class="border-t border-slate-200 pt-4">
+                    <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                        <input type="checkbox" @bind="autoRequest.OverwriteExisting"
+                               class="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                        <span>Ghi đè ca đã phân sẵn</span>
+                        <span class="text-xs text-slate-400">(mặc định: chỉ điền ô trống)</span>
+                    </label>
+                </div>
+            </div>
+
+            @* Footer *@
+            <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 sticky bottom-0 bg-white rounded-b-xl">
+                <button @onclick="CloseAutoScheduleModal"
+                        class="px-4 py-2 bg-white text-slate-600 rounded-lg hover:bg-slate-100 transition font-medium text-sm border border-slate-300">
+                    Hủy
+                </button>
+                <button @onclick="RunPreview" disabled="@isPreviewLoading"
+                        class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors font-medium text-sm shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    @(isPreviewLoading ? "Đang tính toán..." : "Xem trước")
+                </button>
+            </div>
+        </div>
     </div>
 }
 
@@ -191,6 +364,13 @@ else
     // UI tracking state
     private Dictionary<string, DoctorShiftWeeklyUpdateDto> currentGridState = new();
 
+    // ── Auto-Schedule state ──
+    private bool showAutoScheduleModal = false;
+    private bool isPreviewLoading = false;
+    private string autoScheduleError = string.Empty;
+    private AutoScheduleRequestDto autoRequest = new();
+    private List<AutoSchedulePreviewItemDto> previewItems = new();
+
     protected override async Task OnInitializedAsync()
     {
         // Compute Monday of this week
@@ -207,8 +387,8 @@ else
         isLoading = true;
         errorMessage = string.Empty;
         successMessage = string.Empty;
+        previewItems.Clear();
         
-        // Parallel-like logic but DB context needs sequential or separate factories. Service manages own factories!
         rooms = await ShiftService.GetRoomsAsync();
         doctors = await ShiftService.GetDoctorsAsync();
         shiftDefinitions = await ShiftService.GetShiftDefinitionsAsync();
@@ -226,7 +406,6 @@ else
         currentGridState.Clear();
         originalGridDocMap.Clear();
 
-        // 1. Initialize all cells to empty
         foreach (var r in rooms)
         {
             foreach (var sDef in shiftDefinitions)
@@ -249,10 +428,8 @@ else
             }
         }
 
-        // 2. Map existing DB data to grid
         foreach (var s in originalShifts)
         {
-            // TÌm shift definition của cái shift này (lưu qua s.ShiftName)
             var def = shiftDefinitions.FirstOrDefault(d => d.Name == s.ShiftName);
             if (def != null)
             {
@@ -296,13 +473,11 @@ else
             {
                 if (cell.DoctorId == 0 && cell.Id > 0)
                 {
-                    // Existing shift was cleared -> DELETE
                     cell.IsDeleted = true;
                     updatesToSave.Add(cell);
                 }
                 else if (cell.DoctorId > 0)
                 {
-                    // New shift OR updated doctor -> UPSERT
                     cell.IsDeleted = false;
                     updatesToSave.Add(cell);
                 }
@@ -321,7 +496,7 @@ else
         if (success)
         {
             successMessage = "Đã lưu lịch trực tuần thành công!";
-            await LoadShiftsForCurrentWeek(); // Reload để reset ID và original map
+            await LoadShiftsForCurrentWeek();
         }
         else
         {
@@ -342,6 +517,126 @@ else
         currentWeekMonday = currentWeekMonday.AddDays(7);
         await LoadData();
     }
+
+    // ══════════════════════════════════════════════════════
+    // AUTO-SCHEDULE: Modal + Preview + Confirm
+    // ══════════════════════════════════════════════════════
+
+    private void OpenAutoScheduleModal()
+    {
+        autoScheduleError = string.Empty;
+        autoRequest = new AutoScheduleRequestDto
+        {
+            FromDate = currentWeekMonday,
+            ToDate = currentWeekMonday.AddDays(6),
+            SelectedDoctorIds = doctors.Select(d => d.Id).ToList(),
+            SelectedRoomIds = rooms.Select(r => r.Id).ToList(),
+            SelectedShiftDefinitionIds = shiftDefinitions.Select(s => s.Id).ToList(),
+            OverwriteExisting = false
+        };
+        showAutoScheduleModal = true;
+    }
+
+    private void CloseAutoScheduleModal()
+    {
+        showAutoScheduleModal = false;
+        autoScheduleError = string.Empty;
+    }
+
+    // ── Toggle helpers cho checkbox ──
+    private void ToggleDoctor(int id, bool isChecked)
+    {
+        if (isChecked && !autoRequest.SelectedDoctorIds.Contains(id))
+            autoRequest.SelectedDoctorIds.Add(id);
+        else if (!isChecked)
+            autoRequest.SelectedDoctorIds.Remove(id);
+    }
+
+    private void ToggleAllDoctors()
+    {
+        if (autoRequest.SelectedDoctorIds.Count == doctors.Count)
+            autoRequest.SelectedDoctorIds.Clear();
+        else
+            autoRequest.SelectedDoctorIds = doctors.Select(d => d.Id).ToList();
+    }
+
+    private void ToggleRoom(int id, bool isChecked)
+    {
+        if (isChecked && !autoRequest.SelectedRoomIds.Contains(id))
+            autoRequest.SelectedRoomIds.Add(id);
+        else if (!isChecked)
+            autoRequest.SelectedRoomIds.Remove(id);
+    }
+
+    private void ToggleAllRooms()
+    {
+        if (autoRequest.SelectedRoomIds.Count == rooms.Count)
+            autoRequest.SelectedRoomIds.Clear();
+        else
+            autoRequest.SelectedRoomIds = rooms.Select(r => r.Id).ToList();
+    }
+
+    private void ToggleShiftDef(int id, bool isChecked)
+    {
+        if (isChecked && !autoRequest.SelectedShiftDefinitionIds.Contains(id))
+            autoRequest.SelectedShiftDefinitionIds.Add(id);
+        else if (!isChecked)
+            autoRequest.SelectedShiftDefinitionIds.Remove(id);
+    }
+
+    // ── Chạy Preview (không ghi DB) ──
+    private async Task RunPreview()
+    {
+        isPreviewLoading = true;
+        autoScheduleError = string.Empty;
+
+        var (items, error) = await ShiftService.PreviewAutoScheduleAsync(autoRequest);
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            autoScheduleError = error;
+            isPreviewLoading = false;
+            return;
+        }
+
+        previewItems = items;
+        showAutoScheduleModal = false;
+        isPreviewLoading = false;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    // ── Xác nhận lưu Preview vào DB ──
+    private async Task ConfirmAutoSchedule()
+    {
+        isSaving = true;
+        errorMessage = string.Empty;
+
+        var result = await ShiftService.ConfirmAutoScheduleAsync(previewItems);
+
+        if (result.Success)
+        {
+            successMessage = result.Summary;
+            previewItems.Clear();
+            await LoadShiftsForCurrentWeek();
+        }
+        else
+        {
+            errorMessage = result.Error;
+        }
+
+        isSaving = false;
+    }
+
+    // ── Hủy Preview ──
+    private void CancelPreview()
+    {
+        previewItems.Clear();
+    }
+
+    // ══════════════════════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════════════════════
 
     private string GetDayName(DateTime date)
     {
@@ -364,7 +659,7 @@ else
         {
             "Đang trực" => "text-green-700 bg-green-100 border-green-200",
             "Đã hoàn thành" => "text-slate-600 bg-slate-100 border-slate-200",
-            _ => "text-teal-700 bg-teal-100 border-teal-200" // Sắp diễn ra
+            _ => "text-teal-700 bg-teal-100 border-teal-200"
         };
     }
 }
