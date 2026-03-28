@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260328071105_RemoveBaseEntityAndPatient_Final_V2")]
+    partial class RemoveBaseEntityAndPatient_Final_V2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 28, 14, 58, 57, 99, DateTimeKind.Local).AddTicks(8477),
+                            CreatedAt = new DateTime(2026, 3, 28, 14, 11, 5, 201, DateTimeKind.Local).AddTicks(1920),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
                 });
@@ -679,6 +682,36 @@ namespace SmartClinic.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SmartClinic.Models.Slot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DoctorShiftId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsBooked")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("SlotNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id")
+                        .HasName("Slots_pkey");
+
+                    b.HasIndex("DoctorShiftId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Slots");
+                });
+
             modelBuilder.Entity("SmartClinic.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -970,9 +1003,34 @@ namespace SmartClinic.Migrations
                     b.Navigation("Department");
                 });
 
+            modelBuilder.Entity("SmartClinic.Models.Slot", b =>
+                {
+                    b.HasOne("SmartClinic.Models.DoctorShift", "DoctorShift")
+                        .WithMany("Slots")
+                        .HasForeignKey("DoctorShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("Slots_DoctorShiftId_fkey");
+
+                    b.HasOne("SmartClinic.Models.User", "User")
+                        .WithMany("Slots")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("Slots_UserId_fkey");
+
+                    b.Navigation("DoctorShift");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SmartClinic.Models.Department", b =>
                 {
                     b.Navigation("Rooms");
+                });
+
+            modelBuilder.Entity("SmartClinic.Models.DoctorShift", b =>
+                {
+                    b.Navigation("Slots");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.LabOrder", b =>
@@ -1024,6 +1082,8 @@ namespace SmartClinic.Migrations
                     b.Navigation("DoctorTickets");
 
                     b.Navigation("PatientTickets");
+
+                    b.Navigation("Slots");
                 });
 #pragma warning restore 612, 618
         }

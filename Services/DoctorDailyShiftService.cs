@@ -36,6 +36,7 @@ public class DoctorDailyShiftService : IAsyncDisposable
     // ── Public State ──────────────────────────────────────────────
     public int? CurrentRoomId { get; private set; }
     public bool IsOnDuty { get; private set; }
+    public DoctorShift? CurrentShift { get; private set; }
 
     /// <summary>Blazor subscribes to this event to call StateHasChanged().</summary>
     public event Action? OnShiftStateChanged;
@@ -93,7 +94,7 @@ public class DoctorDailyShiftService : IAsyncDisposable
         if (activeShift != null)
         {
             // ── ĐANG TRỰC ──────────────────────────────────────────
-            await SetOnDutyAsync(activeShift.RoomId);
+            await SetOnDutyAsync(activeShift);
 
             ScheduleNextTick(activeShift.Date.Date.Add(activeShift.ShiftDefinition.EndTime), now,
                 label: $"End of shift in Room {activeShift.RoomId}");
@@ -119,12 +120,14 @@ public class DoctorDailyShiftService : IAsyncDisposable
     // ══════════════════════════════════════════════════════════════
     // 3. HELPERS: SET STATE + NOTIFY UI
     // ══════════════════════════════════════════════════════════════
-    private async Task SetOnDutyAsync(int roomId)
+    private async Task SetOnDutyAsync(DoctorShift shift)
     {
+        var roomId = shift.RoomId;
         var previousRoom = CurrentRoomId;
 
         IsOnDuty = true;
         CurrentRoomId = roomId;
+        CurrentShift = shift;
 
         // Chuyển phòng SignalR nếu cần
         if (previousRoom.HasValue && previousRoom.Value != roomId)
@@ -157,6 +160,7 @@ public class DoctorDailyShiftService : IAsyncDisposable
 
         IsOnDuty = false;
         CurrentRoomId = null;
+        CurrentShift = null;
 
         OnShiftStateChanged?.Invoke();
         System.Diagnostics.Debug.WriteLine("[DailyShiftService] ⬜ OFF DUTY");

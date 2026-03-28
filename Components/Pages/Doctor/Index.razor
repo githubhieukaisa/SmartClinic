@@ -252,7 +252,7 @@
                                         </div>
                                         <div class="flex items-center justify-between mb-3 border-b border-border pb-3">
                                             <span class="text-sm text-muted-foreground">Bắt đầu</span>
-                                            <span class="font-medium text-foreground">@_currentShift.ShiftDefinition?.StartTime.ToString(@"hh\:mm")</span>
+                                            <span class="font-medium text-foreground">@DailyShiftService.CurrentShift?.ShiftDefinition?.StartTime.ToString(@"hh\:mm")</span>
                                         </div>
                                         <div class="flex items-center justify-between">
                                             <span class="text-sm text-muted-foreground">Trạng thái</span>
@@ -289,7 +289,6 @@
     // Lists for main content
     private List<QueueTicket> _testingTickets = new();
     private List<QueueTicket> _recentCompletedTickets = new();
-    private DoctorShift? _currentShift;
     private int? _currentRoomId;
     private string? _roomName;
     private bool _isLoading = true; // Thêm biến tracking loading state

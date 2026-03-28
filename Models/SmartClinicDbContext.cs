@@ -38,7 +38,6 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<DoctorEvaluation> DoctorEvaluations { get; set; }
 
     public virtual DbSet<ShiftDefinition> ShiftDefinitions { get; set; }
-    public virtual DbSet<Slot> Slots { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
 
@@ -259,10 +258,6 @@ public partial class SmartClinicDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("ShiftDefinitions_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
-
             entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
 
             // Seed Data cho 3 ca mặc định
@@ -273,23 +268,6 @@ public partial class SmartClinicDbContext : DbContext
             );
         });
 
-        modelBuilder.Entity<Slot>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("Slots_pkey");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone");
-
-            entity.HasOne(d => d.DoctorShift).WithMany(p => p.Slots)
-                .HasForeignKey(d => d.DoctorShiftId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("Slots_DoctorShiftId_fkey");
-
-            entity.HasOne(d => d.Patient).WithMany()
-                .HasForeignKey(d => d.PatientId)
-                .HasConstraintName("Slots_PatientId_fkey");
-        });
 
         modelBuilder.Entity<LabPrice>(entity =>
         {
@@ -377,17 +355,20 @@ public partial class SmartClinicDbContext : DbContext
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        // 1. Lấy tất cả các Entity kế thừa từ BaseEntity đang ở trạng thái "Chuẩn bị thêm mới"
-        var entries = ChangeTracker.Entries<BaseEntity>()
-            .Where(e => e.State == EntityState.Added);
-
-        // 2. Tính toán giờ Việt Nam chuẩn (Unspecified để PostgreSQL không chửi)
+        // 1. Lấy tất cả các Entity (kể cả Slot/ShiftDefinition không còn là BaseEntity)
         var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var vnTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone);
         var unspecifiedVnTime = DateTime.SpecifyKind(vnTime, DateTimeKind.Unspecified);
 
-        // 3. Tự động gán giờ cho tất cả
-        foreach (var entry in entries)
+        var baseEntries = ChangeTracker.Entries<BaseEntity>().Where(e => e.State == EntityState.Added);
+        foreach (var entry in baseEntries)
+        {
+            entry.Entity.CreatedAt = unspecifiedVnTime;
+        }
+
+
+        var doctorShiftEntries = ChangeTracker.Entries<DoctorShift>().Where(e => e.State == EntityState.Added);
+        foreach (var entry in doctorShiftEntries)
         {
             entry.Entity.CreatedAt = unspecifiedVnTime;
         }

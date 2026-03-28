@@ -163,14 +163,8 @@ public class DoctorShiftService : IDoctorShiftService
             RoomId = dto.RoomId,
             Date = dto.Date.Date,
             ShiftDefinitionId = dto.ShiftDefinitionId,
-            Capacity = 10,
-            Slots = new List<Slot>()
+            Capacity = 10
         };
-
-        for (int i = 1; i <= shift.Capacity; i++)
-        {
-            shift.Slots.Add(new Slot { SlotNumber = i, IsBooked = false });
-        }
 
         ctx.DoctorShifts.Add(shift);
         await ctx.SaveChangesAsync();
@@ -219,7 +213,7 @@ public class DoctorShiftService : IDoctorShiftService
             {
                 if (update.Id > 0)
                 {
-                    var shift = await ctx.DoctorShifts.Include(s => s.Slots).Include(s => s.ShiftDefinition).FirstOrDefaultAsync(s => s.Id == update.Id);
+                    var shift = await ctx.DoctorShifts.Include(s => s.ShiftDefinition).FirstOrDefaultAsync(s => s.Id == update.Id);
                     if (shift != null)
                     {
                         if (shift.ComputedStatus == "Đã hoàn thành")
@@ -227,12 +221,6 @@ public class DoctorShiftService : IDoctorShiftService
                             return (false, $"Không thể xóa ca trực ngày {shift.Date:dd/MM/yyyy} vì ca trực này đã hoàn thành.");
                         }
 
-                        // Kiểm tra xem đã có bệnh nhân book chưa
-                        if (shift.Slots.Any(slot => slot.IsBooked))
-                        {
-                            return (false, $"Không thể xóa ca trực ngày {shift.Date:dd/MM/yyyy} vì đã có bệnh nhân đặt khám.");
-                        }
-                        ctx.Slots.RemoveRange(shift.Slots);
                         ctx.DoctorShifts.Remove(shift);
                     }
                 }
@@ -254,13 +242,8 @@ public class DoctorShiftService : IDoctorShiftService
                         RoomId = update.RoomId,
                         Date = update.Date.Date,
                         ShiftDefinitionId = update.ShiftDefinitionId,
-                        Capacity = 10,
-                        Slots = new List<Slot>()
+                        Capacity = 10
                     };
-                    for (int i = 1; i <= shift.Capacity; i++)
-                    {
-                        shift.Slots.Add(new Slot { SlotNumber = i, IsBooked = false });
-                    }
                     ctx.DoctorShifts.Add(shift);
                 }
                 else
