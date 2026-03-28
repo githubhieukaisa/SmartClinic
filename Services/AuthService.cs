@@ -1,4 +1,4 @@
-using BCrypt.Net;
+﻿using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
@@ -41,8 +41,20 @@ namespace SmartClinic.Services
 
         public async Task<AuthResponse?> LoginAsync(string usernameOrEmail, string password)
         {
+            var normalizedIdentifier = usernameOrEmail?.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedIdentifier) || string.IsNullOrWhiteSpace(password))
+            {
+                return null;
+            }
+
+            var normalizedIdentifierLower = normalizedIdentifier.ToLowerInvariant();
+
             var user = await _context.Users.FirstOrDefaultAsync(u =>
-                (u.Username == usernameOrEmail || u.Email == usernameOrEmail) && u.IsActive == true);
+                u.IsActive == true &&
+                (
+                    u.Username.Trim().ToLower() == normalizedIdentifierLower ||
+                    (u.Email != null && u.Email.Trim().ToLower() == normalizedIdentifierLower)
+                ));
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
                 return null;
 
@@ -340,6 +352,8 @@ namespace SmartClinic.Services
                     Message = "OTP không đúng. Vui lòng kiểm tra lại."
                 };
             }
+
+            Console.WriteLine("OTP verified successfully for user ID: {0}, new password set {1}", user.Id, newPassword);
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
             user.RefreshToken = null;

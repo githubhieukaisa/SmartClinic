@@ -196,6 +196,10 @@
             await Task.Delay(1300);
             NavigationManager.NavigateTo("/login");
         }
+        catch (NavigationException)
+        {
+            //Allow navigation exception
+        }
         catch (Exception ex)
         {
             errorMessage = "Lỗi hệ thống: " + ex.Message;

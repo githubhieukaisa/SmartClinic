@@ -17,6 +17,9 @@ namespace SmartClinic.Services
         /// <summary>Cập nhật thông tin user (không đổi password).</summary>
         Task<bool> UpdateUserAsync(int id, EditUserDto dto);
 
+        /// <summary>Cập nhật hồ sơ người dùng hiện tại (có thể đổi mật khẩu).</summary>
+        Task<ProfileUpdateResult> UpdateProfileAsync(int id, ProfileUpdateDto dto);
+
         /// <summary>Bật/tắt trạng thái IsActive (soft disable).</summary>
         Task<bool> ToggleActiveAsync(int id);
 
