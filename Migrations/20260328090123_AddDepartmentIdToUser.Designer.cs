@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260328090123_AddDepartmentIdToUser")]
+    partial class AddDepartmentIdToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 28, 16, 43, 15, 457, DateTimeKind.Local).AddTicks(6093),
+                            CreatedAt = new DateTime(2026, 3, 28, 16, 1, 22, 126, DateTimeKind.Local).AddTicks(9252),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
                 });
@@ -143,9 +146,6 @@ namespace SmartClinic.Migrations
                         .HasColumnType("date");
 
                     b.Property<int>("DoctorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RemainCapacity")
                         .HasColumnType("integer");
 
                     b.Property<int>("RoomId")
@@ -530,9 +530,6 @@ namespace SmartClinic.Migrations
                     b.Property<int?>("DoctorId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("DoctorShiftId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("MissCount")
                         .HasColumnType("integer");
 
@@ -566,8 +563,6 @@ namespace SmartClinic.Migrations
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("DoctorId");
-
-                    b.HasIndex("DoctorShiftId");
 
                     b.HasIndex("PatientId");
 
@@ -943,12 +938,6 @@ namespace SmartClinic.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("QueueTickets_DoctorId_fkey");
 
-                    b.HasOne("SmartClinic.Models.DoctorShift", "DoctorShift")
-                        .WithMany()
-                        .HasForeignKey("DoctorShiftId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("QueueTickets_DoctorShiftId_fkey");
-
                     b.HasOne("SmartClinic.Models.User", "PatientUser")
                         .WithMany("PatientTickets")
                         .HasForeignKey("PatientId")
@@ -970,8 +959,6 @@ namespace SmartClinic.Migrations
                     b.Navigation("CreatedByUser");
 
                     b.Navigation("Doctor");
-
-                    b.Navigation("DoctorShift");
 
                     b.Navigation("PatientUser");
 

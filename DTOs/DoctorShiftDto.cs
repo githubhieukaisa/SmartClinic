@@ -49,3 +49,57 @@ public class DoctorShiftWeeklyUpdateDto
     public int ShiftDefinitionId { get; set; }
     public bool IsDeleted { get; set; }
 }
+
+/// <summary>
+/// DTO cho yêu cầu phân lịch tự động.
+/// Admin chọn khoảng ngày, danh sách bác sĩ, phòng, ca muốn phân.
+/// </summary>
+public class AutoScheduleRequestDto
+{
+    [Required(ErrorMessage = "Vui lòng chọn ngày bắt đầu")]
+    public DateTime FromDate { get; set; } = DateTime.Today;
+
+    [Required(ErrorMessage = "Vui lòng chọn ngày kết thúc")]
+    public DateTime ToDate { get; set; } = DateTime.Today.AddDays(6);
+
+    /// <summary>Danh sách ID bác sĩ tham gia phân lịch</summary>
+    public List<int> SelectedDoctorIds { get; set; } = new();
+
+    /// <summary>Danh sách ID phòng khám cần phân</summary>
+    public List<int> SelectedRoomIds { get; set; } = new();
+
+    /// <summary>Danh sách ID ca trực cần phân</summary>
+    public List<int> SelectedShiftDefinitionIds { get; set; } = new();
+
+    /// <summary>Có ghi đè lên ca đã có sẵn không? Mặc định: không (chỉ điền ô trống)</summary>
+    public bool OverwriteExisting { get; set; } = false;
+}
+
+/// <summary>
+/// Một ô trong kết quả preview phân lịch tự động.
+/// </summary>
+public class AutoSchedulePreviewItemDto
+{
+    public int DoctorId { get; set; }
+    public string DoctorName { get; set; } = string.Empty;
+    public int RoomId { get; set; }
+    public string RoomName { get; set; } = string.Empty;
+    public DateTime Date { get; set; }
+    public int ShiftDefinitionId { get; set; }
+    public string ShiftName { get; set; } = string.Empty;
+
+    /// <summary>true nếu ô này ghi đè ca cũ (chỉ khi OverwriteExisting = true)</summary>
+    public bool IsOverwrite { get; set; }
+}
+
+/// <summary>
+/// Kết quả sau khi xác nhận lưu phân lịch tự động.
+/// </summary>
+public class AutoScheduleResultDto
+{
+    public bool Success { get; set; }
+    public string Error { get; set; } = string.Empty;
+    public int TotalCreated { get; set; }
+    public int TotalSkipped { get; set; }
+    public string Summary { get; set; } = string.Empty;
+}

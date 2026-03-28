@@ -187,6 +187,12 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.Username).HasMaxLength(50);
             entity.Property(e => e.Address).HasMaxLength(255);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
+
+            entity.HasOne(e => e.Department)
+                .WithMany()
+                .HasForeignKey(e => e.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("Users_DepartmentId_fkey");
         });
 
         modelBuilder.Entity<LabTest>(entity =>
