@@ -509,17 +509,26 @@ namespace SmartClinic.Services
 
         private async Task<(int? RoomId, string? RoomName)> GetDoctorRoomContextAsync(User user)
         {
-            var activeShift = await _context.DoctorShifts
-                .Include(s => s.Room)
-                .AsNoTracking() // Dùng AsNoTracking cho an toàn vì context thường dùng cho Auth
-                .FirstOrDefaultAsync(s => s.DoctorId == user.Id && s.StatusEnum == DoctorShiftStatus.Active);
-
-            if (activeShift is not null)
+            const int DoctorRoleMask = 2;
+            if ((user.RoleMask & DoctorRoleMask) != DoctorRoleMask)
             {
-                return (activeShift.RoomId, activeShift.Room.Name);
+                return (null, null);
             }
+            //Chờ sửa thêm ca thời gian để lấy ca trực đang diễn ra, tạm thời lấy ca trực có trạng thái Active (đang diễn ra)
 
-            return (null, null);
+            var activeShift = await _context.DoctorShifts
+                .AsNoTracking()
+                .Where(s => s.DoctorId == user.Id && s.StatusEnum == DoctorShiftStatus.Active)
+                .Select(s => new
+                {
+                    s.RoomId,
+                    RoomName = s.Room.Name
+                })
+                .FirstOrDefaultAsync();
+
+            return activeShift is null
+                ? (null, null)
+                : (activeShift.RoomId, activeShift.RoomName);
         }
 
         private sealed class PasswordResetOtpSession
