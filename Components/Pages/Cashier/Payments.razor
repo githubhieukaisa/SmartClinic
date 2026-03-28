@@ -4,11 +4,13 @@
 @using SmartClinic.Services
 @using SmartClinic.Components.Layout
 @using Blazored.Toast.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @rendermode InteractiveServer
 @attribute [Authorize(Policy = "CashierPolicy")]
 @inject ICashierService CashierService
 @inject IToastService ToastService
 @inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="p-8">
     <div class="flex items-center justify-between mb-8">
@@ -169,7 +171,7 @@
                                 </td>
                                 <td class="py-3 px-4">
                                     <div class="flex items-center justify-center gap-2">
-                                        <button @onclick="@(() => PayCashAsync(currentId))"
+                                        <button @onclick="@(() => OpenPaymentModal(item))"
                                                 disabled="@(_processing.Contains(currentId))"
                                                 class="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-95">
                                             @if (_processing.Contains(currentId))
@@ -179,7 +181,7 @@
                                             else
                                             {
                                                 <i class="ph ph-money"></i>
-                                                <span>Tiền mặt</span>
+                                                <span>Thanh toán</span>
                                             }
                                         </button>
                                         <button @onclick="@(() => PayVNPay(item))"
@@ -244,13 +246,85 @@
     </div>
 </div>
 
+@if (_showPaymentModal && _selectedPrescription != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @onclick="ClosePaymentModal">
+        <div class="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 flex flex-col overflow-hidden"
+             @onclick:stopPropagation="true">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+                <h2 class="text-lg font-bold text-foreground">Xác nhận thanh toán</h2>
+                <button class="p-2 rounded-lg hover:bg-muted transition text-muted-foreground" @onclick="ClosePaymentModal">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div class="text-center mb-6">
+                    <p class="text-sm text-muted-foreground">Tổng tiền cần thanh toán</p>
+                    <p class="text-3xl font-black text-green-700">@_selectedPrescription.TotalAmount.ToString("N0")đ</p>
+                    <p class="text-xs font-medium text-foreground mt-1">Bệnh nhân: @_selectedPrescription.PatientName</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-1">Số tiền khách đưa (Tiền mặt)</label>
+                    <div class="relative">
+                        <input type="number" 
+                               class="w-full pl-4 pr-12 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary font-bold text-lg text-foreground bg-background"
+                               @bind="_amountReceived" @bind:event="oninput" min="0" />
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 font-semibold text-muted-foreground">VNĐ</span>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-muted/30 rounded-xl border border-border space-y-2">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-muted-foreground font-medium">Tiền thối lại:</span>
+                        <span class="font-bold @(_changeAmount < 0 ? "text-red-500" : "text-foreground")">
+                            @(_changeAmount < 0 ? "Khách đưa thiếu" : _changeAmount.ToString("N0") + "đ")
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-border bg-muted/10 flex justify-end gap-3">
+                <button @onclick="ClosePaymentModal" class="px-5 py-2.5 rounded-xl border border-border font-medium text-foreground hover:bg-muted transition">
+                    Hủy
+                </button>
+                <button @onclick="ConfirmCashPaymentAsync" 
+                        disabled="@(_amountReceived < _selectedPrescription.TotalAmount || _processing.Contains(_selectedPrescription.TicketId))"
+                        class="px-5 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold transition disabled:opacity-50 flex items-center gap-2">
+                    @if (_processing.Contains(_selectedPrescription.TicketId))
+                    {
+                        <i class="ph ph-spinner-gap animate-spin"></i>
+                    }
+                    else
+                    {
+                        <i class="ph ph-check-circle"></i>
+                    }
+                    Hoàn tất thu tiền
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<PrescriptionQueueDto>? _prescriptions;
     private HashSet<int> _processing = new();
     private HashSet<int> _expanded = new();
+    
+    // Payment Modal State
+    private bool _showPaymentModal = false;
+    private PrescriptionQueueDto? _selectedPrescription;
+    private decimal _amountReceived = 0;
+    private decimal _changeAmount => _selectedPrescription != null ? _amountReceived - _selectedPrescription.TotalAmount : 0;
+    private int _cashierId;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (idClaim != null) int.TryParse(idClaim.Value, out _cashierId);
+
         var uri = new Uri(Nav.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
 
@@ -281,24 +355,49 @@
             _expanded.Add(id);
     }
 
-    private async Task PayCashAsync(int prescriptionId)
+    private void OpenPaymentModal(PrescriptionQueueDto item)
     {
-        _processing.Add(prescriptionId);
+        _selectedPrescription = item;
+        _amountReceived = item.TotalAmount; // Gợi ý mặc định
+        _showPaymentModal = true;
+    }
+
+    private void ClosePaymentModal()
+    {
+        _showPaymentModal = false;
+        _selectedPrescription = null;
+        _amountReceived = 0;
+    }
+
+    private async Task ConfirmCashPaymentAsync()
+    {
+        if (_selectedPrescription == null || _amountReceived < _selectedPrescription.TotalAmount) return;
+
+        int presId = _selectedPrescription.PrescriptionId;
+        _processing.Add(presId);
         StateHasChanged();
 
-        var result = await CashierService.ProcessPaymentAsync(prescriptionId);
+        var request = new SmartClinic.DTOs.ProcessPaymentRequestDto
+        {
+            TicketId = _selectedPrescription.TicketId,
+            PaymentMethod = "Cash",
+            AmountReceived = _amountReceived
+        };
 
-        _processing.Remove(prescriptionId);
+        var result = await CashierService.ProcessPaymentAsync(request, _cashierId);
+
+        _processing.Remove(presId);
 
         if (result.Success)
         {
-            ToastService.ShowSuccess("Đã xác nhận thanh toán tiền mặt!");
-            _prescriptions?.RemoveAll(p => p.PrescriptionId == prescriptionId);
-            _expanded.Remove(prescriptionId);
+            ToastService.ShowSuccess("Đã xác nhận thanh toán tiền mặt thành công!");
+            _prescriptions?.RemoveAll(p => p.PrescriptionId == presId);
+            _expanded.Remove(presId);
+            ClosePaymentModal();
         }
         else
         {
-            ToastService.ShowError(result.ErrorMessage);
+            ToastService.ShowError(result.ErrorMessage ?? "Lỗi không xác định");
         }
 
         StateHasChanged();

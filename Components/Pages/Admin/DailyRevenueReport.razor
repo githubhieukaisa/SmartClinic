@@ -1,0 +1,162 @@
+@page "/admin/daily-revenue"
+@using Microsoft.AspNetCore.Authorization
+@using SmartClinic.DTOs
+@using SmartClinic.Services
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "AdminPolicy")]
+@inject ICashierService CashierService
+
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-foreground">Báo Cáo Doanh Thu</h1>
+            <p class="text-sm text-muted-foreground mt-1">Quản lý và thống kê tiền thu trong ngày</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <input type="date" class="px-4 py-2 bg-card border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                   @bind="_selectedDate" @bind:event="onchange" />
+            <button @onclick="LoadDataAsync" class="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-90 transition">
+                <i class="ph ph-arrows-clockwise font-bold mr-1"></i> Làm mới
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex flex-col items-center justify-center p-12">
+            <i class="ph ph-spinner-gap text-4xl text-primary animate-spin mb-4"></i>
+            <p class="text-sm text-muted-foreground">Đang tổng hợp dữ liệu...</p>
+        </div>
+    }
+    else if (_payments == null || !_payments.Any())
+    {
+        <div class="bg-card border border-border rounded-2xl flex flex-col items-center justify-center p-16 text-center shadow-sm">
+            <i class="ph ph-chart-line-down text-6xl text-muted-foreground/30 mb-4"></i>
+            <p class="text-lg font-medium text-foreground">Không có doanh thu</p>
+            <p class="text-sm text-muted-foreground/80 mt-1">Không có giao dịch thanh toán nào được thực hiện trong ngày này.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                <p class="text-sm text-muted-foreground font-medium mb-1">Tổng Giao Dịch</p>
+                <p class="text-3xl font-black text-foreground">@_payments.Count</p>
+            </div>
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                <p class="text-sm text-muted-foreground font-medium mb-1">Tổng Doanh Thu</p>
+                <p class="text-3xl font-black text-primary">@_payments.Sum(p => p.TotalAmount).ToString("N0")đ</p>
+            </div>
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm border-l-4 border-l-green-500">
+                <p class="text-sm text-muted-foreground font-medium mb-1">Tiền Mặt (Cash)</p>
+                <p class="text-3xl font-black text-green-600">@_payments.Where(p => p.PaymentMethod == "Cash").Sum(p => p.TotalAmount).ToString("N0")đ</p>
+            </div>
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm border-l-4 border-l-blue-500">
+                <p class="text-sm text-muted-foreground font-medium mb-1">Chuyển Khoản (VNPay)</p>
+                <p class="text-3xl font-black text-blue-600">@_payments.Where(p => p.PaymentMethod == "VNPay").Sum(p => p.TotalAmount).ToString("N0")đ</p>
+            </div>
+        </div>
+
+        <!-- Group by Cashier -->
+        <div class="bg-card border border-border rounded-2xl shadow-sm overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-border bg-muted/20">
+                <h3 class="font-bold text-foreground">Thống kê theo Thu Ngân</h3>
+            </div>
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="bg-muted text-muted-foreground font-medium border-b border-border">
+                        <th class="p-4">Thu Ngân</th>
+                        <th class="p-4 text-center">Số giao dịch</th>
+                        <th class="p-4 text-right">Tổng Tiền Mặt</th>
+                        <th class="p-4 text-right">Tổng VNPay</th>
+                        <th class="p-4 text-right">Tổng Thu</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                    @foreach (var group in _payments.GroupBy(p => p.CashierName))
+                    {
+                        var cashSum = group.Where(g => g.PaymentMethod == "Cash").Sum(g => g.TotalAmount);
+                        var vnpaySum = group.Where(g => g.PaymentMethod == "VNPay").Sum(g => g.TotalAmount);
+                        var totalSum = group.Sum(g => g.TotalAmount);
+                        
+                        <tr class="hover:bg-muted/10 transition">
+                            <td class="p-4 text-foreground font-bold flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                    <i class="ph ph-user"></i>
+                                </div>
+                                @group.Key
+                            </td>
+                            <td class="p-4 text-center text-foreground font-medium">@group.Count()</td>
+                            <td class="p-4 text-right text-green-600 font-semibold">@cashSum.ToString("N0")đ</td>
+                            <td class="p-4 text-right text-blue-600 font-semibold">@vnpaySum.ToString("N0")đ</td>
+                            <td class="p-4 text-right text-foreground font-black">@totalSum.ToString("N0")đ</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Detailed Transactions List -->
+        <div class="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+             <div class="px-6 py-4 border-b border-border bg-muted/20">
+                <h3 class="font-bold text-foreground">Chứng từ chi tiết</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-muted text-muted-foreground font-medium border-b border-border">
+                            <th class="p-4">Mã GD</th>
+                            <th class="p-4">Thời gian</th>
+                            <th class="p-4">Bệnh nhân</th>
+                            <th class="p-4">Thu Ngân</th>
+                            <th class="p-4">HTTT</th>
+                            <th class="p-4 text-right">Số tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach (var p in _payments)
+                        {
+                            <tr class="hover:bg-muted/10 transition">
+                                <td class="p-4 text-muted-foreground font-mono text-xs">#@p.PaymentId.ToString("D5")</td>
+                                <td class="p-4 text-foreground font-medium">@p.PaymentTime.ToLocalTime().ToString("HH:mm:ss")</td>
+                                <td class="p-4 text-foreground">@p.PatientName</td>
+                                <td class="p-4 text-foreground">@p.CashierName</td>
+                                <td class="p-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] sm:text-xs font-semibold uppercase tracking-wider
+                                          @(p.PaymentMethod == "Cash" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700")">
+                                        @p.PaymentMethod
+                                    </span>
+                                </td>
+                                <td class="p-4 text-right font-bold text-foreground">@p.TotalAmount.ToString("N0")đ</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime _selectedDate = DateTime.Today;
+    private bool _isLoading = true;
+    private List<PaymentHistoryDto>? _payments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        // null cashierId implies getting all for Admin
+        _payments = await CashierService.GetPaymentHistoryAsync(_selectedDate, null);
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+}

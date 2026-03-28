@@ -19,7 +19,7 @@ namespace SmartClinic.Services;
 /// </summary>
 public interface IAppointmentService
 {
-    Task<List<AppointmentShiftDto>> GetAvailableShiftsAsync(DateTime? dateFilter, int? doctorFilter, string? searchDoctor);
+    Task<List<AppointmentShiftDto>> GetAvailableShiftsAsync(DateTime? dateFilter, int? doctorFilter, int? departmentFilter, string? searchDoctor);
     Task<List<DoctorFeedbackSummaryDto>> GetDoctorFeedbacksAsync(int doctorId);
     Task<(bool Success, string Message)> BookAppointmentAsync(int patientId, int doctorShiftId);
     Task<(bool Success, string Message)> CancelAppointmentAsync(int patientId, int ticketId);
@@ -42,7 +42,7 @@ public class AppointmentService : IAppointmentService
     // 1. LẤY DANH SÁCH CA KHÁM CÒN CHỖ
     // ══════════════════════════════════════════════════════════
     public async Task<List<AppointmentShiftDto>> GetAvailableShiftsAsync(
-        DateTime? dateFilter, int? doctorFilter, string? searchDoctor)
+        DateTime? dateFilter, int? doctorFilter, int? departmentFilter, string? searchDoctor)
     {
         await using var ctx = await _factory.CreateDbContextAsync();
 
@@ -64,6 +64,10 @@ public class AppointmentService : IAppointmentService
         // Lọc theo bác sĩ
         if (doctorFilter.HasValue && doctorFilter.Value > 0)
             query = query.Where(s => s.DoctorId == doctorFilter.Value);
+
+        // Lọc theo khoa (Department)
+        if (departmentFilter.HasValue && departmentFilter.Value > 0)
+            query = query.Where(s => s.Room.DepartmentId == departmentFilter.Value);
 
         // Tìm kiếm theo tên bác sĩ
         if (!string.IsNullOrWhiteSpace(searchDoctor))

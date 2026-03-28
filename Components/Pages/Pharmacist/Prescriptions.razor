@@ -145,7 +145,7 @@
                                 </td>
                                 <td class="py-3 px-5 text-center">
                                     <span class="inline-flex items-center justify-center w-8 h-8 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">
-                                        @p.TicketNumber
+                                        @p.PrescriptionId
                                     </span>
                                 </td>
                                 <td class="py-3 px-5">
@@ -174,6 +174,8 @@
                                                 <span class="text-xs text-foreground">@d.MedicineName</span>
                                             </div>
                                         }
+                                        @if (p.Details.Count > 2)
+                                        {
                                             <p class="text-xs text-muted-foreground">+@(p.Details.Count - 2) loại khác</p>
                                         }
                                     </div>

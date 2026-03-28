@@ -44,4 +44,6 @@ public partial class QueueTicket : BaseEntity
 
     public int? DoctorShiftId { get; set; }
     public virtual DoctorShift? DoctorShift { get; set; }
+
+    public virtual ICollection<SmartClinic.Models.Entites.Payment> Payments { get; set; } = new List<SmartClinic.Models.Entites.Payment>();
 }

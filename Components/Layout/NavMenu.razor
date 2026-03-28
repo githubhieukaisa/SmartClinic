@@ -77,6 +77,10 @@
 					<i class="ph ph-money text-lg"></i>
 					<span>Thanh toán</span>
 				</NavLink>
+				<NavLink class="@baseClass" href="/cashier/payment-history" Match="NavLinkMatch.All">
+					<i class="ph ph-clock-counter-clockwise text-lg"></i>
+					<span>Lịch sử giao dịch</span>
+				</NavLink>
 			</Authorized>
 		</AuthorizeView>
 
@@ -101,6 +105,11 @@
 				<NavLink class="@baseClass" href="/admin/statistics" Match="NavLinkMatch.All">
 					<i class="ph ph-chart-bar text-lg"></i>
 					<span>Thống kê</span>
+				</NavLink>
+
+				<NavLink class="@baseClass" href="/admin/daily-revenue" Match="NavLinkMatch.All">
+					<i class="ph ph-chart-line-up text-lg"></i>
+					<span>Báo cáo doanh thu</span>
 				</NavLink>
 
 				<NavLink class="@baseClass" href="hangfire">
