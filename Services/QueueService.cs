@@ -47,10 +47,11 @@ namespace SmartClinic.Services
                 })
                 .FirstOrDefaultAsync();
 
-            // 3. TÌM DANH SÁCH CHỜ
+            // 3. TÌM DANH SÁCH CHỜ (Chờ thường + Khẩn cấp)
             var nextTickets = await context.QueueTickets
-                .Where(t => t.RoomId == roomId && t.StatusEnum == TicketStatus.Waiting && t.CreatedAt.Date == today)
-                .OrderBy(t => t.CreatedAt)
+                .Where(t => t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency) && t.CreatedAt.Date == today)
+                .OrderByDescending(t => t.StatusEnum == TicketStatus.Emergency) // Khẩn cấp lên đầu
+                .ThenBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
                 .Take(_displayCount)
                 .Select(t => t.TicketNumber.ToString())
@@ -60,10 +61,10 @@ namespace SmartClinic.Services
             return new QueueDisplayDto
             {
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
-                RoomName = activeShift?.Room.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
+                RoomName = activeShift?.Room?.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
                 DoctorName = activeShift != null ? $"BS. {activeShift.Doctor.FullName}" : "Phòng đang trống",
                 PatientName = currentCall != null ? currentCall.PatientName : "Không có bệnh nhân",
-                Specialty = activeShift?.Room.Department?.Name ?? "",
+                Specialty = activeShift?.Room?.Department?.Name ?? "",
                 NextTickets = nextTickets
             };
         }
@@ -119,10 +120,12 @@ namespace SmartClinic.Services
                 }
             }
 
-            // 2. Tìm bệnh nhân tiếp theo đang chờ
+            // 2. Tìm bệnh nhân tiếp theo đang chờ (Ưu tiên Emergency)
             var nextPatient = await context.QueueTickets
-                .Where(t => t.StatusEnum == TicketStatus.Waiting && t.CreatedAt.Date == today && t.RoomId == roomId)
-                .OrderBy(t => t.CreatedAt)
+                .Where(t => (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
+                            && t.CreatedAt.Date == today && t.RoomId == roomId)
+                .OrderByDescending(t => t.StatusEnum == TicketStatus.Emergency) // Khẩn cấp lên đầu
+                .ThenBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
                 .FirstOrDefaultAsync();
 

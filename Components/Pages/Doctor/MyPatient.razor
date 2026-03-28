@@ -89,6 +89,16 @@
                         <i class="ph ph-arrows-clockwise"></i>
                         Làm mới
                     </button>
+                    <button @onclick="() => AddTestTicketAsync(false)"
+                            class="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+                        <i class="ph ph-plus-circle"></i>
+                        + Thường (Dev)
+                    </button>
+                    <button @onclick="() => AddTestTicketAsync(true)"
+                            class="flex items-center gap-2 px-4 py-2 bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400 rounded-lg text-sm font-medium hover:bg-rose-200 dark:hover:bg-rose-900/30 transition">
+                        <i class="ph ph-lightning"></i>
+                        + Khẩn Cấp (Dev)
+                    </button>
                 </div>
         </div>
 
@@ -221,7 +231,7 @@
     }
 
     private int TotalCount => _queueTickets?.Count ?? 0;
-    private int WaitingCount => _queueTickets?.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) ?? 0;
+    private int WaitingCount => _queueTickets?.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency) ?? 0;
     private int InProgressCount => _queueTickets?.Count(t => t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing) ?? 0;
     private int WaitingPct => TotalCount > 0 ? WaitingCount * 100 / TotalCount : 0;
     private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
@@ -399,6 +409,7 @@
         TicketStatus.Calling => "bg-orange-100 text-orange-700",
         TicketStatus.Waiting => "bg-amber-100 text-amber-700",
         TicketStatus.Testing => "bg-purple-100 text-purple-700",
+        TicketStatus.Emergency => "bg-rose-100 text-rose-700 font-bold",
         TicketStatus.Missed => "bg-red-100 text-red-700",
         TicketStatus.Cancelled => "bg-slate-100 text-slate-700",
         _ => "bg-gray-100 text-gray-700"
@@ -412,6 +423,7 @@
         TicketStatus.Calling => "bg-orange-50",
         TicketStatus.Waiting => "bg-amber-50",
         TicketStatus.Testing => "bg-purple-50",
+        TicketStatus.Emergency => "bg-rose-50/50",
         TicketStatus.Missed => "bg-red-50",
         TicketStatus.Cancelled => "bg-slate-50",
         _ => ""
@@ -425,32 +437,40 @@
         TicketStatus.Testing => "Đang xét nghiệm",
         TicketStatus.Completed => "Đã khám xong",
         TicketStatus.Done => "Hoàn tất",
+        TicketStatus.Emergency => "Trạng thái khẩn cấp",
         TicketStatus.Missed => "Trễ hẹn",
         TicketStatus.Cancelled => "Đã hủy",
         _ => status.ToString()
     };
 
-    private async Task AddTestQueueTicketAsync()
+    private async Task AddTestTicketAsync(bool isEmergency)
     {
         try
         {
+            if (!_currentRoomId.HasValue) 
+                return;
+
             using var context = DbFactory.CreateDbContext();
             var room = await context.Rooms.FindAsync(_currentRoomId.Value);
             if (room == null) return;
 
-            await TicketService.GenerateTicketAsync(
-                $"Bệnh nhân mẫu {DateTime.Now:HHmmss}",
-                "0123456789",
-                room.DepartmentId
-            );
+            var ticketStatus = isEmergency ? TicketStatus.Emergency : TicketStatus.Waiting;
+            var prefix = isEmergency ? "[KHẨN CẤP]" : "[Test]";
 
-            _showNotification = true;
-            StateHasChanged();
-            await Task.Delay(3000);
-            _showNotification = false;
-            StateHasChanged();
+            await TicketService.GenerateTicketAsync(new SmartClinic.DTOs.GenerateTicketRequest
+            {
+                PatientName = $"{prefix} BN {DateTime.Now:HH:mm:ss}",
+                PatientPhone = "",
+                DepartmentId = room.DepartmentId,
+                StatusEnum = ticketStatus
+            });
+
+            ToastService.ShowSuccess(isEmergency ? "Đã thêm bệnh nhân khẩn cấp!" : "Đã thêm bệnh nhân thường!");
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Lỗi: {ex.Message}");
+        }
     }
 
     private Task OnExaminePatientAsync(int ticketId, int? patientId)

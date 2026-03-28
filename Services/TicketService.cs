@@ -39,15 +39,15 @@ namespace SmartClinic.Services
 
         public async Task<QueueTicket> GenerateTicketAsync(GenerateTicketRequest request)
         {
-            return await GenerateTicketAsync(request.PatientName, request.PatientPhone, request.DepartmentId, request.UserId, request.PatientGender);
+            return await GenerateTicketAsync(request.PatientName, request.PatientPhone ?? string.Empty, request.DepartmentId, request.UserId, request.PatientGender, request.StatusEnum);
         }
 
         public async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId = null)
         {
-            return await GenerateTicketAsync(patientName, patientPhone, departmentId, userId, true);
+            return await GenerateTicketAsync(patientName, patientPhone, departmentId, userId, true, TicketStatus.Waiting);
         }
 
-        private async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId, bool patientGender)
+        private async Task<QueueTicket> GenerateTicketAsync(string patientName, string patientPhone, int departmentId, int? userId, bool patientGender, TicketStatus status = TicketStatus.Waiting)
         {
             User? patient = null;
             patientPhone = patientPhone?.Trim();
@@ -109,7 +109,7 @@ namespace SmartClinic.Services
                         Room = r,
                         WaitingCount = _context.QueueTickets.Count(t =>
                            t.RoomId == r.Id &&
-                           t.StatusEnum == TicketStatus.Waiting &&
+                           (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency) &&
                            t.CreatedAt.Date == todayDate) // Lọc chờ theo ngày
                     })
                     .OrderBy(x => x.WaitingCount)
@@ -132,7 +132,7 @@ namespace SmartClinic.Services
                 {
                     PatientId = patient.Id,
                     TicketNumber = nextTicketNumber,
-                    StatusEnum = TicketStatus.Waiting,
+                    StatusEnum = status,
                     RoomId = selectedRoomInfo.Room.Id,
                     CreatedAt = DateTime.UtcNow,
                     Room = selectedRoomInfo.Room,

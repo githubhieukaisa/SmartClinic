@@ -92,7 +92,7 @@ public class DoctorShiftService : IDoctorShiftService
         return await ctx.Users
             .AsNoTracking()
             .Include(u => u.Department)
-            .Where(u => (u.RoleMask & 2) == 2 && u.IsActive == true)
+            .Where(u => ((u.RoleMask & 2) == 2 || (u.RoleMask & 32) == 32) && u.IsActive == true)
             .OrderBy(u => u.FullName)
             .ToListAsync();
     }
@@ -109,8 +109,7 @@ public class DoctorShiftService : IDoctorShiftService
         return await ctx.Rooms
             .AsNoTracking()
             .Include(r => r.Department)
-            .Where(r => (r.Flags & RoomFlags.IsActive) != 0
-                     && (r.Flags & RoomFlags.IsLab) == 0)
+            .Where(r => (r.Flags & RoomFlags.IsActive) != 0)
             .OrderBy(r => r.Department.Name)
             .ThenBy(r => r.Name)
             .ToListAsync();
@@ -309,7 +308,7 @@ public class DoctorShiftService : IDoctorShiftService
             .AsNoTracking()
             .Where(u => request.SelectedDoctorIds.Contains(u.Id))
             .OrderBy(u => u.FullName)
-            .Select(u => new { u.Id, u.FullName, u.DepartmentId })
+            .Select(u => new { u.Id, u.FullName, u.DepartmentId, u.RoleMask })
             .ToListAsync();
 
         var selectedRooms = await ctx.Rooms
@@ -381,12 +380,19 @@ public class DoctorShiftService : IDoctorShiftService
                     }
 
                     // ── Tìm bác sĩ phù hợp bằng Round-Robin ──
-                    // Ưu tiên: BS cùng khoa > BS không có khoa (null) > BS khoa khác
+                    // Bác sĩ (Bit 2) chỉ trực phòng Clinic, KTV (Bit 32) chỉ trực phòng Lab
                     var sortedDoctors = selectedDoctors
+                        .Where(d => (room.IsLab && (d.RoleMask & 32) == 32) || (!room.IsLab && (d.RoleMask & 2) == 2))
                         .OrderByDescending(d => d.DepartmentId == room.DepartmentId)
                         .ThenByDescending(d => d.DepartmentId == null)
                         .ThenBy(d => d.FullName)
                         .ToList();
+
+                    if (!sortedDoctors.Any())
+                    {
+                        skipped++;
+                        continue;
+                    }
 
                     bool assigned = false;
                     for (int attempt = 0; attempt < sortedDoctors.Count; attempt++)

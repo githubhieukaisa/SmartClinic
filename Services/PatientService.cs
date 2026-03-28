@@ -188,8 +188,8 @@ namespace SmartClinic.Services
                     .AsNoTracking()
                     .Include(t => t.PatientUser)
                     .Where(t =>
-                        // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi) - Chỉ trong ngày + Phải có Shift
-                        (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) && t.CreatedAt >= today)
+                        // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi, Khẩn cấp) - Chỉ trong ngày + Phải có Shift
+                        (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency) && t.CreatedAt >= today)
                         ||
                         // TH2: Bệnh nhân riêng của bác sĩ (Đang khám, Đang xét nghiệm) - KHÔNG LỌC NGÀY
                         (t.DoctorId == doctorId && (t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing))
@@ -201,7 +201,8 @@ namespace SmartClinic.Services
                     .OrderBy(t =>
                         t.StatusEnum == TicketStatus.Examinating ? 0 :
                         t.StatusEnum == TicketStatus.Testing ? 1 :
-                        t.StatusEnum == TicketStatus.Calling ? 2 : 3)
+                        t.StatusEnum == TicketStatus.Calling ? 2 : 
+                        t.StatusEnum == TicketStatus.Emergency ? 3 : 4)
                     .ThenByDescending(t => t.UpdatedAt ?? t.CreatedAt)
                     .ToList();
 
@@ -370,8 +371,8 @@ namespace SmartClinic.Services
                 .AsNoTracking()
                 .Include(t => t.PatientUser)
                 .Where(t =>
-                    // TH1: Hàng chờ chung của phòng (Waiting/Calling) - Chỉ trong ngày
-                    (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling) && t.CreatedAt >= today)
+                    // TH1: Hàng chờ chung của phòng (Waiting/Calling/Emergency) - Chỉ trong ngày
+                    (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency) && t.CreatedAt >= today)
                     ||
                     // TH2: Bệnh nhân đang khám/xét nghiệm của BS - KHÔNG LỌC NGÀY
                     (t.DoctorId == doctorId && (t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing))
@@ -399,7 +400,7 @@ namespace SmartClinic.Services
             var dashboardTickets = tickets.Where(t => t.CreatedAt >= filterStartDate).ToList();
 
             result.TotalCount = dashboardTickets.Count;
-            result.WaitingCount = dashboardTickets.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling);
+            result.WaitingCount = dashboardTickets.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency);
             result.InProgressCount = dashboardTickets.Count(t => t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing);
 
             result.TestingTickets = tickets

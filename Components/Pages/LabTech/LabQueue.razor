@@ -12,6 +12,8 @@
 @inject ILabService LabService
 @inject IToastService ToastService
 @inject NavigationManager NavigationManager
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthenticationStateProvider
+@inject PatientService PatientService
 
 @implements IAsyncDisposable
 
@@ -40,17 +42,11 @@
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-            @* ── Workplace Selection (Station) ── *@
-            <div class="flex items-center gap-2 mr-4 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
-                <i class="ph ph-hospital text-muted-foreground"></i>
-                <select @bind="SelectedStationId"
-                        class="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer text-foreground p-0">
-                    <option value="0">Tất cả Trạm</option>
-                    @foreach (var station in _stations)
-                    {
-                        <option value="@station.Id">@station.Name</option>
-                    }
-                </select>
+            <div class="flex items-center gap-2 mr-4 bg-primary/5 px-4 py-2 rounded-lg border border-primary/20">
+                <i class="ph ph-hospital text-primary"></i>
+                <span class="text-sm font-bold text-primary">
+                    @(_currentShiftRoomName ?? "Chưa vào ca / Hết ca trực")
+                </span>
             </div>
 
             <div class="flex bg-muted/40 p-1 rounded-lg border border-border gap-0.5">
@@ -69,8 +65,8 @@
             </div>
 
             <button @onclick="LoadDataAsync"
-                    class="flex items-center gap-2 px-4 py-2.5 bg-muted/40 border border-border rounded-lg text-sm font-semibold text-foreground hover:bg-muted transition-all">
-                <i class="ph ph-arrows-clockwise @(_isLoading ? "animate-spin" : "") text-base"></i>
+                    class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                <i class="ph ph-arrows-clockwise @(_isLoading ? "animate-spin" : "")"></i>
                 Làm mới
             </button>
         </div>
@@ -78,21 +74,16 @@
 
     @if (_isLoading)
     {
-        <div
-            class="flex flex-col items-center justify-center p-24 gap-4 bg-card rounded-2xl border border-border shadow-sm">
-            <div class="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-            <p class="text-muted-foreground font-medium">Đang tải dữ liệu...</p>
+        <div class="flex items-center justify-center py-16 gap-3 text-muted-foreground bg-card rounded-xl border border-border shadow-sm">
+            <i class="ph ph-spinner-gap text-2xl animate-spin"></i>
+            <span class="text-sm">Đang tải dữ liệu xét nghiệm...</span>
         </div>
     }
     else if (FilteredOrders == null || !FilteredOrders.Any())
     {
-        <div
-            class="flex flex-col items-center justify-center p-24 gap-4 bg-card rounded-2xl border border-border shadow-sm text-center">
-            <div class="w-20 h-20 bg-muted rounded-full flex items-center justify-center text-muted-foreground/30 mb-2">
-                <i class="ph ph-tray text-5xl"></i>
-            </div>
-            <h3 class="text-xl font-bold text-foreground">Không tìm thấy yêu cầu xét nghiệm</h3>
-            <p class="text-muted-foreground max-w-sm">Hãy thử thay đổi từ khóa hoặc bộ lọc trạng thái của bạn.</p>
+        <div class="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground bg-card rounded-xl border border-border shadow-sm">
+            <i class="ph ph-tray text-4xl"></i>
+            <p class="text-sm font-medium">Hiện tại không có yêu cầu xét nghiệm nào</p>
         </div>
     }
     else
@@ -115,6 +106,8 @@
     private List<Room> _stations = new();
     private bool _isLoading = true;
     private HubConnection? _hubConnection;
+    private string? _currentShiftRoomName;
+    private int? _currentUserId;
 
     // Pagination & Filters
     private int _currentPage = 1;
@@ -135,10 +128,11 @@
     }
 
     private int _selectedStationId = 0;
+    // Removed setter with LoadDataAsync to follow strict pattern
     private int SelectedStationId
     {
         get => _selectedStationId;
-        set { if (_selectedStationId != value) { _selectedStationId = value; _currentPage = 1; } }
+        set { _selectedStationId = value; _currentPage = 1; }
     }
 
     private IEnumerable<LabOrder> FilteredOrders => _labOrders?
@@ -156,6 +150,26 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                _currentUserId = userId;
+
+                // Centralized logic: Tự động lấy phòng/ca trực hiện tại (Bác sĩ hay KTV đều dùng chung pattern này)
+                var activeShift = await PatientService.GetActiveDoctorShiftAsync(userId);
+                if (activeShift != null)
+                {
+                    _selectedStationId = activeShift.RoomId;
+                    _currentShiftRoomName = activeShift.Room?.Name;
+                }
+            }
+        }
+
         await LoadDataAsync();
         _stations = await LabService.GetLabStationsAsync();
 
@@ -186,7 +200,8 @@
         _isLoading = true;
         try
         {
-            _labOrders = await LabService.GetTodayLabOrdersAsync();
+            // Filter strictly by the station ID assigned to the LabTech's shift
+            _labOrders = await LabService.GetTodayLabOrdersAsync(_selectedStationId);
         }
         catch (Exception ex)
         {

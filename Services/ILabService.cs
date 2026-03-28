@@ -10,7 +10,7 @@ public interface ILabService
     Task<List<LabTestDto>> GetAllLabTestsAsync();
     Task CreateLabOrderAsync(int ticketId, List<int> labTestIds);
     Task<List<LabOrder>> GetPendingLabOrdersAsync();
-    Task<List<LabOrder>> GetTodayLabOrdersAsync();
+    Task<List<LabOrder>> GetTodayLabOrdersAsync(int? roomId = null);
     Task<List<Room>> GetLabStationsAsync();
     Task SubmitLabResultAsync(int labOrderDetailId, string resultNotes, string? resultFileUrl, int? performedId = null, string? performedBy = null);
     Task<bool> HasPendingLabOrdersAsync(int ticketId);
