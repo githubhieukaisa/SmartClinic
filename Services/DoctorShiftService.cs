@@ -166,7 +166,8 @@ public class DoctorShiftService : IDoctorShiftService
             RoomId = dto.RoomId,
             Date = dto.Date.Date,
             ShiftDefinitionId = dto.ShiftDefinitionId,
-            Capacity = 10
+            Capacity = 10,
+            RemainCapacity = 10
         };
 
         ctx.DoctorShifts.Add(shift);
@@ -245,7 +246,8 @@ public class DoctorShiftService : IDoctorShiftService
                         RoomId = update.RoomId,
                         Date = update.Date.Date,
                         ShiftDefinitionId = update.ShiftDefinitionId,
-                        Capacity = 10
+                        Capacity = 10,
+                        RemainCapacity = 10
                     };
                     ctx.DoctorShifts.Add(shift);
                 }

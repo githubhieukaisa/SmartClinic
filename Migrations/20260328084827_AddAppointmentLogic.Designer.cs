@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260328084827_AddAppointmentLogic")]
+    partial class AddAppointmentLogic
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 28, 16, 43, 15, 457, DateTimeKind.Local).AddTicks(6093),
+                            CreatedAt = new DateTime(2026, 3, 28, 15, 48, 27, 256, DateTimeKind.Local).AddTicks(5738),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
                 });
@@ -704,9 +707,6 @@ namespace SmartClinic.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("integer");
-
                     b.Property<DateOnly?>("DoB")
                         .HasColumnType("date");
 
@@ -752,8 +752,6 @@ namespace SmartClinic.Migrations
 
                     b.HasKey("Id")
                         .HasName("Users_pkey");
-
-                    b.HasIndex("DepartmentId");
 
                     b.HasIndex(new[] { "Username" }, "Users_Username_key")
                         .IsUnique();
@@ -987,17 +985,6 @@ namespace SmartClinic.Migrations
                         .HasForeignKey("DepartmentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Department");
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.User", b =>
-                {
-                    b.HasOne("SmartClinic.Models.Department", "Department")
-                        .WithMany()
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("Users_DepartmentId_fkey");
 
                     b.Navigation("Department");
                 });
