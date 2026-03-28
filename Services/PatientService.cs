@@ -109,18 +109,19 @@ namespace SmartClinic.Services
         public async Task<DoctorShift?> GetActiveDoctorShiftAsync(int doctorId)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
-            var now = DateTime.Now;
+            var today = DateTime.Today;
 
-            return await context.DoctorShifts
+            var todayShifts = await context.DoctorShifts
                 .AsNoTracking()
+                .Include(s => s.ShiftDefinition)
                 .Include(s => s.Room)
                 .ThenInclude(r => r.Department)
-                .Where(s => s.DoctorId == doctorId
-                         && s.StatusEnum == DoctorShiftStatus.Active
-                         && s.StartTime <= now
-                         && (s.EndTime == null || s.EndTime >= now))
-                .OrderByDescending(s => s.StartTime)
-                .FirstOrDefaultAsync();
+                .Where(s => s.DoctorId == doctorId && s.Date == today)
+                .ToListAsync();
+
+            return todayShifts
+                .OrderByDescending(s => s.Date).ThenByDescending(s => s.ShiftDefinition.StartTime)
+                .FirstOrDefault(s => s.ComputedStatus == "Đang trực");
         }
 
         /// <summary>
@@ -191,11 +192,7 @@ namespace SmartClinic.Services
             try
             {
                 // STEP 1: Get doctor's current active shift to find the room
-                var doctorShift = await context.DoctorShifts
-                    .AsNoTracking()
-                    .Where(ds => ds.DoctorId == doctorId && ds.StatusEnum == DoctorShiftStatus.Active)
-                    .OrderByDescending(ds => ds.StartTime)
-                    .FirstOrDefaultAsync();
+                var doctorShift = await GetActiveDoctorShiftAsync(doctorId);
 
                 if (doctorShift == null)
                 {

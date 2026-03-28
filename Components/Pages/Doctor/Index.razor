@@ -251,7 +251,7 @@
                                         </div>
                                         <div class="flex items-center justify-between mb-3 border-b border-border pb-3">
                                             <span class="text-sm text-muted-foreground">Bắt đầu</span>
-                                            <span class="font-medium text-foreground">@_currentShift.StartTime.ToString("HH:mm")</span>
+                                            <span class="font-medium text-foreground">@_currentShift.ShiftDefinition?.StartTime.ToString(@"hh\:mm")</span>
                                         </div>
                                         <div class="flex items-center justify-between">
                                             <span class="text-sm text-muted-foreground">Trạng thái</span>
@@ -401,44 +401,7 @@
         _ => ""
     };
 
-    // ── TEST ONLY — xóa khi production ─────────────────────────────────────
-    private bool _isAddingTestTicket = false;
 
-    private async Task AddTestQueueTicketAsync()
-    {
-        if (_isAddingTestTicket) return;
-        _isAddingTestTicket = true;
-
-        try
-        {
-            if (_currentDoctorId == 0)
-            {
-                ToastService.ShowError("Cannot determine current doctor. Please re-login.");
-                return;
-            }
-
-            if (_currentRoomId == null)
-            {
-                ToastService.ShowError("Chưa vào ca trực, không thể tạo vé mẫu.");
-                return;
-            }
-
-            await TicketService.GenerateTicketAsync(
-                $"Bệnh nhân mẫu {DateTime.Now:HHmmss}",
-                "0900000000",
-                _currentShift?.Room?.DepartmentId ?? 1
-            );
-            ToastService.ShowSuccess("Thêm vé mẫu thành công.");
-        }
-        catch (Exception ex)
-        {
-            ToastService.ShowError($"Lỗi khi tải mẫu: {ex.Message}");
-        }
-        finally
-        {
-            _isAddingTestTicket = false;
-        }
-    }
 
     private void OpenWaitingRoom()
     {
@@ -453,56 +416,4 @@
             ToastService.ShowError("Bạn chưa được phân phòng, không thể mở màn hình chờ.");
         }
     }
-
-    private async Task SimulateShiftChangeAsync()
-    {
-        try
-        {
-            if (_currentDoctorId <= 0)
-            {
-                ToastService.ShowError("Chưa xác nhận được DoctorId, vui lòng tải lại trang.");
-                return;
-            }
-            var now = DateTime.Now;
-
-            // 1. Lấy tất cả ca trực đang diễn ra và ĐÓNG lại (Completed)
-            using var context = DbFactory.CreateDbContext();
-            var currentShifts = await context.DoctorShifts
-                .Where(s => s.DoctorId == _currentDoctorId && s.StatusEnum == DoctorShiftStatus.Active)
-                .ToListAsync();
-
-            foreach (var shift in currentShifts)
-            {
-                shift.StatusEnum = DoctorShiftStatus.Completed;
-                if (shift.EndTime == null || shift.EndTime > now)
-                {
-                    shift.EndTime = now; // Ép kết thúc tại thời điểm hiện tại
-                }
-            }
-
-            // 🐛 [FIX LỖI SUPABASE/POSTGRES BỊ KẸT SEQUENCE]
-            // Tìm số ID to nhất đang có trong DB và cộng thêm 1 để ép vô thẳng khoá chính
-            var maxId = await context.DoctorShifts.MaxAsync(s => (int?)s.Id) ?? 0;
-            // Giả lập 1 phút nữa Bác sĩ _currentDoctorId sẽ phải chạy sang trực Phòng số 6
-            var fakeShift = new DoctorShift
-            {
-                Id = maxId + 1, // Ép mã tránh đụng độ bộ đếm
-                DoctorId = _currentDoctorId,
-                RoomId = 6, // Nếu DB bạn đang ko có Room 6, báo lỗi foreign key. Bạn có thể sửa tên mã này.
-                StartTime = now.AddSeconds(15), // Đúng 60 giây nữa bắt đầu tính ca
-                EndTime = now.AddHours(4),
-                StatusEnum = DoctorShiftStatus.Active
-            };
-            context.DoctorShifts.Add(fakeShift);
-            await context.SaveChangesAsync();
-            ToastService.ShowInfo($"Đã xếp lịch: Ca trực ảo tại Phòng 6 sẽ bắt đầu lúc {fakeShift.StartTime.ToString("HH:mm:ss")}. (hãy đợi và kiểm tra log console!)");
-        }
-        catch (Exception ex)
-        {
-            ToastService.ShowError("Có lỗi: " + ex.Message);
-        }
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
-
 }

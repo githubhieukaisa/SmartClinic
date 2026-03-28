@@ -31,10 +31,11 @@
                     <p class="text-xs text-muted-foreground line-clamp-1" title="@_userRole">@_userRole</p>
                 </div>
             </div>
-            @* DoctorShiftMonitor: Interactive, tự render badge + quản lý timer.
-               Đặt đây để badge hiện ngay bên dưới tên bác sĩ trong sidebar.
-               Component tự kiểm tra role nội bộ, không cần guard bên ngoài. *@
-            <DoctorShiftMonitor />
+            @* DoctorShiftMonitor: Chỉ hiển thị nếu tài khoản là Bác sĩ *@
+            @if (_userRole.Contains("Bác sĩ"))
+            {
+                <DoctorShiftMonitor />
+            }
         </div>
 
         <!-- NAVIGATION -->
@@ -62,7 +63,7 @@
     </main>
 </div>
 
-<BlazoredToasts Position="ToastPosition.BottomRight" Timeout="3" IconType="IconType.Blazored"
+<BlazoredToasts Position="ToastPosition.BottomRight" Timeout="10" IconType="IconType.Blazored"
                 @rendermode="InteractiveServer" />
 
 <ToastHandler @rendermode="InteractiveServer" />

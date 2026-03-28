@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartClinic.Constant;
 using SmartClinic.DTOs;
@@ -23,18 +23,18 @@ namespace SmartClinic.Services
         {
             Console.WriteLine($"Fetching display data for RoomId {roomId}...");
             await using var context = await _dbFactory.CreateDbContextAsync();
-            // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
-            var activeShift = await context.DoctorShifts
-                .Where(s => s.RoomId == roomId && s.StatusEnum == DoctorShiftStatus.Active)
-                .Select(s => new
-                {
-                    DoctorName = s.Doctor.FullName,
-                    RoomName = s.Room.Name,
-                    DepartmentName = s.Room.Department.Name
-                })
-                .FirstOrDefaultAsync();
-
             var today = DateTime.Today;
+
+            // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
+            var shiftsToday = await context.DoctorShifts
+                .Include(s => s.Doctor)
+                .Include(s => s.Room)
+                .ThenInclude(r => r.Department)
+                .Include(s => s.ShiftDefinition)
+                .Where(s => s.RoomId == roomId && s.Date == today)
+                .ToListAsync();
+
+            var activeShift = shiftsToday.FirstOrDefault(s => s.ComputedStatus == "Đang trực");
 
             // 2. TÌM SỐ ĐANG GỌI
             var currentCall = await context.QueueTickets
@@ -60,10 +60,10 @@ namespace SmartClinic.Services
             return new QueueDisplayDto
             {
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
-                RoomName = activeShift?.RoomName ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
-                DoctorName = activeShift != null ? $"BS. {activeShift.DoctorName}" : "Phòng đang trống",
+                RoomName = activeShift?.Room.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
+                DoctorName = activeShift != null ? $"BS. {activeShift.Doctor.FullName}" : "Phòng đang trống",
                 PatientName = currentCall != null ? currentCall.PatientName : "Không có bệnh nhân",
-                Specialty = activeShift?.DepartmentName ?? "",
+                Specialty = activeShift?.Room.Department?.Name ?? "",
                 NextTickets = nextTickets
             };
         }

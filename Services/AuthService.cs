@@ -1,4 +1,4 @@
-﻿using BCrypt.Net;
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SmartClinic.Constant;
@@ -112,9 +112,14 @@ namespace SmartClinic.Services
 
         private async Task<(int? RoomId, string? RoomName)> GetDoctorRoomContextAsync(User user)
         {
-            var activeShift = await _context.DoctorShifts
+            var today = DateTime.Today;
+            var activeShifts = await _context.DoctorShifts
                 .Include(s => s.Room)
-                .FirstOrDefaultAsync(s => s.DoctorId == user.Id && s.StatusEnum == DoctorShiftStatus.Active);
+                .Include(s => s.ShiftDefinition)
+                .Where(s => s.DoctorId == user.Id && s.Date == today)
+                .ToListAsync();
+
+            var activeShift = activeShifts.FirstOrDefault(s => s.ComputedStatus == "Đang trực");
 
             if (activeShift is not null)
             {
