@@ -36,8 +36,8 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<LabPrice> LabPrices { get; set; }
     public virtual DbSet<HistoryAccess> HistoryAccesses { get; set; }
     public virtual DbSet<DoctorEvaluation> DoctorEvaluations { get; set; }
-
     public virtual DbSet<ShiftDefinition> ShiftDefinitions { get; set; }
+    public virtual DbSet<SmartClinic.Models.Entites.Payment> Payments { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
 

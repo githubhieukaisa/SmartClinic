@@ -284,7 +284,7 @@
             {
                 var selectedMed = _availableMedicines.FirstOrDefault(m => m.Id == med.MedicineId);
                 var unitPrice = selectedMed?.MedicinePrices?
-                    .Where(mp => mp.EffectiveFrom <= DateTime.Now)
+                    .Where(mp => mp.EffectiveFrom <= DateTime.UtcNow)
                     .OrderByDescending(mp => mp.EffectiveFrom)
                     .Select(mp => mp.Price)
                     .FirstOrDefault() ?? 0;
