@@ -6,6 +6,8 @@ namespace SmartClinic.Services
     {
         Task<AuthResponse?> LoginAsync(string usernameOrEmail, string password);
         Task<PatientRegistrationResult> RegisterPatientAsync(PatientRegistrationRequest request);
+        Task<PatientRegistrationResult> ConfirmPatientRegistrationAsync(string email, string otp);
+        Task<PasswordResetResult> ResendPatientRegistrationOtpAsync(string email);
         Task<PasswordResetResult> SendPasswordResetOtpAsync(string email);
         Task<PasswordResetResult> ResetPasswordWithOtpAsync(string email, string otp, string newPassword);
         Task<AuthResponse?> RenewTokenAsync(string oldRefreshToken);

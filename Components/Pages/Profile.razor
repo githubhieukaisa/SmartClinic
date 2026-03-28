@@ -339,6 +339,14 @@
             editModel.ConfirmNewPassword = null;
 
             saveSuccess = result.Message;
+            _ = Task.Delay(3000).ContinueWith(_ => 
+                {
+                    InvokeAsync(() => 
+                    {
+                        saveSuccess = null;
+                        StateHasChanged();
+                    });
+                });
             if (result.HasChanges)
             {
                 isEditing = false;

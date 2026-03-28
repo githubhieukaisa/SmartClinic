@@ -500,3 +500,4 @@ package-lock.json
 yarn.lock
 .antigravity/instructions.md
 .github/copilot-instructions.md
+wwwroot/css/app.css

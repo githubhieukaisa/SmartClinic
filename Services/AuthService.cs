@@ -1,4 +1,4 @@
-﻿using BCrypt.Net;
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
@@ -86,9 +86,20 @@ namespace SmartClinic.Services
             var normalizedEmail = string.IsNullOrWhiteSpace(request.Email)
                 ? null
                 : request.Email.Trim().ToLowerInvariant();
-            var normalizedPhone = string.IsNullOrWhiteSpace(request.PhoneNumber)
+            var normalizedPhoneDigits = NormalizeVietnamPhoneDigits(request.PhoneNumber);
+            var normalizedPhone = string.IsNullOrEmpty(normalizedPhoneDigits)
                 ? null
-                : request.PhoneNumber.Trim();
+                : normalizedPhoneDigits;
+
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            if (request.DoB.HasValue && request.DoB.Value > today)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Ngày sinh không được sau ngày hiện tại."
+                };
+            }
 
             var existingByUsername = await _context.Users
                 .FirstOrDefaultAsync(u => u.Username.ToLower() == normalizedUsername.ToLower());
@@ -159,16 +170,185 @@ namespace SmartClinic.Services
                 };
             }
 
+            // Tài khoản hoàn toàn mới — kiểm tra đầy đủ & trùng lặp thực tế cho bệnh nhân tự đăng ký.
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Vui lòng nhập email để tạo tài khoản bệnh nhân."
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedPhone))
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Vui lòng nhập số điện thoại."
+                };
+            }
+
+            if (!request.DoB.HasValue)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Vui lòng nhập ngày sinh."
+                };
+            }
+
+            if (request.Gender == null)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Vui lòng chọn giới tính."
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Address))
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Vui lòng nhập địa chỉ."
+                };
+            }
+
+            var emailTaken = await _context.Users.AnyAsync(u =>
+                u.Email != null && u.Email.Trim().ToLower() == normalizedEmail);
+            if (emailTaken)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Email này đã được sử dụng. Nếu đây là tài khoản của bạn, hãy đăng nhập hoặc dùng đúng tên đăng nhập/email kèm mật khẩu để kích hoạt quyền bệnh nhân."
+                };
+            }
+
+            var phoneOwners = await _context.Users.AsNoTracking()
+                .Where(u => u.PhoneNumber != null && u.PhoneNumber != "")
+                .Select(u => new { u.Id, u.PhoneNumber })
+                .ToListAsync();
+            var phoneDup = phoneOwners.FirstOrDefault(u =>
+                !string.IsNullOrEmpty(normalizedPhone) &&
+                NormalizeVietnamPhoneDigits(u.PhoneNumber) == normalizedPhone);
+            if (phoneDup != null)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Số điện thoại đã gắn với tài khoản khác. Vui lòng dùng số khác hoặc liên hệ lễ tân nếu thông tin của bạn đã có trong hệ thống."
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Mật khẩu phải có ít nhất 6 ký tự."
+                };
+            }
+
+            return await SendPatientRegistrationOtpAsyncInternal(
+                request,
+                normalizedUsername,
+                normalizedEmail,
+                normalizedPhone);
+        }
+
+        public async Task<PatientRegistrationResult> ConfirmPatientRegistrationAsync(string email, string otp)
+        {
+            var normalizedEmail = NormalizeEmail(email);
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Email không hợp lệ."
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(otp))
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Vui lòng nhập mã OTP."
+                };
+            }
+
+            var cacheKey = GetPatientRegistrationOtpCacheKey(normalizedEmail);
+            if (!_memoryCache.TryGetValue(cacheKey, out PendingPatientRegistrationSession? session) || session == null)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Mã xác nhận không tồn tại hoặc đã hết hạn. Vui lòng gửi lại mã từ bước đăng ký."
+                };
+            }
+
+            if (!string.Equals(session.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                _memoryCache.Remove(cacheKey);
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Phiên đăng ký không khớp email. Vui lòng thử lại."
+                };
+            }
+
+            if (session.ExpiresAtUtc <= DateTime.UtcNow)
+            {
+                _memoryCache.Remove(cacheKey);
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Mã OTP đã hết hạn. Vui lòng gửi lại mã xác nhận."
+                };
+            }
+
+            var isOtpValid = BCrypt.Net.BCrypt.Verify(otp.Trim(), session.OtpHash);
+            if (!isOtpValid)
+            {
+                session.FailedAttempts++;
+                if (session.FailedAttempts >= MaxOtpAttempts)
+                {
+                    _memoryCache.Remove(cacheKey);
+                    return new PatientRegistrationResult
+                    {
+                        Success = false,
+                        Message = "Bạn đã nhập sai OTP quá nhiều lần. Vui lòng gửi lại mã xác nhận."
+                    };
+                }
+
+                _memoryCache.Set(cacheKey, session, session.ExpiresAtUtc);
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Mã OTP không đúng. Vui lòng kiểm tra lại."
+                };
+            }
+
+            var stillFree = await AssertNewPatientIdentifiersStillAvailableAsync(session);
+            if (stillFree != null)
+            {
+                _memoryCache.Remove(cacheKey);
+                return stillFree;
+            }
+
             var newUser = new User
             {
-                Username = normalizedUsername,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                FullName = request.FullName.Trim(),
-                Email = normalizedEmail,
-                PhoneNumber = normalizedPhone,
-                Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim(),
-                Gender = request.Gender,
-                DoB = request.DoB,
+                Username = session.Username,
+                PasswordHash = session.PasswordHash,
+                FullName = session.FullName,
+                Email = session.Email,
+                PhoneNumber = session.Phone,
+                Address = session.Address,
+                Gender = session.Gender,
+                DoB = session.DoB,
                 RoleMask = PatientRoleMask,
                 IsActive = true
             };
@@ -176,12 +356,214 @@ namespace SmartClinic.Services
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
+            _memoryCache.Remove(cacheKey);
+
             return new PatientRegistrationResult
             {
                 Success = true,
                 Message = "Đăng ký tài khoản bệnh nhân thành công. Vui lòng đăng nhập bằng thông tin vừa tạo.",
                 AddedPatientRoleToExistingUser = false
             };
+        }
+
+        public async Task<PasswordResetResult> ResendPatientRegistrationOtpAsync(string email)
+        {
+            var normalizedEmail = NormalizeEmail(email);
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                return new PasswordResetResult
+                {
+                    Success = false,
+                    Message = "Vui lòng nhập email hợp lệ."
+                };
+            }
+
+            var cacheKey = GetPatientRegistrationOtpCacheKey(normalizedEmail);
+            if (!_memoryCache.TryGetValue(cacheKey, out PendingPatientRegistrationSession? session) || session == null)
+            {
+                return new PasswordResetResult
+                {
+                    Success = false,
+                    Message = "Phiên xác nhận không còn hiệu lực. Vui lòng điền lại form và gửi mã mới."
+                };
+            }
+
+            var secondsSinceLastSend = (DateTime.UtcNow - session.LastSentAtUtc).TotalSeconds;
+            if (secondsSinceLastSend < OtpResendCooldownSeconds)
+            {
+                var waitSeconds = OtpResendCooldownSeconds - (int)secondsSinceLastSend;
+                return new PasswordResetResult
+                {
+                    Success = false,
+                    Message = $"Vui lòng chờ {Math.Max(waitSeconds, 1)} giây trước khi gửi lại mã."
+                };
+            }
+
+            var otp = GenerateOtp();
+            session.OtpHash = BCrypt.Net.BCrypt.HashPassword(otp);
+            session.LastSentAtUtc = DateTime.UtcNow;
+            session.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(OtpExpiryMinutes);
+            session.FailedAttempts = 0;
+
+            try
+            {
+                var subject = "[SmartClinic] Ma OTP xac nhan dang ky tai khoan benh nhan";
+                var body = $"Xin chao,\n\n" +
+                           $"Ma OTP xac nhan dang ky tai khoan benh nhan cua ban la: {otp}\n" +
+                           $"Ma co hieu luc trong {OtpExpiryMinutes} phut.\n\n" +
+                           "Neu ban khong yeu cau dang ky, vui long bo qua email nay.\n\n" +
+                           "SmartClinic";
+                await _emailService.SendEmailAsync(session.Email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Resend patient registration OTP failed for email: {Email}", normalizedEmail);
+                return new PasswordResetResult
+                {
+                    Success = false,
+                    Message = "Không thể gửi lại OTP lúc này. Vui lòng thử lại sau."
+                };
+            }
+
+            _memoryCache.Set(cacheKey, session, session.ExpiresAtUtc);
+
+            return new PasswordResetResult
+            {
+                Success = true,
+                Message = "Đã gửi lại mã OTP đến email của bạn."
+            };
+        }
+
+        private async Task<PatientRegistrationResult> SendPatientRegistrationOtpAsyncInternal(
+            PatientRegistrationRequest request,
+            string normalizedUsername,
+            string normalizedEmail,
+            string normalizedPhone)
+        {
+            var cacheKey = GetPatientRegistrationOtpCacheKey(normalizedEmail);
+            if (_memoryCache.TryGetValue(cacheKey, out PendingPatientRegistrationSession? existingPending))
+            {
+                var secondsSinceLastSend = (DateTime.UtcNow - existingPending.LastSentAtUtc).TotalSeconds;
+                if (secondsSinceLastSend < OtpResendCooldownSeconds)
+                {
+                    var waitSeconds = OtpResendCooldownSeconds - (int)secondsSinceLastSend;
+                    return new PatientRegistrationResult
+                    {
+                        Success = false,
+                        Message = $"Bạn vừa yêu cầu mã. Vui lòng chờ {Math.Max(waitSeconds, 1)} giây hoặc kiểm tra hộp thư email (kể cả mục Spam)."
+                    };
+                }
+            }
+
+            var otp = GenerateOtp();
+            var pendingSession = new PendingPatientRegistrationSession
+            {
+                Username = normalizedUsername,
+                FullName = request.FullName.Trim(),
+                Email = normalizedEmail,
+                Phone = normalizedPhone,
+                Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim(),
+                Gender = request.Gender!.Value,
+                DoB = request.DoB!.Value,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                OtpHash = BCrypt.Net.BCrypt.HashPassword(otp),
+                LastSentAtUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(OtpExpiryMinutes),
+                FailedAttempts = 0
+            };
+
+            try
+            {
+                var subject = "[SmartClinic] Ma OTP xac nhan dang ky tai khoan benh nhan";
+                var body = $"Xin chao {pendingSession.FullName},\n\n" +
+                           $"Ma OTP xac nhan dang ky tai khoan benh nhan cua ban la: {otp}\n" +
+                           $"Ma co hieu luc trong {OtpExpiryMinutes} phut.\n\n" +
+                           "Neu ban khong yeu cau dang ky, vui long bo qua email nay.\n\n" +
+                           "SmartClinic";
+                await _emailService.SendEmailAsync(pendingSession.Email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Send patient registration OTP failed for email: {Email}", normalizedEmail);
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Không thể gửi email xác nhận lúc này. Vui lòng thử lại sau."
+                };
+            }
+
+            _memoryCache.Set(cacheKey, pendingSession, pendingSession.ExpiresAtUtc);
+
+            return new PatientRegistrationResult
+            {
+                Success = false,
+                AwaitingEmailOtp = true,
+                Message = $"Mã xác nhận đã gửi đến {pendingSession.Email}. Vui lòng nhập OTP để hoàn tất đăng ký."
+            };
+        }
+
+        private async Task<PatientRegistrationResult?> AssertNewPatientIdentifiersStillAvailableAsync(
+            PendingPatientRegistrationSession session)
+        {
+            var emailTaken = await _context.Users.AnyAsync(u =>
+                u.Email != null && u.Email.Trim().ToLower() == session.Email);
+            if (emailTaken)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Email vừa được đăng ký bởi tài khoản khác. Vui lòng bắt đầu lại quy trình đăng ký."
+                };
+            }
+
+            var phoneOwners = await _context.Users.AsNoTracking()
+                .Where(u => u.PhoneNumber != null && u.PhoneNumber != "")
+                .Select(u => new { u.PhoneNumber })
+                .ToListAsync();
+            var phoneDup = phoneOwners.Any(u =>
+                NormalizeVietnamPhoneDigits(u.PhoneNumber) == session.Phone);
+            if (phoneDup)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Số điện thoại vừa được gắn với tài khoản khác. Vui lòng bắt đầu lại quy trình đăng ký."
+                };
+            }
+
+            var usernameTaken = await _context.Users.AnyAsync(u =>
+                u.Username.ToLower() == session.Username.ToLower());
+            if (usernameTaken)
+            {
+                return new PatientRegistrationResult
+                {
+                    Success = false,
+                    Message = "Tên đăng nhập vừa được sử dụng. Vui lòng bắt đầu lại quy trình đăng ký."
+                };
+            }
+
+            return null;
+        }
+
+        private static string GetPatientRegistrationOtpCacheKey(string normalizedEmail)
+        {
+            return $"patient-reg-otp:{normalizedEmail}";
+        }
+
+        private sealed class PendingPatientRegistrationSession
+        {
+            public string OtpHash { get; set; } = string.Empty;
+            public DateTime ExpiresAtUtc { get; set; }
+            public DateTime LastSentAtUtc { get; set; }
+            public int FailedAttempts { get; set; }
+            public string PasswordHash { get; set; } = string.Empty;
+            public string Username { get; set; } = string.Empty;
+            public string FullName { get; set; } = string.Empty;
+            public string Email { get; set; } = string.Empty;
+            public string Phone { get; set; } = string.Empty;
+            public string? Address { get; set; }
+            public bool Gender { get; set; }
+            public DateOnly DoB { get; set; }
         }
 
         /// <summary>
@@ -197,6 +579,18 @@ namespace SmartClinic.Services
             return $"Đã kích hoạt quyền bệnh nhân trên {rolePhrase}. " +
                    "Tên đăng nhập, mật khẩu và email trong hệ thống không thay đổi. " +
                    "Sau khi đăng nhập, bạn có thể dùng cùng tài khoản này khi đến khám với tư cách bệnh nhân.";
+        }
+
+        /// <summary>Chuẩn hóa số điện thoại VN để so sánh trùng: chỉ chữ số, +84/84 → 0.</summary>
+        private static string NormalizeVietnamPhoneDigits(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return string.Empty;
+
+            var d = new string(raw.Trim().Where(char.IsDigit).ToArray());
+            if (d.StartsWith("84") && d.Length >= 10)
+                d = "0" + d[2..];
+            return d;
         }
 
         private static string DescribeStaffRoleLabels(int mask)
@@ -549,17 +943,24 @@ namespace SmartClinic.Services
 
         private async Task<(int? RoomId, string? RoomName)> GetDoctorRoomContextAsync(User user)
         {
-            const int DoctorRoleMask = 2;
             if ((user.RoleMask & DoctorRoleMask) != DoctorRoleMask)
             {
                 return (null, null);
             }
-            // Chờ đồng bộ schema DB (StatusEnum/EndTime), tạm thời lấy ca gần nhất của bác sĩ.
 
+            var now = DateTime.Now;
+            var today = now.Date;
+            var currentTime = now.TimeOfDay;
+
+            // Ưu tiên ca đang trực tại thời điểm đăng nhập.
             var activeShift = await _context.DoctorShifts
                 .AsNoTracking()
-                .Where(s => s.DoctorId == user.Id)
-                .OrderByDescending(s => s.Id)
+                .Where(s =>
+                    s.DoctorId == user.Id &&
+                    s.Date == today &&
+                    s.ShiftDefinition.StartTime <= currentTime &&
+                    s.ShiftDefinition.EndTime >= currentTime)
+                .OrderByDescending(s => s.ShiftDefinition.StartTime)
                 .Select(s => new
                 {
                     s.RoomId,
@@ -567,9 +968,46 @@ namespace SmartClinic.Services
                 })
                 .FirstOrDefaultAsync();
 
-            return activeShift is null
+            if (activeShift != null)
+            {
+                return (activeShift.RoomId, activeShift.RoomName);
+            }
+
+            // Không có ca đang trực: lấy ca sắp diễn ra gần nhất trong ngày để giữ ngữ cảnh phòng.
+            var upcomingShift = await _context.DoctorShifts
+                .AsNoTracking()
+                .Where(s =>
+                    s.DoctorId == user.Id &&
+                    s.Date == today &&
+                    s.ShiftDefinition.StartTime > currentTime)
+                .OrderBy(s => s.ShiftDefinition.StartTime)
+                .Select(s => new
+                {
+                    s.RoomId,
+                    RoomName = s.Room.Name
+                })
+                .FirstOrDefaultAsync();
+
+            if (upcomingShift != null)
+            {
+                return (upcomingShift.RoomId, upcomingShift.RoomName);
+            }
+
+            // Fallback cuối: lấy ca gần nhất trước đó (nếu bác sĩ chỉ còn ca đã qua trong ngày).
+            var latestShift = await _context.DoctorShifts
+                .AsNoTracking()
+                .Where(s => s.DoctorId == user.Id && s.Date == today)
+                .OrderByDescending(s => s.ShiftDefinition.StartTime)
+                .Select(s => new
+                {
+                    s.RoomId,
+                    RoomName = s.Room.Name
+                })
+                .FirstOrDefaultAsync();
+
+            return latestShift is null
                 ? (null, null)
-                : (activeShift.RoomId, activeShift.RoomName);
+                : (latestShift.RoomId, latestShift.RoomName);
         }
 
         private sealed class PasswordResetOtpSession
