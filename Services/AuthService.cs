@@ -518,12 +518,9 @@ namespace SmartClinic.Services
 
             var activeShift = activeShifts.FirstOrDefault(s => s.ComputedStatus == "Đang trực");
 
-            if (activeShift is not null)
-            {
-                return (activeShift.RoomId, activeShift.Room.Name);
-            }
-
-            return (null, null);
+            return activeShift is not null
+                ? (activeShift.RoomId, activeShift.Room?.Name)
+                : (null, null);
         }
 
         private sealed class PasswordResetOtpSession

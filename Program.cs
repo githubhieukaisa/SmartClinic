@@ -1,6 +1,7 @@
 using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
@@ -12,7 +13,7 @@ namespace SmartClinic
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -48,6 +49,13 @@ namespace SmartClinic
 
             var app = builder.Build();
 
+            // ── One-time data fix: cập nhật RemainCapacity cho DoctorShift cũ ──
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<SmartClinicDbContext>();
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE \"DoctorShifts\" SET \"RemainCapacity\" = \"Capacity\" WHERE \"RemainCapacity\" = 0");
+            }
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {

@@ -164,6 +164,11 @@ public partial class SmartClinicDbContext : DbContext
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("QueueTickets_UpdatedBy_fkey")
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.DoctorShift).WithMany()
+                .HasForeignKey(d => d.DoctorShiftId)
+                .HasConstraintName("QueueTickets_DoctorShiftId_fkey")
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<User>(entity =>

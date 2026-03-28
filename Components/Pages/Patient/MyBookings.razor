@@ -1,0 +1,166 @@
+@page "/patient/my-bookings"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Blazored.Toast.Services
+@using SmartClinic.Services
+@using SmartClinic.Constant
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "PatientPolicy")]
+@inject IAppointmentService AppointmentService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IToastService Toast
+
+<div class="p-6 max-w-5xl mx-auto space-y-6">
+
+    @* ── Header ── *@
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-foreground flex items-center gap-2">
+                <i class="ph ph-calendar-check text-primary"></i>
+                Lịch Hẹn Của Tôi
+            </h1>
+            <p class="text-sm text-muted-foreground mt-1">Quản lý các lịch hẹn khám bệnh của bạn</p>
+        </div>
+        <a href="/patient/appointments"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
+            <i class="ph ph-calendar-plus"></i>
+            Đặt lịch mới
+        </a>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex items-center justify-center py-16">
+            <i class="ph ph-spinner-gap text-4xl text-primary animate-spin"></i>
+        </div>
+    }
+    else if (_appointments == null || _appointments.Count == 0)
+    {
+        <div class="flex flex-col items-center justify-center py-16 text-center">
+            <i class="ph ph-calendar-blank text-5xl text-muted-foreground/40 mb-3"></i>
+            <p class="text-lg font-medium text-muted-foreground">Bạn chưa có lịch hẹn nào</p>
+            <p class="text-sm text-muted-foreground/70 mt-1">Đặt lịch khám ngay để được chăm sóc sức khỏe</p>
+            <a href="/patient/appointments"
+               class="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
+                <i class="ph ph-calendar-plus"></i>
+                Đặt lịch khám
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="space-y-3">
+            @foreach (var apt in _appointments)
+            {
+                var statusInfo = GetStatusInfo(apt.Status);
+
+                <div class="bg-card border border-border rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4">
+                    @* Ngày (visual highlight) *@
+                    <div class="flex-shrink-0 w-16 h-16 rounded-xl @(apt.Status == "Appointment" ? "bg-primary/10" : "bg-muted") flex flex-col items-center justify-center">
+                        <span class="text-lg font-bold @(apt.Status == "Appointment" ? "text-primary" : "text-muted-foreground")">@apt.Date.Day</span>
+                        <span class="text-xs text-muted-foreground">@apt.Date.ToString("MM/yy")</span>
+                    </div>
+
+                    @* Info *@
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-sm font-semibold text-foreground">@apt.ShiftName</span>
+                            <span class="text-xs text-muted-foreground">
+                                (@apt.StartTime.ToString(@"hh\:mm") – @apt.EndTime.ToString(@"hh\:mm"))
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                            <span class="flex items-center gap-1">
+                                <i class="ph ph-user-circle"></i>
+                                @apt.DoctorName
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <i class="ph ph-map-pin"></i>
+                                @apt.RoomName
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <i class="ph ph-clock"></i>
+                                Đặt lúc @apt.CreatedAt.ToString("HH:mm dd/MM")
+                            </span>
+                        </div>
+                    </div>
+
+                    @* Status badge + Actions *@
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium @statusInfo.BadgeClass">
+                            <i class="@statusInfo.Icon text-sm"></i>
+                            @statusInfo.Label
+                        </span>
+
+                        @if (apt.Status == "Appointment")
+                        {
+                            <button class="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition disabled:opacity-40"
+                                    disabled="@_cancelInProgress"
+                                    @onclick="() => CancelAppointment(apt.TicketId)">
+                                <i class="ph ph-x-circle mr-1"></i>
+                                Hủy
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<MyAppointmentDto>? _appointments;
+    private bool _isLoading = true;
+    private bool _cancelInProgress;
+    private int _patientId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim != null) int.TryParse(userIdClaim.Value, out _patientId);
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _appointments = await AppointmentService.GetMyAppointmentsAsync(_patientId);
+        _isLoading = false;
+    }
+
+    private async Task CancelAppointment(int ticketId)
+    {
+        _cancelInProgress = true;
+        StateHasChanged();
+
+        var (success, msg) = await AppointmentService.CancelAppointmentAsync(_patientId, ticketId);
+
+        if (success)
+        {
+            Toast.ShowSuccess(msg);
+            await LoadAsync();
+        }
+        else
+        {
+            Toast.ShowError(msg);
+        }
+
+        _cancelInProgress = false;
+        StateHasChanged();
+    }
+
+    private record StatusInfo(string Label, string Icon, string BadgeClass);
+
+    private StatusInfo GetStatusInfo(string status) => status switch
+    {
+        "Appointment" => new("Chờ khám", "ph ph-hourglass", "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"),
+        "Waiting" => new("Đang chờ", "ph ph-queue", "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"),
+        "Examinating" => new("Đang khám", "ph ph-stethoscope", "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"),
+        "Cancelled" => new("Đã hủy", "ph ph-x-circle", "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"),
+        "Done" => new("Hoàn thành", "ph ph-check-circle", "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"),
+        "Completed" => new("Đã khám xong", "ph ph-check", "bg-emerald-100 text-emerald-700"),
+        _ => new(status, "ph ph-info", "bg-slate-100 text-slate-600")
+    };
+}
