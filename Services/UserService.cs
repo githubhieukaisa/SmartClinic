@@ -89,6 +89,15 @@ namespace SmartClinic.Services
                 };
             }
 
+            if (!EqualsIgnoreCase(user.Username, dto.Username))
+            {
+                return new ProfileUpdateResult
+                {
+                    Success = false,
+                    Message = "Tên đăng nhập không thể thay đổi."
+                };
+            }
+
             var payload = BuildProfilePayload(dto);
             var changes = DetectProfileChanges(user, payload);
 
@@ -200,7 +209,6 @@ namespace SmartClinic.Services
         {
             return new ProfileChanges
             {
-                UsernameChanged = !EqualsIgnoreCase(user.Username, payload.Username),
                 FullNameChanged = !EqualsTrimmed(user.FullName, payload.FullName),
                 EmailChanged = !EqualsIgnoreCase(user.Email, payload.Email),
                 PhoneChanged = !EqualsTrimmed(user.PhoneNumber, payload.PhoneNumber),
@@ -211,17 +219,6 @@ namespace SmartClinic.Services
 
         private async Task<string?> ValidateUniqueConstraintsAsync(int userId, ProfilePayload payload, ProfileChanges changes)
         {
-            if (changes.UsernameChanged)
-            {
-                var usernameExists = await _context.Users.AnyAsync(u =>
-                    u.Id != userId &&
-                    u.Username.Trim().ToLower() == payload.Username.ToLower());
-                if (usernameExists)
-                {
-                    return "Tên đăng nhập đã tồn tại.";
-                }
-            }
-
             if (changes.EmailChanged && !string.IsNullOrWhiteSpace(payload.Email))
             {
                 var normalizedEmail = payload.Email.ToLower();
@@ -290,7 +287,6 @@ namespace SmartClinic.Services
 
         private static void ApplyProfileChanges(User user, ProfilePayload payload, ProfileChanges changes)
         {
-            if (changes.UsernameChanged) user.Username = payload.Username;
             if (changes.FullNameChanged) user.FullName = payload.FullName;
             if (changes.EmailChanged) user.Email = payload.Email;
             if (changes.PhoneChanged) user.PhoneNumber = payload.PhoneNumber;
@@ -310,7 +306,6 @@ namespace SmartClinic.Services
 
         private sealed class ProfileChanges
         {
-            public bool UsernameChanged { get; init; }
             public bool FullNameChanged { get; init; }
             public bool EmailChanged { get; init; }
             public bool PhoneChanged { get; init; }
@@ -319,7 +314,6 @@ namespace SmartClinic.Services
             public bool PasswordChanged { get; set; }
 
             public bool HasAnyChanges =>
-                UsernameChanged ||
                 FullNameChanged ||
                 EmailChanged ||
                 PhoneChanged ||

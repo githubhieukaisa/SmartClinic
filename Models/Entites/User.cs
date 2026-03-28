@@ -18,6 +18,10 @@ public partial class User : BaseEntity
     public DateOnly? DoB { get; set; }
     public int RoleMask { get; set; }
 
+    // Khoa chuyên môn (chỉ dùng cho bác sĩ, null cho các role khác)
+    public int? DepartmentId { get; set; }
+    public virtual Department? Department { get; set; }
+
     public bool? IsActive { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiryTime { get; set; }

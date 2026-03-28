@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartClinic.Models;
@@ -11,9 +12,11 @@ using SmartClinic.Models;
 namespace SmartClinic.Migrations
 {
     [DbContext(typeof(SmartClinicDbContext))]
-    partial class SmartClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260328094315_SeedDoctorDepartmentFromShiftHistory")]
+    partial class SeedDoctorDepartmentFromShiftHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace SmartClinic.Migrations
                         {
                             Id = 8,
                             Code = "XN_CDHA",
-                            CreatedAt = new DateTime(2026, 3, 29, 0, 0, 25, 362, DateTimeKind.Local).AddTicks(5406),
+                            CreatedAt = new DateTime(2026, 3, 28, 16, 43, 15, 457, DateTimeKind.Local).AddTicks(6093),
                             Name = "Xét nghiệm & Chẩn đoán hình ảnh"
                         });
                 });
@@ -145,9 +148,6 @@ namespace SmartClinic.Migrations
                     b.Property<int>("DoctorId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("RemainCapacity")
-                        .HasColumnType("integer");
-
                     b.Property<int>("RoomId")
                         .HasColumnType("integer");
 
@@ -164,55 +164,6 @@ namespace SmartClinic.Migrations
                     b.HasIndex("ShiftDefinitionId");
 
                     b.ToTable("DoctorShifts");
-                });
-
-            modelBuilder.Entity("SmartClinic.Models.Entites.Payment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("AmountReceived")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("CashierId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("ChangeAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("PaymentTime")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("TicketId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CashierId");
-
-                    b.HasIndex("TicketId");
-
-                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("SmartClinic.Models.HistoryAccess", b =>
@@ -579,9 +530,6 @@ namespace SmartClinic.Migrations
                     b.Property<int?>("DoctorId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("DoctorShiftId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("MissCount")
                         .HasColumnType("integer");
 
@@ -615,8 +563,6 @@ namespace SmartClinic.Migrations
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("DoctorId");
-
-                    b.HasIndex("DoctorShiftId");
 
                     b.HasIndex("PatientId");
 
@@ -868,24 +814,6 @@ namespace SmartClinic.Migrations
                     b.Navigation("ShiftDefinition");
                 });
 
-            modelBuilder.Entity("SmartClinic.Models.Entites.Payment", b =>
-                {
-                    b.HasOne("SmartClinic.Models.User", "Cashier")
-                        .WithMany()
-                        .HasForeignKey("CashierId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SmartClinic.Models.QueueTicket", "Ticket")
-                        .WithMany("Payments")
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Cashier");
-
-                    b.Navigation("Ticket");
-                });
-
             modelBuilder.Entity("SmartClinic.Models.HistoryAccess", b =>
                 {
                     b.HasOne("SmartClinic.Models.QueueTicket", "QueueTicket")
@@ -1010,12 +938,6 @@ namespace SmartClinic.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("QueueTickets_DoctorId_fkey");
 
-                    b.HasOne("SmartClinic.Models.DoctorShift", "DoctorShift")
-                        .WithMany()
-                        .HasForeignKey("DoctorShiftId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("QueueTickets_DoctorShiftId_fkey");
-
                     b.HasOne("SmartClinic.Models.User", "PatientUser")
                         .WithMany("PatientTickets")
                         .HasForeignKey("PatientId")
@@ -1037,8 +959,6 @@ namespace SmartClinic.Migrations
                     b.Navigation("CreatedByUser");
 
                     b.Navigation("Doctor");
-
-                    b.Navigation("DoctorShift");
 
                     b.Navigation("PatientUser");
 
@@ -1105,8 +1025,6 @@ namespace SmartClinic.Migrations
                     b.Navigation("HistoryAccess");
 
                     b.Navigation("LabOrders");
-
-                    b.Navigation("Payments");
 
                     b.Navigation("Prescription");
                 });
