@@ -36,17 +36,17 @@ namespace SmartClinic.Models
         {
             get
             {
-                // Nếu ca đã kết thúc hoàn toàn thì báo xong
-                if (StatusEnum == DoctorShiftStatus.Completed) return "Đã hoàn thành";
+                // Nếu ca đã kết thúc hoàn toàn bằng tay thì báo Đã hết ca
+                if (StatusEnum == DoctorShiftStatus.Completed) return "Đã hết ca";
 
-                if (ShiftDefinition == null) return "Sắp diễn ra";
+                if (ShiftDefinition == null) return "Chưa tới ca";
                 var now = DateTime.Now;
                 var startDateTime = Date.Date.Add(ShiftDefinition.StartTime);
                 var endDateTime = Date.Date.Add(ShiftDefinition.EndTime);
 
-                if (now < startDateTime) return "Sắp diễn ra";
-                if (now > endDateTime) return "Đã hoàn thành";
-                return "Đang trực";
+                if (now < startDateTime) return "Chưa tới ca";
+                if (now > endDateTime) return "Đã hết ca";
+                return "Đang trong ca";
             }
         }
 
@@ -54,12 +54,23 @@ namespace SmartClinic.Models
         /// Hiển thị tiếng Việt cho StatusEnum. Dùng cho UI.
         /// </summary>
         [NotMapped]
-        public string StatusDisplay => StatusEnum switch
+        public string StatusDisplay 
         {
-            DoctorShiftStatus.Active => "Đang nhận bệnh",
-            DoctorShiftStatus.Closing => "Đang chốt sổ",
-            DoctorShiftStatus.Completed => "Đã hoàn thành",
-            _ => "Chờ kích hoạt"
-        };
+            get
+            {
+                if (ComputedStatus == "Đã hết ca" && StatusEnum != DoctorShiftStatus.Completed)
+                {
+                    return "Chưa chốt sổ";
+                }
+
+                return StatusEnum switch
+                {
+                    DoctorShiftStatus.Active => "Đang nhận bệnh",
+                    DoctorShiftStatus.Closing => "Đang chốt sổ",
+                    DoctorShiftStatus.Completed => "Đã hoàn thành",
+                    _ => "Chờ kích hoạt"
+                };
+            }
+        }
     }
 }

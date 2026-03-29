@@ -1,4 +1,4 @@
-﻿namespace SmartClinic.DTOs
+namespace SmartClinic.DTOs
 {
     public class QueueDisplayDto
     {
@@ -7,6 +7,6 @@
         public string PatientName { get; set; } = "Đang chờ bệnh nhân...";
         public string DoctorName { get; set; } = "Đang chờ bác sĩ...";
         public string Specialty { get; set; } = "";
-        public List<string> NextTickets { get; set; } = new();
+        public string? NextTicketNumber { get; set; }
     }
 }

@@ -84,7 +84,7 @@ public class AppointmentService : IAppointmentService
 
         // Lọc bỏ ca đã bắt đầu (in-memory vì ComputedStatus dùng DateTime.Now)
         var availableShifts = shifts
-            .Where(s => s.ComputedStatus == "Sắp diễn ra" || s.ComputedStatus == "Đang trực")
+            .Where(s => s.ComputedStatus == "Chưa tới ca" || s.ComputedStatus == "Đang trong ca")
             .ToList();
 
         // Lấy rating trung bình cho tất cả bác sĩ
@@ -184,7 +184,7 @@ public class AppointmentService : IAppointmentService
             return (false, "Ca khám đã hết chỗ. Vui lòng chọn ca khác.");
 
         // Không cho đặt ca đã bắt đầu/hoàn thành
-        if (shift.ComputedStatus != "Sắp diễn ra")
+        if (shift.ComputedStatus != "Chưa tới ca")
             return (false, "Ca khám này đã bắt đầu hoặc đã kết thúc. Vui lòng chọn ca khác.");
 
         // Kiểm tra đã đặt trùng ca này chưa
@@ -233,7 +233,7 @@ public class AppointmentService : IAppointmentService
             return (false, "Chỉ có thể hủy lịch hẹn đang ở trạng thái 'Chờ khám'.");
 
         // Không cho hủy khi ca đã bắt đầu
-        if (ticket.DoctorShift != null && ticket.DoctorShift.ComputedStatus != "Sắp diễn ra")
+        if (ticket.DoctorShift != null && ticket.DoctorShift.ComputedStatus != "Chưa tới ca")
             return (false, "Không thể hủy lịch hẹn vì ca khám đã bắt đầu hoặc đã kết thúc.");
 
         // Trả lại chỗ

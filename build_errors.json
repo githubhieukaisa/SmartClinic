@@ -1,0 +1,3229 @@
+{
+  "$schema": "http://json.schemastore.org/sarif-1.0.0",
+  "version": "1.0.0",
+  "runs": [
+    {
+      "tool": {
+        "name": "Microsoft (R) Visual C# Compiler",
+        "version": "5.3.0.0",
+        "fileVersion": "5.3.0-2.26153.122 (4d3023de605a78ba3e59e50c657eed70f125c68a)",
+        "semanticVersion": "5.3.0",
+        "language": "en-US"
+      },
+      "results": [
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Medicines' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 19,
+                  "startColumn": 36,
+                  "endLine": 19,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'MedicinePrices' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 21,
+                  "startColumn": 41,
+                  "endLine": 21,
+                  "endColumn": 55
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Prescriptions' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 40,
+                  "endLine": 23,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'PrescriptionDetails' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 25,
+                  "startColumn": 46,
+                  "endLine": 25,
+                  "endColumn": 65
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'QueueTickets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 27,
+                  "startColumn": 39,
+                  "endLine": 27,
+                  "endColumn": 51
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Users' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 29,
+                  "startColumn": 32,
+                  "endLine": 29,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Departments' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 30,
+                  "startColumn": 38,
+                  "endLine": 30,
+                  "endColumn": 49
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Rooms' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 31,
+                  "startColumn": 32,
+                  "endLine": 31,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'DoctorShifts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 39,
+                  "endLine": 32,
+                  "endColumn": 51
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabTests' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 35,
+                  "endLine": 33,
+                  "endColumn": 43
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabOrders' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 36,
+                  "endLine": 34,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabOrderDetails' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 35,
+                  "startColumn": 42,
+                  "endLine": 35,
+                  "endColumn": 57
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabPrices' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 36,
+                  "startColumn": 36,
+                  "endLine": 36,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'HistoryAccesses' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 37,
+                  "startColumn": 41,
+                  "endLine": 37,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'DoctorEvaluations' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 38,
+                  "startColumn": 44,
+                  "endLine": 38,
+                  "endColumn": 61
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'ShiftDefinitions' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 39,
+                  "startColumn": 43,
+                  "endLine": 39,
+                  "endColumn": 59
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Payments' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 12,
+                  "endLine": 10,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 40,
+                  "startColumn": 62,
+                  "endLine": 40,
+                  "endColumn": 70
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Medicines' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 19,
+                  "startColumn": 36,
+                  "endLine": 19,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'MedicinePrices' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 21,
+                  "startColumn": 41,
+                  "endLine": 21,
+                  "endColumn": 55
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Prescriptions' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 40,
+                  "endLine": 23,
+                  "endColumn": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'PrescriptionDetails' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 25,
+                  "startColumn": 46,
+                  "endLine": 25,
+                  "endColumn": 65
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'QueueTickets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 27,
+                  "startColumn": 39,
+                  "endLine": 27,
+                  "endColumn": 51
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Users' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 29,
+                  "startColumn": 32,
+                  "endLine": 29,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Departments' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 30,
+                  "startColumn": 38,
+                  "endLine": 30,
+                  "endColumn": 49
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Rooms' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 31,
+                  "startColumn": 32,
+                  "endLine": 31,
+                  "endColumn": 37
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'DoctorShifts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 39,
+                  "endLine": 32,
+                  "endColumn": 51
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabTests' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 35,
+                  "endLine": 33,
+                  "endColumn": 43
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabOrders' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 36,
+                  "endLine": 34,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabOrderDetails' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 35,
+                  "startColumn": 42,
+                  "endLine": 35,
+                  "endColumn": 57
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'LabPrices' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 36,
+                  "startColumn": 36,
+                  "endLine": 36,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'HistoryAccesses' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 37,
+                  "startColumn": 41,
+                  "endLine": 37,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'DoctorEvaluations' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 38,
+                  "startColumn": 44,
+                  "endLine": 38,
+                  "endColumn": 61
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'ShiftDefinitions' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 39,
+                  "startColumn": 43,
+                  "endLine": 39,
+                  "endColumn": 59
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'Payments' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "suppressionStates": [
+            "suppressedInSource"
+          ],
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 12,
+                  "endLine": 14,
+                  "endColumn": 32
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 40,
+                  "startColumn": 62,
+                  "endLine": 40,
+                  "endColumn": 70
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'CurrentTicketNumber' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/DTOs/QueueDisplayDto.cs",
+                "region": {
+                  "startLine": 5,
+                  "startColumn": 23,
+                  "endLine": 5,
+                  "endColumn": 42
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/DTOs/QueueDisplayDto.cs",
+                "region": {
+                  "startLine": 5,
+                  "startColumn": 23,
+                  "endLine": 5,
+                  "endColumn": 42
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8618",
+          "level": "warning",
+          "message": "Non-nullable property 'RoomName' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/DTOs/QueueDisplayDto.cs",
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 23,
+                  "endLine": 6,
+                  "endColumn": 31
+                }
+              }
+            }
+          ],
+          "relatedLocations": [
+            {
+              "physicalLocation": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/DTOs/QueueDisplayDto.cs",
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 23,
+                  "endLine": 6,
+                  "endColumn": 31
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS9236",
+          "level": "note",
+          "message": "Compiling requires binding the lambda expression at least 100 times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Components/Pages/Pharmacist/Prescriptions.razor",
+                "region": {
+                  "startLine": 66,
+                  "startColumn": 99,
+                  "endLine": 66,
+                  "endColumn": 101
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8602",
+          "level": "warning",
+          "message": "Dereference of a possibly null reference.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Components/Pages/Doctor/Index.razor",
+                "region": {
+                  "startLine": 270,
+                  "startColumn": 50,
+                  "endLine": 270,
+                  "endColumn": 80
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS0136",
+          "level": "error",
+          "message": "A local or parameter named 'ticketStatus' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/TicketService.cs",
+                "region": {
+                  "startLine": 442,
+                  "startColumn": 26,
+                  "endLine": 442,
+                  "endColumn": 38
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CS0136",
+          "level": "error",
+          "message": "A local or parameter named 'ticketUpdatedAt' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/TicketService.cs",
+                "region": {
+                  "startLine": 442,
+                  "startColumn": 40,
+                  "endLine": 442,
+                  "endColumn": 55
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CS8601",
+          "level": "warning",
+          "message": "Possible null reference assignment.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/QueueService.cs",
+                "region": {
+                  "startLine": 67,
+                  "startColumn": 31,
+                  "endLine": 67,
+                  "endColumn": 99
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8602",
+          "level": "warning",
+          "message": "Dereference of a possibly null reference.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/LabService.cs",
+                "region": {
+                  "startLine": 149,
+                  "startColumn": 17,
+                  "endLine": 149,
+                  "endColumn": 44
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS8602",
+          "level": "warning",
+          "message": "Dereference of a possibly null reference.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/PharmacyService.cs",
+                "region": {
+                  "startLine": 198,
+                  "startColumn": 29,
+                  "endLine": 198,
+                  "endColumn": 43
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CS0169",
+          "level": "warning",
+          "message": "The field 'Index._roomName' is never used",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Components/Pages/Doctor/Index.razor",
+                "region": {
+                  "startLine": 310,
+                  "startColumn": 21,
+                  "endLine": 310,
+                  "endColumn": 30
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 3
+          }
+        },
+        {
+          "ruleId": "CS0414",
+          "level": "warning",
+          "message": "The field 'Index._isLoading' is assigned but its value is never used",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Components/Pages/Doctor/Index.razor",
+                "region": {
+                  "startLine": 311,
+                  "startColumn": 18,
+                  "endLine": 311,
+                  "endColumn": 28
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 3
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260322160956_AddSeedDataForNewRoom_Test_Department.cs",
+                "region": {
+                  "startLine": 18,
+                  "startColumn": 26,
+                  "endLine": 18,
+                  "endColumn": 69
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260322160956_AddSeedDataForNewRoom_Test_Department.cs",
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 26,
+                  "endLine": 23,
+                  "endColumn": 110
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260322160956_AddSeedDataForNewRoom_Test_Department.cs",
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 26,
+                  "endLine": 33,
+                  "endColumn": 110
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1869",
+          "level": "note",
+          "message": "Avoid creating a new 'JsonSerializerOptions' instance for every serialization operation. Cache and reuse instances instead.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AiService.cs",
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 85,
+                  "endLine": 54,
+                  "endColumn": 149
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260324152536_AddRoomFlagsColumn.cs",
+                "region": {
+                  "startLine": 74,
+                  "startColumn": 26,
+                  "endLine": 74,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260324152536_AddRoomFlagsColumn.cs",
+                "region": {
+                  "startLine": 81,
+                  "startColumn": 26,
+                  "endLine": 81,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260324152536_AddRoomFlagsColumn.cs",
+                "region": {
+                  "startLine": 88,
+                  "startColumn": 26,
+                  "endLine": 88,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 53,
+                  "startColumn": 51,
+                  "endLine": 53,
+                  "endColumn": 83
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 63,
+                  "endLine": 54,
+                  "endColumn": 88
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 55,
+                  "startColumn": 55,
+                  "endLine": 55,
+                  "endColumn": 89
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 56,
+                  "startColumn": 53,
+                  "endLine": 56,
+                  "endColumn": 90
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 57,
+                  "startColumn": 68,
+                  "endLine": 57,
+                  "endColumn": 120
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 58,
+                  "startColumn": 59,
+                  "endLine": 58,
+                  "endColumn": 93
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 59,
+                  "startColumn": 65,
+                  "endLine": 59,
+                  "endColumn": 94
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 60,
+                  "startColumn": 61,
+                  "endLine": 60,
+                  "endColumn": 77
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 61,
+                  "startColumn": 61,
+                  "endLine": 61,
+                  "endColumn": 213
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 62,
+                  "startColumn": 52,
+                  "endLine": 62,
+                  "endColumn": 111
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 63,
+                  "startColumn": 57,
+                  "endLine": 63,
+                  "endColumn": 110
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Models/SmartClinicDbContext.cs",
+                "region": {
+                  "startLine": 64,
+                  "startColumn": 55,
+                  "endLine": 64,
+                  "endColumn": 98
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "labels"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/UserService.cs",
+                "region": {
+                  "startLine": 228,
+                  "startColumn": 21,
+                  "endLine": 228,
+                  "endColumn": 64
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 138,
+                  "startColumn": 26,
+                  "endLine": 138,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 145,
+                  "startColumn": 26,
+                  "endLine": 145,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 152,
+                  "startColumn": 26,
+                  "endLine": 152,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 159,
+                  "startColumn": 26,
+                  "endLine": 159,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 166,
+                  "startColumn": 26,
+                  "endLine": 166,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 173,
+                  "startColumn": 26,
+                  "endLine": 173,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 259,
+                  "startColumn": 26,
+                  "endLine": 259,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 266,
+                  "startColumn": 26,
+                  "endLine": 266,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 273,
+                  "startColumn": 26,
+                  "endLine": 273,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 280,
+                  "startColumn": 26,
+                  "endLine": 280,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 287,
+                  "startColumn": 26,
+                  "endLine": 287,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260325063218_UpdateStatusOfLabTestAndPrescription.cs",
+                "region": {
+                  "startLine": 294,
+                  "startColumn": 26,
+                  "endLine": 294,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "ruleKey": "CA1862-001",
+          "level": "note",
+          "message": "Prefer the string comparison method overload of 'string.Contains(string)' that takes a 'StringComparison' enum value to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/TicketService.cs",
+                "region": {
+                  "startLine": 232,
+                  "startColumn": 21,
+                  "endLine": 232,
+                  "endColumn": 84
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLowerInvariant",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "ruleKey": "CA1862-001",
+          "level": "note",
+          "message": "Prefer the string comparison method overload of 'string.Contains(string)' that takes a 'StringComparison' enum value to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/TicketService.cs",
+                "region": {
+                  "startLine": 233,
+                  "startColumn": 24,
+                  "endLine": 233,
+                  "endColumn": 87
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLowerInvariant",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "ruleKey": "CA1862-001",
+          "level": "note",
+          "message": "Prefer the string comparison method overload of 'string.Contains(string)' that takes a 'StringComparison' enum value to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/TicketService.cs",
+                "region": {
+                  "startLine": 235,
+                  "startColumn": 24,
+                  "endLine": 235,
+                  "endColumn": 84
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLowerInvariant",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "ruleKey": "CA1862-001",
+          "level": "note",
+          "message": "Prefer the string comparison method overload of 'string.Contains(string)' that takes a 'StringComparison' enum value to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/TicketService.cs",
+                "region": {
+                  "startLine": 236,
+                  "startColumn": 24,
+                  "endLine": 236,
+                  "endColumn": 86
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLowerInvariant",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1861",
+          "level": "note",
+          "message": "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Migrations/20260328023120_UpdateShiftSchema.cs",
+                "region": {
+                  "startLine": 100,
+                  "startColumn": 26,
+                  "endLine": 100,
+                  "endColumn": 98
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "paramName": "columns"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "ruleKey": "CA1862-001",
+          "level": "note",
+          "message": "Prefer the string comparison method overload of 'string.Contains(string)' that takes a 'StringComparison' enum value to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AppointmentService.cs",
+                "region": {
+                  "startLine": 77,
+                  "startColumn": 67,
+                  "endLine": 77,
+                  "endColumn": 111
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA2254",
+          "level": "note",
+          "message": "The logging message template should not vary between calls to 'LoggerExtensions.LogInformation(ILogger, string?, params object?[])'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DailyResetWorker.cs",
+                "region": {
+                  "startLine": 31,
+                  "startColumn": 40,
+                  "endLine": 31,
+                  "endColumn": 130
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 63,
+                  "startColumn": 21,
+                  "endLine": 63,
+                  "endColumn": 77
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 64,
+                  "startColumn": 41,
+                  "endLine": 64,
+                  "endColumn": 94
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1816",
+          "level": "note",
+          "message": "Change DoctorDailyShiftService.DisposeAsync() to call GC.SuppressFinalize(object). This will prevent derived types that introduce a finalizer from needing to re-implement 'IDisposable' to call it.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorDailyShiftService.cs",
+                "region": {
+                  "startLine": 203,
+                  "startColumn": 28,
+                  "endLine": 203,
+                  "endColumn": 40
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 105,
+                  "startColumn": 43,
+                  "endLine": 105,
+                  "endColumn": 95
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": "ToLower"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 111,
+                  "startColumn": 66,
+                  "endLine": 111,
+                  "endColumn": 102
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 273,
+                  "startColumn": 36,
+                  "endLine": 273,
+                  "endColumn": 79
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 627,
+                  "startColumn": 17,
+                  "endLine": 627,
+                  "endColumn": 58
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 655,
+                  "startColumn": 17,
+                  "endLine": 655,
+                  "endColumn": 67
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": "ToLower"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 789,
+                  "startColumn": 17,
+                  "endLine": 789,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1862",
+          "level": "note",
+          "message": "Prefer using 'string.Equals(string, StringComparison)' to perform a case-insensitive comparison, but keep in mind that this might cause subtle changes in behavior, so make sure to conduct thorough testing after applying the suggestion, or if culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 888,
+                  "startColumn": 17,
+                  "endLine": 888,
+                  "endColumn": 60
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "LeftOffendingMethod": "ToLower",
+              "RightOffendingMethod": null
+            }
+          }
+        },
+        {
+          "ruleId": "CA1816",
+          "level": "note",
+          "message": "Change NotificationService.DisposeAsync() to call GC.SuppressFinalize(object). This will prevent derived types that introduce a finalizer from needing to re-implement 'IDisposable' to call it.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/NotificationService.cs",
+                "region": {
+                  "startLine": 329,
+                  "startColumn": 28,
+                  "endLine": 329,
+                  "endColumn": 40
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA1822",
+          "level": "note",
+          "message": "Member 'GenerateRefreshToken' does not access instance data and can be marked as static",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/AuthService.cs",
+                "region": {
+                  "startLine": 1027,
+                  "startColumn": 24,
+                  "endLine": 1027,
+                  "endColumn": 44
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 310,
+                  "startColumn": 14,
+                  "endLine": 310,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 312,
+                  "startColumn": 14,
+                  "endLine": 312,
+                  "endColumn": 43
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 314,
+                  "startColumn": 14,
+                  "endLine": 314,
+                  "endColumn": 54
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 473,
+                  "startColumn": 14,
+                  "endLine": 473,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 413,
+                  "startColumn": 26,
+                  "endLine": 413,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 456,
+                  "startColumn": 14,
+                  "endLine": 456,
+                  "endColumn": 26
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 501,
+                  "startColumn": 21,
+                  "endLine": 501,
+                  "endColumn": 36
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 630,
+                  "startColumn": 14,
+                  "endLine": 630,
+                  "endColumn": 31
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1860",
+          "level": "note",
+          "message": "Prefer comparing 'Count' to 0 rather than using 'Any()', both for clarity and for performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/DoctorShiftService.cs",
+                "region": {
+                  "startLine": 705,
+                  "startColumn": 14,
+                  "endLine": 705,
+                  "endColumn": 31
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1,
+            "customProperties": {
+              "DiagnosticPropertyKey": "Count"
+            }
+          }
+        },
+        {
+          "ruleId": "CA1859",
+          "level": "note",
+          "message": "Change type of parameter 'waitingCountByRoom' from 'System.Collections.Generic.IReadOnlyDictionary<int, int>' to 'System.Collections.Generic.Dictionary<int, int>' for improved performance",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/PC/OneDrive/Documents/FPT_Sem7/PRN222/SmartClinic/Services/TicketService.cs",
+                "region": {
+                  "startLine": 265,
+                  "startColumn": 43,
+                  "endLine": 265,
+                  "endColumn": 61
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        }
+      ],
+      "rules": {
+        "CA1816": {
+          "id": "CA1816",
+          "shortDescription": "Dispose methods should call SuppressFinalize",
+          "fullDescription": "A method that is an implementation of Dispose does not call GC.SuppressFinalize; or a method that is not an implementation of Dispose calls GC.SuppressFinalize; or a method calls GC.SuppressFinalize and passes something other than this (Me in Visual Basic).",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1816",
+          "properties": {
+            "category": "Usage",
+            "isEnabledByDefault": true,
+            "tags": [
+              "PortedFromFxCop",
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA1822": {
+          "id": "CA1822",
+          "shortDescription": "Mark members as static",
+          "fullDescription": "Members that do not access instance data or call instance methods can be marked as static. After you mark the methods as static, the compiler will emit nonvirtual call sites to these members. This can give you a measurable performance gain for performance-sensitive code.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1822",
+          "properties": {
+            "category": "Performance",
+            "isEnabledByDefault": true,
+            "tags": [
+              "PortedFromFxCop",
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA1859": {
+          "id": "CA1859",
+          "shortDescription": "Use concrete types when possible for improved performance",
+          "fullDescription": "Using concrete types avoids virtual or interface call overhead and enables inlining.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1859",
+          "properties": {
+            "category": "Performance",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA1860": {
+          "id": "CA1860",
+          "shortDescription": "Avoid using 'Enumerable.Any()' extension method",
+          "fullDescription": "Prefer using 'IsEmpty', 'Count' or 'Length' properties whichever available, rather than calling 'Enumerable.Any()'. The intent is clearer and it is more performant than using 'Enumerable.Any()' extension method.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1860",
+          "properties": {
+            "category": "Performance",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA1861": {
+          "id": "CA1861",
+          "shortDescription": "Avoid constant arrays as arguments",
+          "fullDescription": "Constant arrays passed as arguments are not reused when called repeatedly, which implies a new array is created each time. Consider extracting them to 'static readonly' fields to improve performance if the passed array is not mutated within the called method.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1861",
+          "properties": {
+            "category": "Performance",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA1862": {
+          "id": "CA1862",
+          "shortDescription": "Use the 'StringComparison' method overloads to perform case-insensitive string comparisons",
+          "fullDescription": "Avoid calling 'ToLower', 'ToUpper', 'ToLowerInvariant' and 'ToUpperInvariant' to perform case-insensitive string comparisons, as in 'string.ToLower() == string.ToLower()', because they lead to an allocation. Instead, use 'string.Equals(string, StringComparison)' to perform case-insensitive comparisons. Switching to using an overload that takes a 'StringComparison' might cause subtle changes in behavior, so it's important to conduct thorough testing after applying the suggestion. Additionally, if a culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1862",
+          "properties": {
+            "category": "Performance",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA1862-001": {
+          "id": "CA1862",
+          "shortDescription": "Use the 'StringComparison' method overloads to perform case-insensitive string comparisons",
+          "fullDescription": "Avoid calling 'ToLower', 'ToUpper', 'ToLowerInvariant' and 'ToUpperInvariant' to perform case-insensitive string comparisons because they lead to an allocation. Instead, prefer calling the method overloads of 'Contains', 'IndexOf' and 'StartsWith' that take a 'StringComparison' enum value to perform case-insensitive comparisons. Switching to using an overload that takes a 'StringComparison' might cause subtle changes in behavior, so it's important to conduct thorough testing after applying the suggestion. Additionally, if a culturally sensitive comparison is not required, consider using 'StringComparison.OrdinalIgnoreCase'.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1862",
+          "properties": {
+            "category": "Performance",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA1869": {
+          "id": "CA1869",
+          "shortDescription": "Cache and reuse 'JsonSerializerOptions' instances",
+          "fullDescription": "Avoid creating a new 'JsonSerializerOptions' instance for every serialization operation. Cache and reuse instances instead. Single use 'JsonSerializerOptions' instances can substantially degrade the performance of your application.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1869",
+          "properties": {
+            "category": "Performance",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CA2254": {
+          "id": "CA2254",
+          "shortDescription": "Template should be a static expression",
+          "fullDescription": "The logging message template should not vary between calls.",
+          "defaultLevel": "note",
+          "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2254",
+          "properties": {
+            "category": "Usage",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Telemetry",
+              "EnabledRuleInAggressiveMode"
+            ]
+          }
+        },
+        "CS0136": {
+          "id": "CS0136",
+          "defaultLevel": "error",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS0136)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry",
+              "NotConfigurable"
+            ]
+          }
+        },
+        "CS0169": {
+          "id": "CS0169",
+          "shortDescription": "Field is never used",
+          "defaultLevel": "warning",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS0169)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        },
+        "CS0414": {
+          "id": "CS0414",
+          "shortDescription": "Field is assigned but its value is never used",
+          "defaultLevel": "warning",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS0414)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        },
+        "CS8601": {
+          "id": "CS8601",
+          "shortDescription": "Possible null reference assignment.",
+          "defaultLevel": "warning",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS8601)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        },
+        "CS8602": {
+          "id": "CS8602",
+          "shortDescription": "Dereference of a possibly null reference.",
+          "defaultLevel": "warning",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS8602)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        },
+        "CS8618": {
+          "id": "CS8618",
+          "shortDescription": "Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.",
+          "defaultLevel": "warning",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS8618)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        },
+        "CS9236": {
+          "id": "CS9236",
+          "shortDescription": "Compiling requires binding the lambda expression many times. Consider declaring the lambda expression with explicit parameter types, or if the containing method call is generic, consider using explicit type arguments.",
+          "defaultLevel": "note",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS9236)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

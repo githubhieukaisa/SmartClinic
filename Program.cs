@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartClinic.Components;
 using SmartClinic.Hubs;
 using SmartClinic.Models;
+using SmartClinic.Constant;
 using SmartClinic.Security;
 using SmartClinic.Services;
 using Radzen;
@@ -55,6 +56,192 @@ namespace SmartClinic
                 var db = scope.ServiceProvider.GetRequiredService<SmartClinicDbContext>();
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE \"DoctorShifts\" SET \"RemainCapacity\" = \"Capacity\" WHERE \"RemainCapacity\" = 0");
+
+                // --- Seed Sample Users (Pharmacist, Cashier, Patients) ---
+                var hasPharmacist = await db.Users.AnyAsync(u => u.Username == "pharmacist");
+                if (!hasPharmacist)
+                {
+                    db.Users.Add(new User
+                    {
+                        Username = "pharmacist",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                        FullName = "Dược sĩ Demo",
+                        PhoneNumber = "0987654321",
+                        RoleMask = 4, // PharmacistRoleMask
+                        IsActive = true
+                    });
+                }
+
+                var hasCashier = await db.Users.AnyAsync(u => u.Username == "cashier");
+                if (!hasCashier)
+                {
+                    db.Users.Add(new User
+                    {
+                        Username = "cashier",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                        FullName = "Thu ngân Demo",
+                        PhoneNumber = "0987654322",
+                        RoleMask = 8, // CashierRoleMask
+                        IsActive = true
+                    });
+                }
+
+                var hasPatient1 = await db.Users.AnyAsync(u => u.Username == "0987654323");
+                if (!hasPatient1)
+                {
+                    db.Users.Add(new User
+                    {
+                        Username = "0987654323", // Patient username is often phone number
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                        FullName = "Bệnh nhân Demo 1",
+                        PhoneNumber = "0987654323",
+                        RoleMask = 128, // PatientRoleMask
+                        IsActive = true,
+                        Gender = true
+                    });
+                }
+
+                var hasPatient2 = await db.Users.AnyAsync(u => u.Username == "0987654324");
+                if (!hasPatient2)
+                {
+                    db.Users.Add(new User
+                    {
+                        Username = "0987654324",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                        FullName = "Bệnh nhân Demo 2",
+                        PhoneNumber = "0987654324",
+                        RoleMask = 128, // PatientRoleMask
+                        IsActive = true,
+                        Gender = false
+                    });
+                }
+
+                await db.SaveChangesAsync();
+
+                // --- Seed Medicines for Demo ---
+                if (!await db.Medicines.AnyAsync())
+                {
+                    var med1 = new Medicine { Name = "Paracetamol 500mg", Unit = "Viên", StockQuantity = 1000 };
+                    var med2 = new Medicine { Name = "Amoxicillin 250mg", Unit = "Viên", StockQuantity = 500 };
+                    db.Medicines.AddRange(med1, med2);
+                    await db.SaveChangesAsync();
+
+                    db.MedicinePrices.AddRange(
+                        new MedicinePrice { MedicineId = med1.Id, Price = 5000, EffectiveFrom = DateTime.UtcNow.AddYears(-1) },
+                        new MedicinePrice { MedicineId = med2.Id, Price = 15000, EffectiveFrom = DateTime.UtcNow.AddYears(-1) }
+                    );
+                    await db.SaveChangesAsync();
+                }
+
+                // --- Seed Queue Tickets & Prescriptions for Demo ---
+                var pt1 = await db.Users.FirstOrDefaultAsync(u => u.Username == "0987654323");
+                var roomDoc = await db.Rooms.FirstOrDefaultAsync(r => r.Name == "Phòng Khám Nội 01");
+                var defaultRoomId = roomDoc?.Id ?? 9;
+
+                if (pt1 != null && !await db.QueueTickets.AnyAsync(t => t.PatientId == pt1.Id))
+                {
+                    var med1 = await db.Medicines.FirstOrDefaultAsync();
+
+                    // 1. Ticket For Pharmacist (Status: Examinating, Prescription: Pending)
+                    var ticketPharma = new QueueTicket
+                    {
+                        PatientId = pt1.Id,
+                        TicketNumber = 105,
+                        StatusEnum = TicketStatus.Examinating,
+                        CreatedAt = DateTime.UtcNow,
+                        RoomId = defaultRoomId
+                    };
+                    db.QueueTickets.Add(ticketPharma);
+                    await db.SaveChangesAsync();
+
+                    var rx1 = new Prescription
+                    {
+                        TicketId = ticketPharma.Id,
+                        Status = PrescriptionStatus.Pending,
+                        DoctorNote = "Cần uống nhiều nước",
+                        CreatedAt = DateTime.UtcNow,
+                        TotalAmount = 50000
+                    };
+                    db.Prescriptions.Add(rx1);
+                    await db.SaveChangesAsync();
+
+                    if (med1 != null)
+                    {
+                        db.PrescriptionDetails.Add(new PrescriptionDetail
+                        {
+                            PrescriptionId = rx1.Id,
+                            MedicineId = med1.Id,
+                            Quantity = 10,
+                            UnitPrice = 5000,
+                            UsageInstruction = "Sáng 1 viên, Tối 1 viên"
+                        });
+                        await db.SaveChangesAsync();
+                    }
+
+                    // 2. Ticket For Cashier (Status: Completed, Prescription: Dispensed/Done)
+                    var ticketCashier = new QueueTicket
+                    {
+                        PatientId = pt1.Id,
+                        TicketNumber = 106,
+                        StatusEnum = TicketStatus.Completed, // Ready for Payment
+                        CreatedAt = DateTime.UtcNow,
+                        TotalAmount = null,
+                        RoomId = defaultRoomId
+                    };
+                    db.QueueTickets.Add(ticketCashier);
+                    await db.SaveChangesAsync();
+
+                    var rx2 = new Prescription
+                    {
+                        TicketId = ticketCashier.Id,
+                        Status = PrescriptionStatus.Dispensed, // Pharmacist finished
+                        DoctorNote = "Kiêng đồ dầu mỡ",
+                        CreatedAt = DateTime.UtcNow,
+                        TotalAmount = 50000 
+                    };
+                    db.Prescriptions.Add(rx2);
+                    await db.SaveChangesAsync();
+
+                    if (med1 != null)
+                    {
+                        db.PrescriptionDetails.Add(new PrescriptionDetail
+                        {
+                            PrescriptionId = rx2.Id,
+                            MedicineId = med1.Id,
+                            Quantity = 10,
+                            UnitPrice = 5000,
+                            UsageInstruction = "Sáng 1 viên"
+                        });
+                        await db.SaveChangesAsync();
+                    }
+
+                    // 3. Historical Payment for Cashier History Demo
+                    var ticketHistory = new QueueTicket
+                    {
+                        PatientId = pt1.Id,
+                        TicketNumber = 101,
+                        StatusEnum = TicketStatus.Done, 
+                        CreatedAt = DateTime.UtcNow.AddHours(-5),
+                        TotalAmount = 75000,
+                        RoomId = defaultRoomId
+                    };
+                    db.QueueTickets.Add(ticketHistory);
+                    await db.SaveChangesAsync();
+
+                    var cashier = await db.Users.FirstOrDefaultAsync(u => u.Username == "cashier");
+                    db.Payments.Add(new SmartClinic.Models.Entites.Payment
+                    {
+                        TicketId = ticketHistory.Id,
+                        PaymentMethod = "Cash",
+                        TotalAmount = 75000,
+                        AmountReceived = 100000,
+                        ChangeAmount = 25000,
+                        CashierId = cashier?.Id,
+                        PaymentTime = DateTime.UtcNow.AddHours(-4),
+                        Status = "Success"
+                    });
+                    await db.SaveChangesAsync();
+                }
             }
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
