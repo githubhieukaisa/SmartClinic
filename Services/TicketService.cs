@@ -423,7 +423,13 @@ namespace SmartClinic.Services
                 if (existingAppointment != null)
                 {
                     // Đã có lịch hẹn. Chỉ cấp số và chuyển thành Waiting
-                    var (apptStatus, apptUpdatedAt) = ResolveTicketStatusAndUpdatedAt(now, request.IsEmergency, request.IsPriority);
+                    var (apptStatus, apptUpdatedAt) = await ResolveTicketStatusAndUpdatedAtAsync(
+                        _context,
+                        now,
+                        todayDate,
+                        existingAppointment.RoomId,
+                        request.IsEmergency,
+                        request.IsPriority);
                     
                     existingAppointment.StatusEnum = apptStatus;
                     existingAppointment.TicketNumber = await _context.Database
@@ -473,7 +479,13 @@ namespace SmartClinic.Services
                     .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
                     .SingleAsync();
 
-                var (ticketStatus, ticketUpdatedAt) = ResolveTicketStatusAndUpdatedAt(now, request.IsEmergency, request.IsPriority);
+                var (ticketStatus, ticketUpdatedAt) = await ResolveTicketStatusAndUpdatedAtAsync(
+                    _context,
+                    now,
+                    todayDate,
+                    selectedShift.RoomId,
+                    request.IsEmergency,
+                    request.IsPriority);
 
                 var ticket = new QueueTicket
                 {
@@ -588,10 +600,40 @@ namespace SmartClinic.Services
             }
         }
 
-        private static (TicketStatus Status, DateTime UpdatedAt) ResolveTicketStatusAndUpdatedAt(DateTime now, bool isEmergency, bool isPriority)
+        private static async Task<(TicketStatus Status, DateTime UpdatedAt)> ResolveTicketStatusAndUpdatedAtAsync(
+            SmartClinicDbContext context,
+            DateTime now,
+            DateTime todayDate,
+            int roomId,
+            bool isEmergency,
+            bool isPriority)
         {
             var status = isEmergency ? TicketStatus.Emergency : TicketStatus.Waiting;
-            var updatedAt = isPriority ? now.AddMinutes(-30) : now;
+
+            if (!isPriority || isEmergency)
+            {
+                return (status, now);
+            }
+
+            var nextWaitings = await context.QueueTickets
+                .AsNoTracking()
+                .Where(t =>
+                    t.RoomId == roomId &&
+                    (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency) &&
+                    t.CreatedAt.Date == todayDate)
+                .OrderBy(t => t.StatusEnum == TicketStatus.Emergency ? 0 : 1)
+                .ThenBy(t => t.UpdatedAt ?? t.CreatedAt)
+                .ThenBy(t => t.TicketNumber)
+                .Take(3)
+                .ToListAsync();
+
+            if (nextWaitings.Count == 0)
+            {
+                return (status, now);
+            }
+
+            var anchor = nextWaitings.Count < 3 ? nextWaitings[^1] : nextWaitings[2];
+            var updatedAt = (anchor.UpdatedAt ?? anchor.CreatedAt).AddMilliseconds(1);
             return (status, updatedAt);
         }
 

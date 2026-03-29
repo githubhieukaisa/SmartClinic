@@ -66,11 +66,11 @@
 										class="@GetTicketTypeClass(TicketType.Priority)">
 									⭐ Ưu tiên
 								</button>
-								<button type="button"
+								@* <button type="button"
 										@onclick="() => SetTicketType(TicketType.Emergency)"
 										class="@GetTicketTypeClass(TicketType.Emergency)">
 									🚨 Cấp cứu
-								</button>
+								</button> *@
 							</div>
 							@if (selectedTicketType == TicketType.Emergency)
 							{
