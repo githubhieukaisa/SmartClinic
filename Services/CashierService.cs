@@ -116,12 +116,18 @@ namespace SmartClinic.Services
                 if (cashierId.HasValue && ticket.PatientId.HasValue && cashierId.Value == ticket.PatientId.Value)
                     return (false, "Thu ngân không được thanh toán cho chính mình.");
 
-                // Calculate the final exact amount required
-                decimal medicineAmount = ticket.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) ?? 0m;
-                decimal labTestAmount = ticket.LabOrders.SelectMany(lo => lo.LabOrderDetails).Sum(lod => lod.UnitPrice);
-                decimal consultationFee = 300000m;
+                // ─── SOURCE OF TRUTH: Read total amount from QueueTicket ───
+                // Using the amount calculated and saved by the Doctor/System.
+                decimal exactTotal = ticket.TotalAmount ?? 0m;
                 
-                decimal exactTotal = consultationFee + medicineAmount + labTestAmount;
+                // Fallback only if for some reason Ticket.TotalAmount is missing
+                if (exactTotal <= 0)
+                {
+                    decimal medicineAmount = ticket.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) ?? 0m;
+                    decimal labTestAmount = ticket.LabOrders.SelectMany(lo => lo.LabOrderDetails).Sum(lod => lod.UnitPrice);
+                    decimal consultationFee = 300000m; // Standard fallback
+                    exactTotal = consultationFee + medicineAmount + labTestAmount;
+                }
                 
                 // For VNPay if amount is 0/missing, assume full payment.
                 if (paymentMethod == "VNPay" && amountReceived == 0)
@@ -150,9 +156,14 @@ namespace SmartClinic.Services
                 
                 _context.Payments.Add(paymentRecord);
 
-                // ── Freeze TotalAmount to prevent future price changes & secure audit logs ──
-                ticket.TotalAmount = exactTotal;
+                // ── Update Ticket Status ──
                 ticket.StatusEnum = TicketStatus.Done;
+                // Note: ticket.TotalAmount is preserved as the source of truth.
+                // If it was null, we update it with our fallback calculation.
+                if (!ticket.TotalAmount.HasValue || ticket.TotalAmount <= 0)
+                {
+                    ticket.TotalAmount = exactTotal;
+                }
 
                 if (ticket.Prescription != null)
                     ticket.Prescription.Status = PrescriptionStatus.Paid;
@@ -348,9 +359,17 @@ namespace SmartClinic.Services
 
         private static PrescriptionQueueDto MapToDto(QueueTicket t)
         {
-            var medicineAmount = t.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) ?? 0m;
-            var labTestAmount = t.LabOrders.SelectMany(lo => lo.LabOrderDetails).Sum(lod => lod.UnitPrice);
-            var consultationFee = 300000m;
+            // ─── SOURCE OF TRUTH: Read total amount from QueueTicket ───
+            decimal totalAmount = t.TotalAmount ?? 0m;
+            decimal consultationFee = 300000m;
+            decimal labTestAmount = t.LabOrders.SelectMany(lo => lo.LabOrderDetails).Sum(lod => lod.UnitPrice);
+            decimal medicineAmount = t.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) ?? 0m;
+
+            // Fallback calculation for display if TotalAmount hasn't been set yet
+            if (totalAmount <= 0)
+            {
+                totalAmount = consultationFee + medicineAmount + labTestAmount;
+            }
 
             return new PrescriptionQueueDto
             {
@@ -365,7 +384,7 @@ namespace SmartClinic.Services
                 ConsultationFee  = consultationFee,
                 MedicineAmount   = medicineAmount,
                 LabTestAmount    = labTestAmount,
-                TotalAmount      = consultationFee + medicineAmount + labTestAmount,
+                TotalAmount      = totalAmount,
                 CreatedAt        = t.UpdatedAt ?? t.CreatedAt,
                 Details          = t.Prescription?.PrescriptionDetails.Select(d => new PrescriptionDetailDto
                 {
