@@ -94,7 +94,7 @@
                         <span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wide">
                             <i class="ph ph-map-pin"></i> Phòng Khám
                         </span>
-                        <p class="text-lg font-bold text-foreground">@(_activeTicket.Room?.RoomName ?? "Đang sắp xếp...")</p>
+                        <p class="text-lg font-bold text-foreground">@(_activeTicket.Room?.Name ?? "Đang sắp xếp...")</p>
                         @if (_activeTicket.Room?.Department != null)
                         {
                             <p class="text-sm text-muted-foreground">Khoa: @_activeTicket.Room.Department.Name</p>
@@ -131,7 +131,7 @@
                 </li>
                 <li class="flex gap-2">
                     <span class="text-primary">•</span>
-                    <span>Nếu trạng thái chuyển sang <strong>"Đang gọi"</strong>, vui lòng di chuyển đến trước cửa phòng @_activeTicket.Room?.RoomName.</span>
+                    <span>Nếu trạng thái chuyển sang <strong>"Đang gọi"</strong>, vui lòng di chuyển đến trước cửa phòng @_activeTicket.Room?.Name.</span>
                 </li>
                 <li class="flex gap-2">
                     <span class="text-primary">•</span>
@@ -225,7 +225,7 @@
             await _hubConnection.StartAsync();
             
             // Join group based on room if active
-            if (_activeTicket?.RoomId.HasValue == true)
+            if (_activeTicket != null)
             {
                 // Note: PatientHub might need JoinRoomGroup if not already handling it globally
             }
