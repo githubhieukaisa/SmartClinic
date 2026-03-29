@@ -16,145 +16,116 @@
 @inject IToastService ToastService
 
 <div class="p-8 pb-32">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-foreground">Lịch Làm Việc</h1>
-            <p class="text-muted-foreground mt-1">Quản lý và kích hoạt ca trực của bạn</p>
-        </div>
-    </div>
+	<!-- Header -->
+	<div class="flex items-center justify-between mb-8">
+		<div>
+			<h1 class="text-3xl font-bold text-foreground">Lịch Làm Việc</h1>
+			<p class="text-muted-foreground mt-1">Quản lý và kích hoạt ca trực của bạn</p>
+		</div>
+	</div>
 
-    @if (_isLoading)
-    {
-        <div class="flex items-center justify-center p-12">
-            <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-    }
-    else
-    {
-        <!-- Week Navigator & Batch Actions -->
-        <div
-            class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8 flex flex-wrap gap-6 items-end justify-between">
-            <div>
-                <label class="block text-sm font-medium text-foreground mb-2">Chọn tuần làm việc</label>
-                <div class="flex items-center gap-3">
-                    <button @onclick="PreviousWeek"
-                            class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
-                        <i class="ph ph-caret-left"></i>
-                    </button>
-                    <div
-                        class="px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium text-slate-700 min-w-56 text-center">
-                        Tuần: @(_weekStart.ToString("dd/MM/yyyy")) - @(_weekStart.AddDays(6).ToString("dd/MM/yyyy"))
-                    </div>
-                    <button @onclick="NextWeek" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
-                        <i class="ph ph-caret-right"></i>
-                    </button>
-                    <button @onclick="ResetToCurrentWeek"
-                            class="px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition ml-2">
-                        Tuần này
-                    </button>
-                </div>
-            </div>
+	@if (_isLoading)
+	{
+		<div class="flex items-center justify-center p-12">
+			<div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+		</div>
+	}
+	else
+	{
+		<!-- Week Navigator & Batch Actions -->
+		<div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8 flex flex-wrap gap-6 items-end justify-between">
+			<div>
+				<label class="block text-sm font-medium text-foreground mb-2">Chọn tuần làm việc</label>
+				<div class="flex items-center gap-3">
+					<button @onclick="PreviousWeek"
+							class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
+						<i class="ph ph-caret-left"></i>
+					</button>
+					<div class="px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium text-slate-700 min-w-56 text-center">
+						Tuần: @(_weekStart.ToString("dd/MM/yyyy")) - @(_weekStart.AddDays(6).ToString("dd/MM/yyyy"))
+					</div>
+					<button @onclick="NextWeek" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
+						<i class="ph ph-caret-right"></i>
+					</button>
+					<button @onclick="ResetToCurrentWeek"
+							class="px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition ml-2">
+						Tuần này
+					</button>
+				</div>
+			</div>
 
-            @if (_hasDraftShifts)
-            {
-                <div class="flex flex-col gap-3">
-                    <div class="flex items-center gap-4 bg-amber-50 border border-amber-200 p-3 rounded-lg">
-                        <div class="flex flex-col">
-                            <span class="text-xs font-semibold text-amber-800 uppercase tracking-widest">Sửa hàng loạt</span>
-                            <span class="text-xs text-amber-700 mt-0.5">Cho các ca chưa kích hoạt</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="number" min="1" @bind="_batchCapacity"
-                                   class="w-20 px-3 py-1.5 text-sm border border-amber-300 rounded focus:ring-amber-500 focus:border-amber-500 outline-none" />
-                            <button @onclick="BatchUpdateCapacity"
-                                    class="px-3 py-1.5 text-sm font-medium bg-white text-amber-700 border border-amber-300 rounded hover:bg-amber-100 transition">
-                                Áp dụng
-                            </button>
-                        </div>
-                        <div class="h-8 w-px bg-amber-200 mx-2"></div>
-                        <button @onclick="BatchActivate"
-                                class="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded shadow-sm transition">
-                            <i class="ph-bold ph-check-square-offset"></i> Kích hoạt tất cả
-                        </button>
-                    </div>
-                </div>
-            }
-        </div>
+			@if (_hasDraftShifts)
+			{
+				<div class="flex flex-col gap-3">
+					<div class="flex items-center gap-4 bg-amber-50 border border-amber-200 p-3 rounded-lg">
+						<div class="flex flex-col">
+							<span class="text-xs font-semibold text-amber-800 uppercase tracking-widest">Sửa hàng loạt</span>
+							<span class="text-xs text-amber-700 mt-0.5">Cho các ca chưa kích hoạt</span>
+						</div>
+						<div class="flex items-center gap-2">
+							<input type="number" min="1" @bind="_batchCapacity"
+								   class="w-20 px-3 py-1.5 text-sm border border-amber-300 rounded focus:ring-amber-500 focus:border-amber-500 outline-none" />
+							<button @onclick="BatchUpdateCapacity"
+									class="px-3 py-1.5 text-sm font-medium bg-white text-amber-700 border border-amber-300 rounded hover:bg-amber-100 transition">
+								Áp dụng
+							</button>
+						</div>
+						<div class="h-8 w-px bg-amber-200 mx-2"></div>
+						<button @onclick="BatchActivate"
+								class="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded shadow-sm transition">
+							<i class="ph-bold ph-check-square-offset"></i> Kích hoạt tất cả
+						</button>
+					</div>
+				</div>
+			}
+		</div>
 
-        <!-- Shift List by Day -->
-        @if (!_shifts.Any())
-        {
-            <div class="text-center py-12 bg-card border border-border rounded-xl">
-                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                    <i class="ph ph-calendar-blank text-3xl"></i>
-                </div>
-                <h3 class="text-lg font-bold text-foreground">Không có ca trực</h3>
-                <p class="text-slate-500 mt-1">Bạn không được phân ca làm việc nào trong tuần này.</p>
-            </div>
-        }
-        else
-        {
-            <div class="space-y-6">
-                @foreach (var dayGroup in _shifts.GroupBy(s => s.StartTime.Date).OrderBy(g => g.Key))
-                {
-                    <div class="bg-card rounded-xl border border-border overflow-hidden">
-                        <div class="bg-slate-50 px-6 py-3 border-b border-border flex items-center gap-3">
-                            <div
-                                class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex flex-col items-center justify-center shadow-sm">
-                                <span
-                                class="text-[10px] font-bold text-slate-500 uppercase leading-none mb-0.5">@dayGroup.Key.ToString("ddd")</span>
-                                <span class="text-sm font-bold text-slate-800 leading-none">@dayGroup.Key.ToString("dd")</span>
-                            </div>
-                            <h2 class="text-lg font-bold text-foreground">
-                                @(dayGroup.Key == DateTime.Today ? "Hôm nay" : dayGroup.Key == DateTime.Today.AddDays(-1) ? "Hôm qua" : dayGroup.Key == DateTime.Today.AddDays(1) ? "Ngày mai" : dayGroup.Key.ToString("dd/MM/yyyy"))
-                            </h2>
-                        </div>
+		<!-- Shift List by Day -->
+		@if (!_shifts.Any())
+		{
+			<div class="text-center py-12 bg-card border border-border rounded-xl">
+				<div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+					<i class="ph ph-calendar-blank text-3xl"></i>
+				</div>
+				<h3 class="text-lg font-bold text-foreground">Không có ca trực</h3>
+				<p class="text-slate-500 mt-1">Bạn không được phân ca làm việc nào trong tuần này.</p>
+			</div>
+		}
+		else
+		{
+			<div class="space-y-6">
+				@foreach (var dayGroup in _shifts.GroupBy(s => s.StartTime.Date).OrderBy(g => g.Key))
+				{
+					<div class="bg-card rounded-xl border border-border overflow-hidden">
+						<div class="bg-slate-50 px-6 py-3 border-b border-border flex items-center gap-3">
+							<div class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex flex-col items-center justify-center shadow-sm">
+								<span class="text-[10px] font-bold text-slate-500 uppercase leading-none mb-0.5">@dayGroup.Key.ToString("ddd")</span>
+								<span class="text-sm font-bold text-slate-800 leading-none">@dayGroup.Key.ToString("dd")</span>
+							</div>
+							<h2 class="text-lg font-bold text-foreground">
+								@(dayGroup.Key == DateTime.Today ? "Hôm nay" : dayGroup.Key == DateTime.Today.AddDays(-1) ? "Hôm qua" : dayGroup.Key == DateTime.Today.AddDays(1) ? "Ngày mai" : dayGroup.Key.ToString("dd/MM/yyyy"))
+							</h2>
+						</div>
 
-                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            @foreach (var shift in dayGroup)
-                            {
-                                bool isPast = shift.EndTime.HasValue ? shift.EndTime.Value < DateTime.Now : shift.StartTime.Date <
-                DateTime.Today;
-                                bool isDraft = shift.ShiftStatus == "Chờ kích hoạt";
-                                bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || isPast;
-                                bool isActive = (shift.ShiftStatus == "Đang nhận bệnh" || shift.ShiftStatus == "Đang chốt sổ" ||
-                shift.ShiftStatus == "Đã kích hoạt") && !isCompleted;
+						<div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+							@foreach (var shift in dayGroup)
+							{
+								bool isPast = shift.EndTime.HasValue ? shift.EndTime.Value < DateTime.Now : shift.StartTime.Date < DateTime.Today;
+								bool isDraft = shift.ShiftStatus == "Chờ kích hoạt";
+								bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || isPast;
+								bool isActive = (shift.ShiftStatus == "Đang nhận bệnh" || shift.ShiftStatus == "Đang chốt sổ" || shift.ShiftStatus == "Đã kích hoạt") && !isCompleted;
 
-                                <div
-                                    class="relative flex flex-col rounded-xl border p-5 transition-all @(isDraft && !isCompleted ? "bg-white border-amber-200 hover:border-amber-300 hover:shadow-md" : isActive && !isCompleted ? "bg-emerald-50/30 border-emerald-200" : "bg-slate-50 border-slate-200 opacity-70")">
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div>
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <i
-                                                class="ph-fill @(shift.StartTime.Hour < 12 ? "ph-sun text-orange-400" : shift.StartTime.Hour < 18 ? "ph-sun-horizon text-amber-500" : "ph-moon text-indigo-500") text-lg"></i>
-                                                <h3 class="font-bold text-foreground">@shift.ShiftName</h3>
-                                            </div>
-                                            <p class="text-sm text-muted-foreground font-medium">@shift.StartTime.ToString("HH:mm") -
-                                                @shift.EndTime?.ToString("HH:mm")</p>
-                                            </div>
-                                            @if (isDraft && !isCompleted)
-                                            {
-                                                <span
-                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Chờ kích hoạt
-                                                </span>
-                                            }
-                                            else if (isActive && !isCompleted)
-                                            {
-                                                <span
-                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Đã kích hoạt
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span
-                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
-                                                    Đã hoàn thành
-                                                </span>
-                                            }
-                                        </div>
+								<div class="relative flex flex-col rounded-xl border p-5 transition-all @(isDraft && !isCompleted ? "bg-white border-amber-200 hover:border-amber-300 hover:shadow-md" : isActive && !isCompleted ? "bg-emerald-50/30 border-emerald-200" : "bg-slate-50 border-slate-200 opacity-70")">
+									<div class="flex items-start justify-between mb-4">
+										<div>
+											<div class="flex items-center gap-2 mb-1">
+												<i class="ph-fill @(shift.StartTime.Hour < 12 ? "ph-sun text-orange-400" : shift.StartTime.Hour < 18 ? "ph-sun-horizon text-amber-500" : "ph-moon text-indigo-500") text-lg"></i>
+												<h3 class="font-bold text-foreground">@shift.ShiftName</h3>
+											</div>
+											<p class="text-sm text-muted-foreground font-medium">
+												@shift.StartTime.ToString("HH:mm") - @shift.EndTime?.ToString("HH:mm")
+											</p>
+										</div>
 
                                     <div class="flex items-center gap-2 mb-5 text-sm mt-4 border-t border-slate-100 pt-3">
                                         <i class="ph ph-door text-muted-foreground"></i>
@@ -227,214 +198,214 @@
     </div>
 
 @code {
-    private int _doctorId = 0;
-    private bool _isLoading = true;
-    private bool _isProcessing = false;
-    private DateTime _weekStart;
+	private int _doctorId = 0;
+	private bool _isLoading = true;
+	private bool _isProcessing = false;
+	private DateTime _weekStart;
 
-    private List<DoctorShiftDisplayDto> _shifts = new();
-    private bool _hasDraftShifts => _shifts.Any(s => s.ShiftStatus == "Chờ kích hoạt");
+	private List<DoctorShiftDisplayDto> _shifts = new();
+	private bool _hasDraftShifts => _shifts.Any(s => s.ShiftStatus == "Chờ kích hoạt");
 
-    // Batch edit
-    private int _batchCapacity = 10;
+	// Batch edit
+	private int _batchCapacity = 10;
 
-    // Individual edit track
-    private Dictionary<int, int> _editCapacityMap = new();
+	// Individual edit track
+	private Dictionary<int, int> _editCapacityMap = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user?.Identity?.IsAuthenticated == true)
-        {
-            var claim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-            if (claim != null && int.TryParse(claim.Value, out int id))
-            {
-                _doctorId = id;
-            }
-        }
+	protected override async Task OnInitializedAsync()
+	{
+		var authState = await AuthProvider.GetAuthenticationStateAsync();
+		var user = authState.User;
+		if (user?.Identity?.IsAuthenticated == true)
+		{
+			var claim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+			if (claim != null && int.TryParse(claim.Value, out int id))
+			{
+				_doctorId = id;
+			}
+		}
 
-        ResetToCurrentWeek();
-        await LoadShiftsAsync();
-    }
+		ResetToCurrentWeek();
+		await LoadShiftsAsync();
+	}
 
-    private void ResetToCurrentWeek()
-    {
-        var today = DateTime.Today;
-        // Logic to get Monday of current week
-        int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
-        _weekStart = today.AddDays(-1 * diff).Date;
-    }
+	private void ResetToCurrentWeek()
+	{
+		var today = DateTime.Today;
+		// Logic to get Monday of current week
+		int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+		_weekStart = today.AddDays(-1 * diff).Date;
+	}
 
-    private async Task PreviousWeek()
-    {
-        _weekStart = _weekStart.AddDays(-7);
-        await LoadShiftsAsync();
-    }
+	private async Task PreviousWeek()
+	{
+		_weekStart = _weekStart.AddDays(-7);
+		await LoadShiftsAsync();
+	}
 
-    private async Task NextWeek()
-    {
-        _weekStart = _weekStart.AddDays(7);
-        await LoadShiftsAsync();
-    }
+	private async Task NextWeek()
+	{
+		_weekStart = _weekStart.AddDays(7);
+		await LoadShiftsAsync();
+	}
 
-    private async Task LoadShiftsAsync()
-    {
-        if (_doctorId <= 0) return;
+	private async Task LoadShiftsAsync()
+	{
+		if (_doctorId <= 0) return;
 
-        _isLoading = true;
-        StateHasChanged();
+		_isLoading = true;
+		StateHasChanged();
 
-        try
-        {
-            var weekEnd = _weekStart.AddDays(6).Date.AddHours(23).AddMinutes(59).AddSeconds(59);
-            _shifts = await ShiftService.GetMyShiftsAsync(_doctorId, _weekStart, weekEnd);
+		try
+		{
+			var weekEnd = _weekStart.AddDays(6).Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+			_shifts = await ShiftService.GetMyShiftsAsync(_doctorId, _weekStart, weekEnd);
 
-            // Re-init edit map
-            _editCapacityMap.Clear();
-            foreach (var s in _shifts)
-            {
-                _editCapacityMap[s.Id] = s.Capacity;
-            }
-        }
-        catch (Exception ex)
-        {
-            ToastService.ShowError("Có lỗi xảy ra khi tải lịch làm việc.");
-            System.Diagnostics.Debug.WriteLine($"[MySchedule] Load Error: {ex.Message}");
-        }
-        finally
-        {
-            _isLoading = false;
-        }
-    }
+			// Re-init edit map
+			_editCapacityMap.Clear();
+			foreach (var s in _shifts)
+			{
+				_editCapacityMap[s.Id] = s.Capacity;
+			}
+		}
+		catch (Exception ex)
+		{
+			ToastService.ShowError("Có lỗi xảy ra khi tải lịch làm việc.");
+			System.Diagnostics.Debug.WriteLine($"[MySchedule] Load Error: {ex.Message}");
+		}
+		finally
+		{
+			_isLoading = false;
+		}
+	}
 
-    private void UpdateEditCapacity(int shiftId, object? val)
-    {
-        if (val != null && int.TryParse(val.ToString(), out int c))
-        {
-            _editCapacityMap[shiftId] = c;
-        }
-    }
+	private void UpdateEditCapacity(int shiftId, object? val)
+	{
+		if (val != null && int.TryParse(val.ToString(), out int c))
+		{
+			_editCapacityMap[shiftId] = c;
+		}
+	}
 
-    private async Task SaveCapacity(int shiftId)
-    {
-        if (_isProcessing) return;
-        _isProcessing = true;
-        try
-        {
-            if (!_editCapacityMap.TryGetValue(shiftId, out int newCap)) return;
+	private async Task SaveCapacity(int shiftId)
+	{
+		if (_isProcessing) return;
+		_isProcessing = true;
+		try
+		{
+			if (!_editCapacityMap.TryGetValue(shiftId, out int newCap)) return;
 
-            var result = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
-            if (result.Success)
-            {
-                ToastService.ShowSuccess("Đã cập nhật số lượng bệnh nhân tối đa.");
-                await LoadShiftsAsync();
-            }
-            else
-            {
-                ToastService.ShowError(result.Error);
-            }
-        }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
+			var result = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
+			if (result.Success)
+			{
+				ToastService.ShowSuccess("Đã cập nhật số lượng bệnh nhân tối đa.");
+				await LoadShiftsAsync();
+			}
+			else
+			{
+				ToastService.ShowError(result.Error);
+			}
+		}
+		finally
+		{
+			_isProcessing = false;
+		}
+	}
 
-    private async Task ActivateSingleShift(int shiftId)
-    {
-        if (_isProcessing) return;
-        _isProcessing = true;
-        try
-        {
-            // First ensure capacity is saved if changed
-            if (_editCapacityMap.TryGetValue(shiftId, out int newCap))
-            {
-                var shift = _shifts.FirstOrDefault(s => s.Id == shiftId);
-                if (shift != null && shift.Capacity != newCap)
-                {
-                    var updateRes = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
-                    if (!updateRes.Success)
-                    {
-                        ToastService.ShowError(updateRes.Error);
-                        return;
-                    }
-                }
-            }
+	private async Task ActivateSingleShift(int shiftId)
+	{
+		if (_isProcessing) return;
+		_isProcessing = true;
+		try
+		{
+			// First ensure capacity is saved if changed
+			if (_editCapacityMap.TryGetValue(shiftId, out int newCap))
+			{
+				var shift = _shifts.FirstOrDefault(s => s.Id == shiftId);
+				if (shift != null && shift.Capacity != newCap)
+				{
+					var updateRes = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
+					if (!updateRes.Success)
+					{
+						ToastService.ShowError(updateRes.Error);
+						return;
+					}
+				}
+			}
 
-            var result = await ShiftService.ActivateShiftAsync(shiftId, _doctorId);
-            if (result.Success)
-            {
-                ToastService.ShowSuccess("Đã kích hoạt ca trực thành công.");
-            }
-            else
-            {
-                if (result.Error.Contains("đã được kích hoạt"))
-                {
-                    ToastService.ShowInfo("Ca trực đã được kích hoạt.");
-                }
-                else
-                {
-                    ToastService.ShowError(result.Error);
-                }
-            }
-            await LoadShiftsAsync();
-        }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
+			var result = await ShiftService.ActivateShiftAsync(shiftId, _doctorId);
+			if (result.Success)
+			{
+				ToastService.ShowSuccess("Đã kích hoạt ca trực thành công.");
+			}
+			else
+			{
+				if (result.Error.Contains("đã được kích hoạt"))
+				{
+					ToastService.ShowInfo("Ca trực đã được kích hoạt.");
+				}
+				else
+				{
+					ToastService.ShowError(result.Error);
+				}
+			}
+			await LoadShiftsAsync();
+		}
+		finally
+		{
+			_isProcessing = false;
+		}
+	}
 
-    private async Task BatchUpdateCapacity()
-    {
-        if (_isProcessing) return;
-        _isProcessing = true;
-        try
-        {
-            if (_batchCapacity < 1)
-            {
-                ToastService.ShowWarning("Số lượng bệnh nhân phải từ 1 trở lên.");
-                return;
-            }
+	private async Task BatchUpdateCapacity()
+	{
+		if (_isProcessing) return;
+		_isProcessing = true;
+		try
+		{
+			if (_batchCapacity < 1)
+			{
+				ToastService.ShowWarning("Số lượng bệnh nhân phải từ 1 trở lên.");
+				return;
+			}
 
-            var result = await ShiftService.BatchUpdateCapacityAsync(_doctorId, _weekStart, _batchCapacity);
-            if (result.Success)
-            {
-                ToastService.ShowSuccess(result.Error); // Error holds the success message in Batch
-                await LoadShiftsAsync();
-            }
-            else
-            {
-                ToastService.ShowError(result.Error);
-            }
-        }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
+			var result = await ShiftService.BatchUpdateCapacityAsync(_doctorId, _weekStart, _batchCapacity);
+			if (result.Success)
+			{
+				ToastService.ShowSuccess(result.Error); // Error holds the success message in Batch
+				await LoadShiftsAsync();
+			}
+			else
+			{
+				ToastService.ShowError(result.Error);
+			}
+		}
+		finally
+		{
+			_isProcessing = false;
+		}
+	}
 
-    private async Task BatchActivate()
-    {
-        if (_isProcessing) return;
-        _isProcessing = true;
-        try
-        {
-            var result = await ShiftService.BatchActivateAsync(_doctorId, _weekStart);
-            if (result.Success)
-            {
-                ToastService.ShowSuccess(result.Error);
-            }
-            else
-            {
-                ToastService.ShowError(result.Error);
-            }
-            await LoadShiftsAsync();
-        }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
+	private async Task BatchActivate()
+	{
+		if (_isProcessing) return;
+		_isProcessing = true;
+		try
+		{
+			var result = await ShiftService.BatchActivateAsync(_doctorId, _weekStart);
+			if (result.Success)
+			{
+				ToastService.ShowSuccess(result.Error);
+			}
+			else
+			{
+				ToastService.ShowError(result.Error);
+			}
+			await LoadShiftsAsync();
+		}
+		finally
+		{
+			_isProcessing = false;
+		}
+	}
 }

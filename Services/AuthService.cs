@@ -111,19 +111,72 @@ namespace SmartClinic.Services
                     .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
             }
 
-            if (existingByUsername != null && existingByEmail != null && existingByUsername.Id != existingByEmail.Id)
+            User? existingByPhone = null;
+            if (!string.IsNullOrWhiteSpace(normalizedPhone))
+            {
+                existingByPhone = await FindUserByNormalizedPhoneAsync(normalizedPhone);
+            }
+
+            var matchedIds = new HashSet<int>();
+            if (existingByUsername != null) matchedIds.Add(existingByUsername.Id);
+            if (existingByEmail != null) matchedIds.Add(existingByEmail.Id);
+            if (existingByPhone != null) matchedIds.Add(existingByPhone.Id);
+
+            if (matchedIds.Count > 1)
             {
                 return new PatientRegistrationResult
                 {
                     Success = false,
-                    Message = "Tên đăng nhập và email thuộc về 2 tài khoản khác nhau. Vui lòng kiểm tra lại thông tin."
+                    Message = "Thông tin tên đăng nhập, email hoặc số điện thoại đang thuộc về các tài khoản khác nhau. Vui lòng kiểm tra lại thông tin."
                 };
             }
 
-            var targetUser = existingByUsername ?? existingByEmail;
+            var targetUser = existingByUsername ?? existingByEmail ?? existingByPhone;
 
             if (targetUser != null)
             {
+                var isPhoneClaimFlow = existingByPhone != null
+                    && existingByPhone.Id == targetUser.Id
+                    && existingByUsername == null
+                    && existingByEmail == null;
+
+                if (isPhoneClaimFlow)
+                {
+                    if (!CanClaimPreRegisteredPatient(targetUser))
+                    {
+                        return new PatientRegistrationResult
+                        {
+                            Success = false,
+                            Message = "Số điện thoại này đã gắn với tài khoản khác. Vui lòng đăng nhập tài khoản hiện có hoặc liên hệ lễ tân để được hỗ trợ."
+                        };
+                    }
+
+                    if (string.IsNullOrWhiteSpace(normalizedEmail))
+                    {
+                        return new PatientRegistrationResult
+                        {
+                            Success = false,
+                            Message = "Vui lòng nhập email để nhận OTP kích hoạt tài khoản."
+                        };
+                    }
+
+                    if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+                    {
+                        return new PatientRegistrationResult
+                        {
+                            Success = false,
+                            Message = "Mật khẩu phải có ít nhất 6 ký tự."
+                        };
+                    }
+
+                    return await SendPatientRegistrationOtpAsyncInternal(
+                        request,
+                        normalizedUsername,
+                        normalizedEmail,
+                        normalizedPhone!,
+                        targetUser.Id);
+                }
+
                 if (targetUser.IsActive != true)
                 {
                     return new PatientRegistrationResult
@@ -256,7 +309,8 @@ namespace SmartClinic.Services
                 request,
                 normalizedUsername,
                 normalizedEmail,
-                normalizedPhone);
+                normalizedPhone,
+                null);
         }
 
         public async Task<PatientRegistrationResult> ConfirmPatientRegistrationAsync(string email, string otp)
@@ -332,28 +386,87 @@ namespace SmartClinic.Services
                 };
             }
 
-            var stillFree = await AssertNewPatientIdentifiersStillAvailableAsync(session);
+            var stillFree = await AssertPatientIdentifiersStillAvailableAsync(session);
             if (stillFree != null)
             {
                 _memoryCache.Remove(cacheKey);
                 return stillFree;
             }
 
-            var newUser = new User
+            if (session.ExistingUserId.HasValue)
             {
-                Username = session.Username,
-                PasswordHash = session.PasswordHash,
-                FullName = session.FullName,
-                Email = session.Email,
-                PhoneNumber = session.Phone,
-                Address = session.Address,
-                Gender = session.Gender,
-                DoB = session.DoB,
-                RoleMask = PatientRoleMask,
-                IsActive = true
-            };
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == session.ExistingUserId.Value);
+                if (existingUser == null)
+                {
+                    _memoryCache.Remove(cacheKey);
+                    return new PatientRegistrationResult
+                    {
+                        Success = false,
+                        Message = "Không tìm thấy hồ sơ bệnh nhân để kích hoạt. Vui lòng liên hệ lễ tân."
+                    };
+                }
 
-            _context.Users.Add(newUser);
+                if (existingUser.IsActive != true)
+                {
+                    _memoryCache.Remove(cacheKey);
+                    return new PatientRegistrationResult
+                    {
+                        Success = false,
+                        Message = "Tài khoản này đang bị khóa. Vui lòng liên hệ quản trị viên."
+                    };
+                }
+
+                if (!CanClaimPreRegisteredPatient(existingUser))
+                {
+                    _memoryCache.Remove(cacheKey);
+                    return new PatientRegistrationResult
+                    {
+                        Success = false,
+                        Message = "Số điện thoại này đã thuộc tài khoản hoạt động. Vui lòng đăng nhập hoặc liên hệ lễ tân."
+                    };
+                }
+
+                existingUser.Username = session.Username;
+                existingUser.PasswordHash = session.PasswordHash;
+                existingUser.FullName = session.FullName;
+                existingUser.Email = session.Email;
+                existingUser.PhoneNumber = session.Phone;
+                if (!string.IsNullOrWhiteSpace(session.Address))
+                {
+                    existingUser.Address = session.Address;
+                }
+
+                if (session.Gender.HasValue)
+                {
+                    existingUser.Gender = session.Gender.Value;
+                }
+
+                if (session.DoB.HasValue)
+                {
+                    existingUser.DoB = session.DoB.Value;
+                }
+
+                existingUser.RoleMask |= PatientRoleMask;
+            }
+            else
+            {
+                var newUser = new User
+                {
+                    Username = session.Username,
+                    PasswordHash = session.PasswordHash,
+                    FullName = session.FullName,
+                    Email = session.Email,
+                    PhoneNumber = session.Phone,
+                    Address = session.Address,
+                    Gender = session.Gender,
+                    DoB = session.DoB,
+                    RoleMask = PatientRoleMask,
+                    IsActive = true
+                };
+
+                _context.Users.Add(newUser);
+            }
+
             await _context.SaveChangesAsync();
 
             _memoryCache.Remove(cacheKey);
@@ -438,7 +551,8 @@ namespace SmartClinic.Services
             PatientRegistrationRequest request,
             string normalizedUsername,
             string normalizedEmail,
-            string normalizedPhone)
+            string normalizedPhone,
+            int? existingUserId)
         {
             var cacheKey = GetPatientRegistrationOtpCacheKey(normalizedEmail);
             if (_memoryCache.TryGetValue(cacheKey, out PendingPatientRegistrationSession? existingPending) && existingPending != null)
@@ -458,13 +572,14 @@ namespace SmartClinic.Services
             var otp = GenerateOtp();
             var pendingSession = new PendingPatientRegistrationSession
             {
+                ExistingUserId = existingUserId,
                 Username = normalizedUsername,
                 FullName = request.FullName.Trim(),
                 Email = normalizedEmail,
                 Phone = normalizedPhone,
                 Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim(),
-                Gender = request.Gender!.Value,
-                DoB = request.DoB!.Value,
+                Gender = request.Gender,
+                DoB = request.DoB,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 OtpHash = BCrypt.Net.BCrypt.HashPassword(otp),
                 LastSentAtUtc = DateTime.UtcNow,
@@ -502,11 +617,15 @@ namespace SmartClinic.Services
             };
         }
 
-        private async Task<PatientRegistrationResult?> AssertNewPatientIdentifiersStillAvailableAsync(
+        private async Task<PatientRegistrationResult?> AssertPatientIdentifiersStillAvailableAsync(
             PendingPatientRegistrationSession session)
         {
+            var currentUserId = session.ExistingUserId;
+
             var emailTaken = await _context.Users.AnyAsync(u =>
-                u.Email != null && u.Email.Trim().ToLower() == session.Email);
+                u.Email != null &&
+                u.Email.Trim().ToLower() == session.Email &&
+                (!currentUserId.HasValue || u.Id != currentUserId.Value));
             if (emailTaken)
             {
                 return new PatientRegistrationResult
@@ -518,9 +637,10 @@ namespace SmartClinic.Services
 
             var phoneOwners = await _context.Users.AsNoTracking()
                 .Where(u => u.PhoneNumber != null && u.PhoneNumber != "")
-                .Select(u => new { u.PhoneNumber })
+                .Select(u => new { u.Id, u.PhoneNumber })
                 .ToListAsync();
             var phoneDup = phoneOwners.Any(u =>
+                (!currentUserId.HasValue || u.Id != currentUserId.Value) &&
                 NormalizeVietnamPhoneDigits(u.PhoneNumber) == session.Phone);
             if (phoneDup)
             {
@@ -532,7 +652,8 @@ namespace SmartClinic.Services
             }
 
             var usernameTaken = await _context.Users.AnyAsync(u =>
-                u.Username.ToLower() == session.Username.ToLower());
+                u.Username.ToLower() == session.Username.ToLower() &&
+                (!currentUserId.HasValue || u.Id != currentUserId.Value));
             if (usernameTaken)
             {
                 return new PatientRegistrationResult
@@ -556,14 +677,15 @@ namespace SmartClinic.Services
             public DateTime ExpiresAtUtc { get; set; }
             public DateTime LastSentAtUtc { get; set; }
             public int FailedAttempts { get; set; }
+            public int? ExistingUserId { get; set; }
             public string PasswordHash { get; set; } = string.Empty;
             public string Username { get; set; } = string.Empty;
             public string FullName { get; set; } = string.Empty;
             public string Email { get; set; } = string.Empty;
             public string Phone { get; set; } = string.Empty;
             public string? Address { get; set; }
-            public bool Gender { get; set; }
-            public DateOnly DoB { get; set; }
+            public bool? Gender { get; set; }
+            public DateOnly? DoB { get; set; }
         }
 
         /// <summary>
@@ -591,6 +713,46 @@ namespace SmartClinic.Services
             if (d.StartsWith("84") && d.Length >= 10)
                 d = "0" + d[2..];
             return d;
+        }
+
+        private async Task<User?> FindUserByNormalizedPhoneAsync(string normalizedPhone)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedPhone))
+            {
+                return null;
+            }
+
+            var phoneOwners = await _context.Users.AsNoTracking()
+                .Where(u => u.PhoneNumber != null && u.PhoneNumber != "")
+                .Select(u => new { u.Id, u.PhoneNumber })
+                .ToListAsync();
+
+            var ownerId = phoneOwners
+                .FirstOrDefault(u => NormalizeVietnamPhoneDigits(u.PhoneNumber) == normalizedPhone)
+                ?.Id;
+
+            if (!ownerId.HasValue)
+            {
+                return null;
+            }
+
+            return await _context.Users.FirstOrDefaultAsync(u => u.Id == ownerId.Value);
+        }
+
+        private static bool CanClaimPreRegisteredPatient(User user)
+        {
+            var isPatient = (user.RoleMask & PatientRoleMask) == PatientRoleMask;
+            if (!isPatient)
+            {
+                return false;
+            }
+
+            var hasEmail = !string.IsNullOrWhiteSpace(user.Email);
+            var hasSystemGeneratedUsername = user.Username.StartsWith("walkin_", StringComparison.OrdinalIgnoreCase)
+                || user.Username.StartsWith("patient_", StringComparison.OrdinalIgnoreCase);
+
+            // Cho phép claim hồ sơ bệnh nhân do hệ thống/lễ tân tạo sẵn (thường username tạm, chưa có email).
+            return hasSystemGeneratedUsername || !hasEmail;
         }
 
         private static string DescribeStaffRoleLabels(int mask)
@@ -1028,7 +1190,7 @@ namespace SmartClinic.Services
             if ((roleMask & LabTechRoleMask) == LabTechRoleMask) return "/lab";
             if ((roleMask & CashierRoleMask) == CashierRoleMask) return "/cashier/payments";
             if ((roleMask & PharmacistRoleMask) == PharmacistRoleMask) return "/pharmacist/prescriptions";
-            
+
             return "/";
         }
     }
