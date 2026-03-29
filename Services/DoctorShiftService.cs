@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using SmartClinic.Constant;
 using SmartClinic.DTOs;
 using SmartClinic.Models;
+using SmartClinic.Hubs;
 
 namespace SmartClinic.Services;
 
@@ -16,6 +18,15 @@ public interface IDoctorShiftService
     Task<(bool Success, string Error)> BulkSaveShiftsAsync(List<DoctorShiftWeeklyUpdateDto> updates);
     Task<(List<AutoSchedulePreviewItemDto> Items, string Error)> PreviewAutoScheduleAsync(AutoScheduleRequestDto request);
     Task<AutoScheduleResultDto> ConfirmAutoScheduleAsync(List<AutoSchedulePreviewItemDto> items);
+
+    // ── Doctor Schedule Management ──
+    Task<List<DoctorShiftDisplayDto>> GetMyShiftsAsync(int doctorId, DateTime from, DateTime to);
+    Task<(bool Success, string Error)> ActivateShiftAsync(int shiftId, int? callerDoctorId);
+    Task<(bool Success, string Error)> BatchActivateAsync(int doctorId, DateTime weekStart);
+    Task<(bool Success, string Error)> UpdateShiftCapacityAsync(int shiftId, int callerDoctorId, int newCapacity);
+    Task<(bool Success, string Error)> BatchUpdateCapacityAsync(int doctorId, DateTime weekStart, int capacity);
+    Task<(bool Success, string Error)> StopReceivingPatientsAsync(int shiftId, int callerDoctorId);
+    Task<(bool Success, string Error)> EndShiftAsync(int shiftId, int callerDoctorId);
 }
 
 /// <summary>
@@ -35,10 +46,20 @@ public interface IDoctorShiftService
 public class DoctorShiftService : IDoctorShiftService
 {
     private readonly IDbContextFactory<SmartClinicDbContext> _factory;
+    private readonly IHubContext<QueueHub> _queueHub;
+    private readonly IHubContext<PatientHub> _patientHub;
+    private readonly IQueueService _queueService;
 
-    public DoctorShiftService(IDbContextFactory<SmartClinicDbContext> factory)
+    public DoctorShiftService(
+        IDbContextFactory<SmartClinicDbContext> factory,
+        IHubContext<QueueHub> queueHub,
+        IHubContext<PatientHub> patientHub,
+        IQueueService queueService)
     {
         _factory = factory;
+        _queueHub = queueHub;
+        _patientHub = patientHub;
+        _queueService = queueService;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -76,7 +97,8 @@ public class DoctorShiftService : IDoctorShiftService
             EndTime = s.Date.Date.Add(s.ShiftDefinition.EndTime),
             Status = s.ComputedStatus,
             Capacity = s.Capacity,
-            ShiftName = s.ShiftDefinition.Name
+            ShiftName = s.ShiftDefinition.Name,
+            ShiftStatus = s.StatusDisplay
         }).ToList();
     }
 
@@ -92,7 +114,7 @@ public class DoctorShiftService : IDoctorShiftService
         return await ctx.Users
             .AsNoTracking()
             .Include(u => u.Department)
-            .Where(u => (u.RoleMask & 2) == 2 && u.IsActive == true)
+            .Where(u => ((u.RoleMask & 2) == 2 || (u.RoleMask & 32) == 32) && u.IsActive == true)
             .OrderBy(u => u.FullName)
             .ToListAsync();
     }
@@ -109,8 +131,7 @@ public class DoctorShiftService : IDoctorShiftService
         return await ctx.Rooms
             .AsNoTracking()
             .Include(r => r.Department)
-            .Where(r => (r.Flags & RoomFlags.IsActive) != 0
-                     && (r.Flags & RoomFlags.IsLab) == 0)
+            .Where(r => (r.Flags & RoomFlags.IsActive) != 0)
             .OrderBy(r => r.Department.Name)
             .ThenBy(r => r.Name)
             .ToListAsync();
@@ -235,7 +256,7 @@ public class DoctorShiftService : IDoctorShiftService
                 {
                     // Thêm mới
                     // KT trùng lịch
-                    var overlap = await ctx.DoctorShifts.AnyAsync(s => 
+                    var overlap = await ctx.DoctorShifts.AnyAsync(s =>
                         s.Date == update.Date.Date && s.ShiftDefinitionId == update.ShiftDefinitionId &&
                         (s.DoctorId == update.DoctorId || s.RoomId == update.RoomId));
                     if (overlap) return (false, $"Phát hiện trùng lịch tại ngày {update.Date:dd/MM/yyyy}. Một bác sĩ hoặc phòng không thể có 2 ca trùng thời gian.");
@@ -309,7 +330,7 @@ public class DoctorShiftService : IDoctorShiftService
             .AsNoTracking()
             .Where(u => request.SelectedDoctorIds.Contains(u.Id))
             .OrderBy(u => u.FullName)
-            .Select(u => new { u.Id, u.FullName, u.DepartmentId })
+            .Select(u => new { u.Id, u.FullName, u.DepartmentId, u.RoleMask })
             .ToListAsync();
 
         var selectedRooms = await ctx.Rooms
@@ -381,12 +402,19 @@ public class DoctorShiftService : IDoctorShiftService
                     }
 
                     // ── Tìm bác sĩ phù hợp bằng Round-Robin ──
-                    // Ưu tiên: BS cùng khoa > BS không có khoa (null) > BS khoa khác
+                    // Bác sĩ (Bit 2) chỉ trực phòng Clinic, KTV (Bit 32) chỉ trực phòng Lab
                     var sortedDoctors = selectedDoctors
+                        .Where(d => (room.IsLab && (d.RoleMask & 32) == 32) || (!room.IsLab && (d.RoleMask & 2) == 2))
                         .OrderByDescending(d => d.DepartmentId == room.DepartmentId)
                         .ThenByDescending(d => d.DepartmentId == null)
                         .ThenBy(d => d.FullName)
                         .ToList();
+
+                    if (!sortedDoctors.Any())
+                    {
+                        skipped++;
+                        continue;
+                    }
 
                     bool assigned = false;
                     for (int attempt = 0; attempt < sortedDoctors.Count; attempt++)
@@ -509,5 +537,265 @@ public class DoctorShiftService : IDoctorShiftService
             TotalSkipped = skipped,
             Summary = $"Đã tạo {created} ca trực thành công" + (skipped > 0 ? $", bỏ qua {skipped} ca trùng lịch." : ".")
         };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 10. LẤY CA TRỰC CỦA BÁC SĨ (Doctor Schedule)
+    //     Kèm BookedCount = đếm QueueTickets chưa hủy
+    // ══════════════════════════════════════════════════════════
+    public async Task<List<DoctorShiftDisplayDto>> GetMyShiftsAsync(int doctorId, DateTime from, DateTime to)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shifts = await ctx.DoctorShifts
+            .AsNoTracking()
+            .Include(s => s.Room).ThenInclude(r => r.Department)
+            .Include(s => s.ShiftDefinition)
+            .Where(s => s.DoctorId == doctorId && s.Date >= from.Date && s.Date <= to.Date)
+            .OrderBy(s => s.Date).ThenBy(s => s.ShiftDefinition.SortOrder)
+            .ToListAsync();
+
+        // Đếm số BN đã đặt cho mỗi ca (tất cả ticket chưa hủy)
+        var shiftIds = shifts.Select(s => s.Id).ToList();
+        var bookedCounts = await ctx.QueueTickets
+            .Where(t => t.DoctorShiftId != null
+                      && shiftIds.Contains(t.DoctorShiftId.Value)
+                      && t.StatusEnum != TicketStatus.Cancelled)
+            .GroupBy(t => t.DoctorShiftId)
+            .Select(g => new { ShiftId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var bookedMap = bookedCounts.ToDictionary(x => x.ShiftId!.Value, x => x.Count);
+
+        return shifts.Select(s =>
+        {
+            bookedMap.TryGetValue(s.Id, out int booked);
+            return new DoctorShiftDisplayDto
+            {
+                Id = s.Id,
+                DoctorId = s.DoctorId,
+                RoomId = s.RoomId,
+                RoomName = s.Room.Name,
+                DepartmentName = s.Room.Department.Name,
+                StartTime = s.Date.Date.Add(s.ShiftDefinition.StartTime),
+                EndTime = s.Date.Date.Add(s.ShiftDefinition.EndTime),
+                Capacity = s.Capacity,
+                ShiftName = s.ShiftDefinition.Name,
+                Status = s.ComputedStatus,
+                BookedCount = booked,
+                ShiftStatus = s.StatusDisplay
+            };
+        }).ToList();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 11. KÍCH HOẠT 1 CA TRỰC (Doctor hoặc Manager)
+    //     callerDoctorId = null → Manager (bỏ qua check ownership)
+    //     callerDoctorId = X   → Doctor (chỉ active ca của mình)
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> ActivateShiftAsync(int shiftId, int? callerDoctorId)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts.FirstOrDefaultAsync(s => s.Id == shiftId);
+        if (shift == null)
+            return (false, "Ca trực không tồn tại.");
+
+        if (callerDoctorId.HasValue && shift.DoctorId != callerDoctorId.Value)
+            return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (shift.StatusEnum != DoctorShiftStatus.Draft)
+            return (false, "Ca trực đã được kích hoạt trước đó.");
+
+        shift.StatusEnum = DoctorShiftStatus.Active;
+        await ctx.SaveChangesAsync();
+        return (true, string.Empty);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 12. KÍCH HOẠT TẤT CẢ CA DRAFT TRONG TUẦN
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> BatchActivateAsync(int doctorId, DateTime weekStart)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+        var weekEnd = weekStart.AddDays(6);
+
+        var draftShifts = await ctx.DoctorShifts
+            .Where(s => s.DoctorId == doctorId
+                      && s.Date >= weekStart.Date
+                      && s.Date <= weekEnd.Date
+                      && s.StatusEnum == DoctorShiftStatus.Draft)
+            .ToListAsync();
+
+        if (!draftShifts.Any())
+            return (false, "Không có ca trực nào cần kích hoạt trong tuần này.");
+
+        foreach (var shift in draftShifts)
+        {
+            shift.StatusEnum = DoctorShiftStatus.Active;
+        }
+
+        await ctx.SaveChangesAsync();
+        return (true, $"Đã kích hoạt {draftShifts.Count} ca trực.");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 13. SỬA CAPACITY 1 CA TRỰC
+    //     Tăng/giảm đều được, nhưng không < BookedCount
+    //     Không sửa ca đang diễn ra hoặc đã hoàn thành
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> UpdateShiftCapacityAsync(int shiftId, int callerDoctorId, int newCapacity)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts
+            .Include(s => s.ShiftDefinition)
+            .FirstOrDefaultAsync(s => s.Id == shiftId);
+
+        if (shift == null)
+            return (false, "Ca trực không tồn tại.");
+
+        if (shift.DoctorId != callerDoctorId)
+            return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (newCapacity < 1)
+            return (false, "Số lượng bệnh nhân tối đa phải >= 1.");
+
+        // Không sửa ca đang diễn ra
+        if (shift.StatusEnum == DoctorShiftStatus.Active && shift.ComputedStatus == "Đang trực")
+            return (false, "Không thể chỉnh sửa ca trực đang diễn ra.");
+
+        if (shift.StatusEnum == DoctorShiftStatus.Completed)
+            return (false, "Không thể chỉnh sửa ca trực đã hoàn thành.");
+
+        // Đếm số BN đã đặt
+        var bookedCount = await ctx.QueueTickets
+            .CountAsync(t => t.DoctorShiftId == shiftId
+                          && t.StatusEnum != TicketStatus.Cancelled);
+
+        if (newCapacity < bookedCount)
+            return (false, $"Không thể đặt số lượng = {newCapacity}. Hiện đã có {bookedCount} bệnh nhân đặt lịch.");
+
+        shift.Capacity = newCapacity;
+        shift.RemainCapacity = newCapacity - bookedCount;
+
+        await ctx.SaveChangesAsync();
+        return (true, string.Empty);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 14. ĐẶT CAPACITY HÀNG LOẠT CHO CA DRAFT TRONG TUẦN
+    //     Chỉ áp dụng cho ca Draft (chưa có ai đặt)
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> BatchUpdateCapacityAsync(int doctorId, DateTime weekStart, int capacity)
+    {
+        if (capacity < 1)
+            return (false, "Số lượng bệnh nhân tối đa phải >= 1.");
+
+        await using var ctx = await _factory.CreateDbContextAsync();
+        var weekEnd = weekStart.AddDays(6);
+
+        var draftShifts = await ctx.DoctorShifts
+            .Where(s => s.DoctorId == doctorId
+                      && s.Date >= weekStart.Date
+                      && s.Date <= weekEnd.Date
+                      && s.StatusEnum == DoctorShiftStatus.Draft)
+            .ToListAsync();
+
+        if (!draftShifts.Any())
+            return (false, "Không có ca trực Draft nào trong tuần để cập nhật.");
+
+        foreach (var shift in draftShifts)
+        {
+            shift.Capacity = capacity;
+            shift.RemainCapacity = capacity;
+        }
+
+        await ctx.SaveChangesAsync();
+        return (true, $"Đã cập nhật capacity = {capacity} cho {draftShifts.Count} ca trực.");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 15. NGỪNG NHẬN BỆNH (Chuyển Active -> Closing)
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> StopReceivingPatientsAsync(int shiftId, int callerDoctorId)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts.FirstOrDefaultAsync(s => s.Id == shiftId);
+        if (shift == null) return (false, "Ca trực không tồn tại.");
+        if (shift.DoctorId != callerDoctorId) return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (shift.StatusEnum != DoctorShiftStatus.Active)
+            return (false, "Chỉ có thể chốt sổ khi ca trực đang ở trạng thái 'Đang nhận bệnh'.");
+
+        shift.StatusEnum = DoctorShiftStatus.Closing;
+        await ctx.SaveChangesAsync();
+
+        await NotifyRoomStatusUIAsync(shift.RoomId);
+
+        return (true, string.Empty);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 16. KẾT THÚC CA TRỰC (Chuyển Closing -> Completed)
+    //     Ràng buộc: Không còn bệnh nhân nào đang chờ hoặc đang khám
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> EndShiftAsync(int shiftId, int callerDoctorId)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts.FirstOrDefaultAsync(s => s.Id == shiftId);
+        if (shift == null) return (false, "Ca trực không tồn tại.");
+        if (shift.DoctorId != callerDoctorId) return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (shift.StatusEnum != DoctorShiftStatus.Closing && shift.StatusEnum != DoctorShiftStatus.Active)
+            return (false, "Trạng thái ca trực không hợp lệ để kết thúc.");
+
+        // Kiểm tra xem còn bệnh nhân nào chưa xử lý xong không tại phòng đó trong ngày trực đó
+        var pendingStatuses = new[] {
+            TicketStatus.Waiting,
+            TicketStatus.Calling,
+            TicketStatus.Examinating,
+            TicketStatus.Testing,
+            TicketStatus.Emergency
+        };
+
+        var hasPendingTickets = await ctx.QueueTickets
+            .AnyAsync(t => t.DoctorShiftId == shift.Id
+                        && pendingStatuses.Contains(t.StatusEnum));
+
+        if (hasPendingTickets)
+        {
+            var count = await ctx.QueueTickets.CountAsync(t => t.DoctorShiftId == shift.Id
+                        && pendingStatuses.Contains(t.StatusEnum));
+
+            return (false, $"Không thể kết thúc ca. Hiện tại ca trực đang còn {count} bệnh nhân chưa hoàn tất (đang chờ, đang khám hoặc đang xét nghiệm). Bác sĩ vui lòng xử lý sạch hàng đợi trước khi đóng cửa.");
+        }
+
+        shift.StatusEnum = DoctorShiftStatus.Completed;
+        await ctx.SaveChangesAsync();
+
+        await NotifyRoomStatusUIAsync(shift.RoomId);
+
+        return (true, string.Empty);
+    }
+
+    private async Task NotifyRoomStatusUIAsync(int roomId)
+    {
+        try
+        {
+            var displayData = await _queueService.GetDisplayDataAsync(roomId);
+            string groupName = $"Room_{roomId}";
+
+            // Thông báo cho Màn hình Tivi
+            await _queueHub.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
+
+            // Thông báo cho các dashboard Bác sĩ/Bệnh nhân
+            await _patientHub.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new { roomId });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SignalR Error] Room {roomId}: {ex.Message}");
+        }
     }
 }

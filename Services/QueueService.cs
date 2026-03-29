@@ -47,10 +47,11 @@ namespace SmartClinic.Services
                 })
                 .FirstOrDefaultAsync();
 
-            // 3. TÌM DANH SÁCH CHỜ
+            // 3. TÌM DANH SÁCH CHỜ (Chờ thường + Khẩn cấp)
             var nextTickets = await context.QueueTickets
-                .Where(t => t.RoomId == roomId && t.StatusEnum == TicketStatus.Waiting && t.CreatedAt.Date == today)
-                .OrderBy(t => t.CreatedAt)
+                .Where(t => t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency) && t.CreatedAt.Date == today)
+                .OrderByDescending(t => t.StatusEnum == TicketStatus.Emergency) // Khẩn cấp lên đầu
+                .ThenBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
                 .Take(_displayCount)
                 .Select(t => t.TicketNumber.ToString())
@@ -60,10 +61,10 @@ namespace SmartClinic.Services
             return new QueueDisplayDto
             {
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
-                RoomName = activeShift?.Room.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
+                RoomName = activeShift?.Room?.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
                 DoctorName = activeShift != null ? $"BS. {activeShift.Doctor.FullName}" : "Phòng đang trống",
                 PatientName = currentCall != null ? currentCall.PatientName : "Không có bệnh nhân",
-                Specialty = activeShift?.Room.Department?.Name ?? "",
+                Specialty = activeShift?.Room?.Department?.Name ?? "",
                 NextTickets = nextTickets
             };
         }
@@ -76,13 +77,15 @@ namespace SmartClinic.Services
             bool isExamining = await context.QueueTickets.AnyAsync(t => t.StatusEnum == TicketStatus.Examinating && t.CreatedAt.Date == today && t.RoomId == roomId);
             if (isExamining) return false;
 
+            // Chú ý: Nếu bệnh nhân đang ở trạng thái Testing (đi xét nghiệm), bác sĩ VẪN có thể gọi người mới.
+
             var currentCalling = await context.QueueTickets
                 .FirstOrDefaultAsync(t => t.StatusEnum == TicketStatus.Calling && t.CreatedAt.Date == today && t.RoomId == roomId);
             if (currentCalling != null)
             {
                 currentCalling.MissCount += 1;
 
-                if (currentCalling.MissCount >= 5)
+                if (currentCalling.MissCount >= 3)
                 {
                     currentCalling.StatusEnum = TicketStatus.Missed;
 
@@ -91,7 +94,8 @@ namespace SmartClinic.Services
                 }
                 else
                 {
-                    currentCalling.StatusEnum = TicketStatus.Waiting;
+                    bool isEmergencyMarked = currentCalling.AdditionalNotes != null && currentCalling.AdditionalNotes.StartsWith("[EMERGENCY]");
+                    currentCalling.StatusEnum = isEmergencyMarked ? TicketStatus.Emergency : TicketStatus.Waiting;
                     currentCalling.UpdatedAt = DateTime.Now;
                     // Tìm 3 người tiếp theo đang chờ
                     var nextWaitings = await context.QueueTickets
@@ -119,28 +123,30 @@ namespace SmartClinic.Services
                 }
             }
 
-            // 2. Tìm bệnh nhân tiếp theo đang chờ
+            // 2. Tìm bệnh nhân tiếp theo đang chờ (Ưu tiên Emergency)
             var nextPatient = await context.QueueTickets
-                .Where(t => t.StatusEnum == TicketStatus.Waiting && t.CreatedAt.Date == today && t.RoomId == roomId)
-                .OrderBy(t => t.CreatedAt)
+                .Where(t => (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
+                            && t.CreatedAt.Date == today && t.RoomId == roomId)
+                .OrderByDescending(t => t.StatusEnum == TicketStatus.Emergency) // Khẩn cấp lên đầu
+                .ThenBy(t => t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
                 .FirstOrDefaultAsync();
 
-            if (nextPatient == null) return false; // Hết bệnh nhân chờ
-
-            // 3. Cập nhật trạng thái người mới thành "Calling"
-            nextPatient.StatusEnum = TicketStatus.Calling;
-            nextPatient.CreatedAt = today;
+            if (nextPatient != null)
+            {
+                // 3. Cập nhật trạng thái người mới thành "Calling"
+                nextPatient.StatusEnum = TicketStatus.Calling;
+                nextPatient.UpdatedAt = DateTime.Now;
+            }
 
             await context.SaveChangesAsync();
 
-            // 4. Lấy data mới nhất sau khi DB thay đổi
-            var displayData = await GetDisplayDataAsync(nextPatient.RoomId);
-
+            // 4. LUÔN LUÔN cập nhật lại TIVI (để xóa thông tin cũ nếu hết bệnh nhân hoặc người cũ bị Missed)
+            var displayData = await GetDisplayDataAsync(roomId);
             string groupName = $"Room_{roomId}";
             await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
 
-            return true;
+            return nextPatient != null;
         }
     }
 }

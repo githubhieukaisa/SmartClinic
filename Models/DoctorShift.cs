@@ -21,13 +21,25 @@ namespace SmartClinic.Models
         public int RemainCapacity { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+        /// <summary>
+        /// Trạng thái workflow: Draft → Active → Completed.
+        /// Lưu DB. Dùng chung cho Manager lẫn Doctor.
+        /// </summary>
+        public DoctorShiftStatus StatusEnum { get; set; } = DoctorShiftStatus.Draft;
 
+        /// <summary>
+        /// Trạng thái thời gian (real-time, không lưu DB).
+        /// Dùng hiển thị ở Manager Scheduling: "Sắp diễn ra" / "Đang trực" / "Đã hoàn thành".
+        /// </summary>
         [NotMapped]
         public string ComputedStatus
         {
             get
             {
-                if (ShiftDefinition == null) return "Sắp diễn ra"; // Fallback nếu chưa load relate
+                // Nếu ca đã kết thúc hoàn toàn thì báo xong
+                if (StatusEnum == DoctorShiftStatus.Completed) return "Đã hoàn thành";
+
+                if (ShiftDefinition == null) return "Sắp diễn ra";
                 var now = DateTime.Now;
                 var startDateTime = Date.Date.Add(ShiftDefinition.StartTime);
                 var endDateTime = Date.Date.Add(ShiftDefinition.EndTime);
@@ -37,5 +49,17 @@ namespace SmartClinic.Models
                 return "Đang trực";
             }
         }
+
+        /// <summary>
+        /// Hiển thị tiếng Việt cho StatusEnum. Dùng cho UI.
+        /// </summary>
+        [NotMapped]
+        public string StatusDisplay => StatusEnum switch
+        {
+            DoctorShiftStatus.Active => "Đang nhận bệnh",
+            DoctorShiftStatus.Closing => "Đang chốt sổ",
+            DoctorShiftStatus.Completed => "Đã hoàn thành",
+            _ => "Chờ kích hoạt"
+        };
     }
 }

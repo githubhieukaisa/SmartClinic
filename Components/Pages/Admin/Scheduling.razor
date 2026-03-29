@@ -183,6 +183,10 @@ else
                                                 <option value="0">- Trống -</option>
                                                 @foreach (var doc in doctors)
                                                 {
+                                                    // Bác sĩ (Bit 2) chỉ trực phòng Clinic, KTV (Bit 32) chỉ trực phòng Lab
+                                                    bool isSuitable = (room.IsLab && (doc.RoleMask & 32) == 32) || (!room.IsLab && (doc.RoleMask & 2) == 2);
+                                                    if (!isSuitable) continue;
+
                                                     if (cellState.DoctorId == doc.Id)
                                                     {
                                                         <option value="@doc.Id" selected>@doc.FullName</option>
@@ -199,9 +203,12 @@ else
                                         {
                                             if (dbShift != null)
                                             {
-                                                <div class="mt-1 flex justify-center">
-                                                    <span class="text-[10px] font-medium px-2 py-[1px] border rounded-full @GetStatusColor(dbShift.Status)">
+                                                <div class="mt-1 flex flex-col items-center gap-1">
+                                                    <span class="text-[10px] font-medium px-2 py-[1px] border rounded-full @GetStatusColor(dbShift.Status)" title="Trạng thái thời gian">
                                                         @dbShift.Status
+                                                    </span>
+                                                    <span class="text-[10px] font-medium px-2 py-[1px] border rounded-full @GetWorkflowStatusColor(dbShift.ShiftStatus)" title="Trạng thái quy trình">
+                                                        @dbShift.ShiftStatus
                                                     </span>
                                                 </div>
                                             }
@@ -235,6 +242,21 @@ else
 
             @* Body *@
             <div class="px-6 py-4 space-y-5">
+                @* ── Chọn chế độ phân lịch ── *@
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Chế độ phân lịch</label>
+                    <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                        <button @onclick="() => ChangeScheduleMode(0)" 
+                                class='flex-1 py-2 rounded-md text-sm font-bold transition-all @(_scheduleMode == 0 ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700")'>
+                            <i class="ph ph-stethoscope mr-2"></i>Phân lịch Bác sĩ
+                        </button>
+                        <button @onclick="() => ChangeScheduleMode(1)" 
+                                class='flex-1 py-2 rounded-md text-sm font-bold transition-all @(_scheduleMode == 1 ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500 hover:text-slate-700")'>
+                            <i class="ph ph-flask mr-2"></i>Phân lịch Xét nghiệm
+                        </button>
+                    </div>
+                </div>
+
                 @if (!string.IsNullOrEmpty(autoScheduleError))
                 {
                     <div class="p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200 flex items-center gap-2">
@@ -269,7 +291,7 @@ else
                         </button>
                     </div>
                     <div class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50/50">
-                        @foreach (var doc in doctors)
+                        @foreach (var doc in doctors.Where(d => (_scheduleMode == 0 && (d.RoleMask & 2) == 2) || (_scheduleMode == 1 && (d.RoleMask & 32) == 32)))
                         {
                             <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-teal-700">
                                 <input type="checkbox" checked="@autoRequest.SelectedDoctorIds.Contains(doc.Id)"
@@ -296,7 +318,7 @@ else
                         </button>
                     </div>
                     <div class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50/50">
-                        @foreach (var room in rooms)
+                        @foreach (var room in rooms.Where(r => (_scheduleMode == 0 && !r.IsLab) || (_scheduleMode == 1 && r.IsLab)))
                         {
                             <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-teal-700">
                                 <input type="checkbox" checked="@autoRequest.SelectedRoomIds.Contains(room.Id)"
@@ -369,6 +391,18 @@ else
 
     // UI tracking state
     private Dictionary<string, DoctorShiftWeeklyUpdateDto> currentGridState = new();
+
+    private int _scheduleMode = 0; // 0: Doctor, 1: LabTech
+
+    private void ChangeScheduleMode(int mode)
+    {
+        if (_scheduleMode != mode)
+        {
+            _scheduleMode = mode;
+            autoRequest.SelectedDoctorIds.Clear();
+            autoRequest.SelectedRoomIds.Clear();
+        }
+    }
 
     // ── Auto-Schedule state ──
     private bool showAutoScheduleModal = false;
@@ -663,9 +697,21 @@ else
     {
         return status switch
         {
-            "Đang trực" => "text-green-700 bg-green-100 border-green-200",
-            "Đã hoàn thành" => "text-slate-600 bg-slate-100 border-slate-200",
-            _ => "text-teal-700 bg-teal-100 border-teal-200"
+            "Đã hoàn thành" => "bg-slate-100 text-slate-600 border-slate-200",
+            "Đang trực" => "bg-emerald-100 text-emerald-700 border-emerald-200",
+            "Sắp diễn ra" => "bg-amber-100 text-amber-700 border-amber-200",
+            _ => "bg-slate-100 text-slate-600 border-slate-200"
+        };
+    }
+
+    private string GetWorkflowStatusColor(string workflowStatus)
+    {
+        return workflowStatus switch
+        {
+            "Đã kích hoạt" => "bg-blue-100 text-blue-700 border-blue-200",
+            "Chờ kích hoạt" => "bg-orange-100 text-orange-700 border-orange-200",
+            "Đã hoàn thành" => "bg-slate-100 text-slate-600 border-slate-200",
+            _ => "bg-slate-100 text-slate-600 border-slate-200"
         };
     }
 }

@@ -1,4 +1,4 @@
-﻿using BCrypt.Net;
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
@@ -441,7 +441,7 @@ namespace SmartClinic.Services
             string normalizedPhone)
         {
             var cacheKey = GetPatientRegistrationOtpCacheKey(normalizedEmail);
-            if (_memoryCache.TryGetValue(cacheKey, out PendingPatientRegistrationSession? existingPending))
+            if (_memoryCache.TryGetValue(cacheKey, out PendingPatientRegistrationSession? existingPending) && existingPending != null)
             {
                 var secondsSinceLastSend = (DateTime.UtcNow - existingPending.LastSentAtUtc).TotalSeconds;
                 if (secondsSinceLastSend < OtpResendCooldownSeconds)
@@ -637,7 +637,7 @@ namespace SmartClinic.Services
             }
 
             var cacheKey = GetOtpCacheKey(normalizedEmail);
-            if (_memoryCache.TryGetValue(cacheKey, out PasswordResetOtpSession? existingSession))
+            if (_memoryCache.TryGetValue(cacheKey, out PasswordResetOtpSession? existingSession) && existingSession != null)
             {
                 var secondsSinceLastSend = (DateTime.UtcNow - existingSession.LastSentAtUtc).TotalSeconds;
                 if (secondsSinceLastSend < OtpResendCooldownSeconds)
@@ -836,7 +836,7 @@ namespace SmartClinic.Services
 
         private string GenerateJwtToken(User user, int? roomId, string? roomName)
         {
-            var secretKey = _configuration["Jwt:Key"];
+            var secretKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -1019,5 +1019,17 @@ namespace SmartClinic.Services
             public int FailedAttempts { get; set; }
         }
 
+        public string GetRedirectUrl(int roleMask)
+        {
+            if ((roleMask & AdminRoleMask) == AdminRoleMask) return "/admin/users";
+            if ((roleMask & DoctorRoleMask) == DoctorRoleMask) return "/doctor/dashboard";
+            if ((roleMask & PatientRoleMask) == PatientRoleMask) return "/patient/medical-history";
+            if ((roleMask & ReceptionRoleMask) == ReceptionRoleMask) return "/checkin";
+            if ((roleMask & LabTechRoleMask) == LabTechRoleMask) return "/lab";
+            if ((roleMask & CashierRoleMask) == CashierRoleMask) return "/cashier/payments";
+            if ((roleMask & PharmacistRoleMask) == PharmacistRoleMask) return "/pharmacist/prescriptions";
+            
+            return "/";
+        }
     }
 }
