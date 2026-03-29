@@ -110,8 +110,7 @@ public partial class SmartClinicDbContext : DbContext
                 .HasColumnType("smallint")
                 .HasDefaultValue(PrescriptionStatus.Pending);
             entity.Property(e => e.TotalAmount)
-                .HasPrecision(12, 2)
-                .HasDefaultValueSql("0");
+                .HasPrecision(12, 2);
 
             entity.HasOne(d => d.Ticket).WithOne(p => p.Prescription)
                 .HasForeignKey<Prescription>(d => d.TicketId)
