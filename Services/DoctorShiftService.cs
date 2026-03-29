@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using SmartClinic.Constant;
 using SmartClinic.DTOs;
 using SmartClinic.Models;
+using SmartClinic.Hubs;
 
 namespace SmartClinic.Services;
 
@@ -23,6 +25,8 @@ public interface IDoctorShiftService
     Task<(bool Success, string Error)> BatchActivateAsync(int doctorId, DateTime weekStart);
     Task<(bool Success, string Error)> UpdateShiftCapacityAsync(int shiftId, int callerDoctorId, int newCapacity);
     Task<(bool Success, string Error)> BatchUpdateCapacityAsync(int doctorId, DateTime weekStart, int capacity);
+    Task<(bool Success, string Error)> StopReceivingPatientsAsync(int shiftId, int callerDoctorId);
+    Task<(bool Success, string Error)> EndShiftAsync(int shiftId, int callerDoctorId);
 }
 
 /// <summary>
@@ -42,10 +46,20 @@ public interface IDoctorShiftService
 public class DoctorShiftService : IDoctorShiftService
 {
     private readonly IDbContextFactory<SmartClinicDbContext> _factory;
+    private readonly IHubContext<QueueHub> _queueHub;
+    private readonly IHubContext<PatientHub> _patientHub;
+    private readonly IQueueService _queueService;
 
-    public DoctorShiftService(IDbContextFactory<SmartClinicDbContext> factory)
+    public DoctorShiftService(
+        IDbContextFactory<SmartClinicDbContext> factory,
+        IHubContext<QueueHub> queueHub,
+        IHubContext<PatientHub> patientHub,
+        IQueueService queueService)
     {
         _factory = factory;
+        _queueHub = queueHub;
+        _patientHub = patientHub;
+        _queueService = queueService;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -242,7 +256,7 @@ public class DoctorShiftService : IDoctorShiftService
                 {
                     // Thêm mới
                     // KT trùng lịch
-                    var overlap = await ctx.DoctorShifts.AnyAsync(s => 
+                    var overlap = await ctx.DoctorShifts.AnyAsync(s =>
                         s.Date == update.Date.Date && s.ShiftDefinitionId == update.ShiftDefinitionId &&
                         (s.DoctorId == update.DoctorId || s.RoomId == update.RoomId));
                     if (overlap) return (false, $"Phát hiện trùng lịch tại ngày {update.Date:dd/MM/yyyy}. Một bác sĩ hoặc phòng không thể có 2 ca trùng thời gian.");
@@ -698,5 +712,90 @@ public class DoctorShiftService : IDoctorShiftService
 
         await ctx.SaveChangesAsync();
         return (true, $"Đã cập nhật capacity = {capacity} cho {draftShifts.Count} ca trực.");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 15. NGỪNG NHẬN BỆNH (Chuyển Active -> Closing)
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> StopReceivingPatientsAsync(int shiftId, int callerDoctorId)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts.FirstOrDefaultAsync(s => s.Id == shiftId);
+        if (shift == null) return (false, "Ca trực không tồn tại.");
+        if (shift.DoctorId != callerDoctorId) return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (shift.StatusEnum != DoctorShiftStatus.Active)
+            return (false, "Chỉ có thể chốt sổ khi ca trực đang ở trạng thái 'Đang nhận bệnh'.");
+
+        shift.StatusEnum = DoctorShiftStatus.Closing;
+        await ctx.SaveChangesAsync();
+
+        await NotifyRoomStatusUIAsync(shift.RoomId);
+
+        return (true, string.Empty);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 16. KẾT THÚC CA TRỰC (Chuyển Closing -> Completed)
+    //     Ràng buộc: Không còn bệnh nhân nào đang chờ hoặc đang khám
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> EndShiftAsync(int shiftId, int callerDoctorId)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts.FirstOrDefaultAsync(s => s.Id == shiftId);
+        if (shift == null) return (false, "Ca trực không tồn tại.");
+        if (shift.DoctorId != callerDoctorId) return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (shift.StatusEnum != DoctorShiftStatus.Closing && shift.StatusEnum != DoctorShiftStatus.Active)
+            return (false, "Trạng thái ca trực không hợp lệ để kết thúc.");
+
+        // Kiểm tra xem còn bệnh nhân nào chưa xử lý xong không tại phòng đó trong ngày trực đó
+        var pendingStatuses = new[] {
+            TicketStatus.Waiting,
+            TicketStatus.Calling,
+            TicketStatus.Examinating,
+            TicketStatus.Testing,
+            TicketStatus.Emergency
+        };
+
+        var hasPendingTickets = await ctx.QueueTickets
+            .AnyAsync(t => t.DoctorShiftId == shift.Id
+                        && pendingStatuses.Contains(t.StatusEnum));
+
+        if (hasPendingTickets)
+        {
+            var count = await ctx.QueueTickets.CountAsync(t => t.DoctorShiftId == shift.Id
+                        && pendingStatuses.Contains(t.StatusEnum));
+
+            return (false, $"Không thể kết thúc ca. Hiện tại ca trực đang còn {count} bệnh nhân chưa hoàn tất (đang chờ, đang khám hoặc đang xét nghiệm). Bác sĩ vui lòng xử lý sạch hàng đợi trước khi đóng cửa.");
+        }
+
+        shift.StatusEnum = DoctorShiftStatus.Completed;
+        await ctx.SaveChangesAsync();
+
+        await NotifyRoomStatusUIAsync(shift.RoomId);
+
+        return (true, string.Empty);
+    }
+
+    private async Task NotifyRoomStatusUIAsync(int roomId)
+    {
+        try
+        {
+            var displayData = await _queueService.GetDisplayDataAsync(roomId);
+            string groupName = $"Room_{roomId}";
+
+            // Thông báo cho Màn hình Tivi
+            await _queueHub.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
+
+            // Thông báo cho các dashboard Bác sĩ/Bệnh nhân
+            await _patientHub.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new { roomId });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SignalR Error] Room {roomId}: {ex.Message}");
+        }
     }
 }

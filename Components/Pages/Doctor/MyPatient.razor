@@ -18,6 +18,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IToastService ToastService
 @inject ITicketService TicketService
+@inject IDoctorShiftService DoctorShiftService
 @attribute [Authorize(Policy = "DoctorPolicy")]
 
 <div class="p-8">
@@ -28,7 +29,15 @@
             <h1 class="text-3xl font-bold text-foreground">Hàng Đợi Bệnh Nhân</h1>
             @if (!string.IsNullOrEmpty(_roomName))
             {
-                <p class="text-muted-foreground mt-1">📍 <span class="font-medium">@_roomName</span></p>
+                <div class="flex items-center gap-3 mt-1">
+                    <p class="text-muted-foreground">📍 <span class="font-medium text-foreground">@_roomName</span></p>
+                    @if (_activeShift != null)
+                    {
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider @GetShiftStatusClass(_activeShift.StatusEnum)">
+                            @_activeShift.StatusDisplay
+                        </span>
+                    }
+                </div>
             }
         </div>
         <div class="flex items-center gap-4">
@@ -76,30 +85,69 @@
         </div>
     }
 
-    <!-- Removed Summary Cards -->
-
     <!-- Queue Table -->
     <div class="bg-card rounded-xl border border-border shadow-sm">
         <div class="flex items-center justify-end p-6 border-b border-border">
             <div class="flex items-center gap-2">
-                    <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
-                                           CssClass="" OnCalled="RefreshQueueAsync" />
-                    <button @onclick="RefreshQueueAsync"
-                            class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
-                        <i class="ph ph-arrows-clockwise"></i>
-                        Làm mới
-                    </button>
-                    <button @onclick="() => AddTestTicketAsync(false)"
-                            class="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-800 transition">
-                        <i class="ph ph-plus-circle"></i>
-                        + Thường (Dev)
-                    </button>
-                    <button @onclick="() => AddTestTicketAsync(true)"
-                            class="flex items-center gap-2 px-4 py-2 bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400 rounded-lg text-sm font-medium hover:bg-rose-200 dark:hover:bg-rose-900/30 transition">
-                        <i class="ph ph-lightning"></i>
-                        + Khẩn Cấp (Dev)
-                    </button>
-                </div>
+                <!-- Shift Control Buttons -->
+                @if (_activeShift != null)
+                {
+                    @if (_activeShift.StatusEnum == DoctorShiftStatus.Active)
+                    {
+                        <button @onclick="HandleStopReceivingAsync" disabled="@_isClosingShift"
+                                class="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm font-bold hover:bg-amber-200 transition disabled:opacity-70 disabled:cursor-not-allowed">
+                            @if (_isClosingShift)
+                            {
+                                <i class="ph ph-spinner-gap animate-spin"></i>
+                                <span>Đang xử lý...</span>
+                            }
+                            else
+                            {
+                                <i class="ph ph-hand-palm"></i>
+                                <span>Chốt sổ (Dừng nhận bệnh)</span>
+                            }
+                        </button>
+                    }
+                    else if (_activeShift.StatusEnum == DoctorShiftStatus.Closing)
+                    {
+                        <button @onclick="HandleEndShiftAsync" disabled="@_isEndingShift"
+                                class="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition shadow-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                            @if (_isEndingShift)
+                            {
+                                <i class="ph ph-spinner-gap animate-spin"></i>
+                                <span>Đang xử lý...</span>
+                            }
+                            else
+                            {
+                                <i class="ph ph-power"></i>
+                                <span>Kết thúc ca làm việc</span>
+                            }
+                        </button>
+                    }
+
+                    <div class="h-8 w-[1px] bg-slate-200 mx-2"></div>
+                }
+
+                <CallNextPatientButton RoomId="@_currentRoomId" RoomName="@_roomName" ButtonText="Gọi BN Tiếp Theo"
+                                       OnCalled="RefreshQueueAsync" />
+                <button @onclick="RefreshQueueAsync"
+                        class="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                    <i class="ph ph-arrows-clockwise"></i>
+                    Làm mới
+                </button>
+
+                <!-- Dev Test Buttons -->
+                <button @onclick="() => AddTestTicketAsync(false)"
+                        class="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-200 transition">
+                    <i class="ph ph-plus-circle"></i>
+                    + Thường (Dev)
+                </button>
+                <button @onclick="() => AddTestTicketAsync(true)"
+                        class="flex items-center gap-2 px-4 py-2 bg-rose-100 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-200 transition">
+                    <i class="ph ph-lightning"></i>
+                    + Khẩn Cấp (Dev)
+                </button>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -122,14 +170,13 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-border bg-muted/30">
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">STT</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Bệnh nhân</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Tuổi</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Số điện thoại</th>
-                            @* <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chẩn đoán</th> *@
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Chờ đợi</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Trạng thái</th>
-                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground text-center">Thao tác</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">STT</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Bệnh nhân</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Tuổi</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Số điện thoại</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Chờ đợi</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Trạng thái</th>
+                            <th class="text-center py-3 px-5 font-semibold text-muted-foreground">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -137,23 +184,13 @@
                         {
                             <tr class="border-b border-border transition @GetRowBgClass(ticket.StatusEnum)">
                                 <td class="py-3 px-5 text-center">
-                                    <span
-                                        class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-lg text-xs font-bold">
                                         @ticket.TicketNumber
                                     </span>
                                 </td>
-                                <td class="py-3 px-5">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                                            @GetInitials(ticket.PatientUser?.FullName)
-                                        </div>
-                                        <div>
-                                            <p class="font-medium text-foreground">@(ticket.PatientUser?.FullName ?? "—")</p>
-                                            <p class="text-xs text-muted-foreground">@(ticket.PatientUser?.Address ?? "Không có địa chỉ")
-                                            </p>
-                                        </div>
-                                    </div>
+                                <td class="py-3 px-5 text-center">
+                                    <p class="font-medium text-foreground">@(ticket.PatientUser?.FullName ?? "—")</p>
+                                    <p class="text-xs text-muted-foreground">@(ticket.PatientUser?.Address ?? "Không có địa chỉ")</p>
                                 </td>
                                 <td class="py-3 px-5 text-center text-foreground">
                                     @(GetAge(ticket.PatientUser?.DoB) > 0 ? $"{GetAge(ticket.PatientUser?.DoB)} tuổi" : "—")
@@ -161,11 +198,6 @@
                                 <td class="py-3 px-5 text-center text-foreground">
                                     @(ticket.PatientUser?.PhoneNumber ?? "—")
                                 </td>
-
-                                @* <td class="py-3 px-5 text-center">
-                                    <span class="text-foreground">@(ticket.Diagnosis ?? "—")</span>
-                                </td> *@
-
                                 <td class="py-3 px-5 text-center">
                                     <div class="flex items-center justify-center gap-1 text-muted-foreground">
                                         <i class="ph-bold ph-clock text-xs"></i>
@@ -173,36 +205,43 @@
                                     </div>
                                 </td>
                                 <td class="py-3 px-5 text-center">
-                                    <span
-                                        class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.StatusEnum)">
+                                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium @GetStatusClass(ticket.StatusEnum)">
                                         @TranslateStatus(ticket.StatusEnum)
                                     </span>
                                 </td>
                                 <td class="py-3 px-5 flex items-center justify-center gap-2">
-                                    @if (ticket.StatusEnum == TicketStatus.Calling)
+                                    @if (ticket.StatusEnum == TicketStatus.Calling || ticket.StatusEnum == TicketStatus.Missed)
                                     {
                                         <button @onclick="() => StartExaminationAsync(ticket.Id)"
-                                                class="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium shadow-md hover:shadow-lg transition">
+                                                class="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-sm transition">
                                             <i class="ph ph-door-open"></i>
-                                            Bắt đầu khám
-                                        </button>
-                                    }
-                                    else if (ticket.StatusEnum == TicketStatus.Examinating || ticket.StatusEnum == TicketStatus.Testing)
-                                    {
-                                        <button @onclick="() => OnExaminePatientAsync(ticket.Id, ticket.PatientId)"
-                                                class="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition">
-                                            <i class="ph ph-stethoscope"></i>
-                                            Khám bệnh
+                                            Khám ngay
                                         </button>
                                     }
                                     
+                                    @if (ticket.StatusEnum == TicketStatus.Examinating || ticket.StatusEnum == TicketStatus.Testing)
+                                    {
+                                        <button @onclick="() => OnExaminePatientAsync(ticket.Id, ticket.PatientId)"
+                                                class="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                                            <i class="ph ph-stethoscope"></i>
+                                            Vào hồ sơ
+                                        </button>
+                                    }
+
+                                    @if (ticket.StatusEnum == TicketStatus.Missed)
+                                    {
+                                        <button @onclick='() => UpdateTicketStatusAsync(ticket.Id, TicketStatus.Cancelled, "Bác sĩ hủy vé")'
+                                                title="Hủy vé rác do bệnh nhân vắng mặt"
+                                                class="p-2 bg-slate-100 text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-200 transition">
+                                            <i class="ph ph-trash"></i>
+                                        </button>
+                                    }
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
 
-                <!-- Phân trang Component -->
                 <Pagination CurrentPage="@_currentPage" TotalItems="@TotalCount" PageSize="@_pageSize"
                             OnPageChanged="HandlePageChanged" />
             }
@@ -217,6 +256,10 @@
     private int _currentDoctorId = 0;
     private string? _roomName;
     private int? _currentRoomId;
+    private DoctorShift? _activeShift;
+    
+    private bool _isClosingShift = false;
+    private bool _isEndingShift = false;
 
     private int _currentPage = 1;
     private int _pageSize = 10;
@@ -231,10 +274,6 @@
     }
 
     private int TotalCount => _queueTickets?.Count ?? 0;
-    private int WaitingCount => _queueTickets?.Count(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency) ?? 0;
-    private int InProgressCount => _queueTickets?.Count(t => t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing) ?? 0;
-    private int WaitingPct => TotalCount > 0 ? WaitingCount * 100 / TotalCount : 0;
-    private int InProgressPct => TotalCount > 0 ? InProgressCount * 100 / TotalCount : 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -249,33 +288,25 @@
                 _currentDoctorId = doctorId;
             }
 
-            // Dùng centralized logic để lấy ca trực đang hoạt động
-            var activeShift = await PatientService.GetActiveDoctorShiftAsync(_currentDoctorId);
+            _activeShift = await PatientService.GetActiveDoctorShiftAsync(_currentDoctorId);
 
-            if (activeShift != null)
+            if (_activeShift != null)
             {
-                _currentRoomId = activeShift.RoomId;
-                _roomName = activeShift.Room?.Name;
+                _currentRoomId = _activeShift.RoomId;
+                _roomName = _activeShift.Room?.Name;
             }
             else
             {
-                // Nếu không có ca trực, không tự ý nạp phòng mặc định
                 _currentRoomId = null;
                 _roomName = "Hết ca làm việc / Chưa bắt đầu ca";
             }
         }
 
-        // Kỹ thuật "Fire and Forget" hoặc Background Task: 
-        // Cho phép UI render nhanh tiêu đề và khung trang trước khi có dữ liệu
         _ = LoadDataAsync(); 
 
         if (_currentRoomId.HasValue && _currentRoomId.Value > 0)
         {
-            try
-            {
-                await Notification.JoinRoomAsync(_currentRoomId.Value);
-            }
-            catch (Exception) { }
+            try { await Notification.JoinRoomAsync(_currentRoomId.Value); } catch { }
         }
     }
 
@@ -297,34 +328,20 @@
                 _isUpdating = true;
                 _showNotification = true;
                 StateHasChanged();
-
                 await LoadDataAsync(withDelay: true);
-
                 _isUpdating = false;
                 StateHasChanged();
-
                 await Task.Delay(3000);
                 _showNotification = false;
                 StateHasChanged();
             }
-            catch (Exception)
-            {
-                _isUpdating = false;
-            }
+            catch { _isUpdating = false; }
         });
     }
 
     private async void HandleStatusChangedAsync(int ticketId)
     {
-        await InvokeAsync(async () =>
-        {
-            try
-            {
-                // Khi trạng thái thay đổi, tải lại dữ liệu để áp dụng filter mới (phòng vs bác sĩ)
-                await LoadDataAsync();
-            }
-            catch (Exception) { }
-        });
+        await InvokeAsync(async () => { try { await LoadDataAsync(); } catch { } });
     }
 
     private async Task RefreshQueueAsync()
@@ -337,10 +354,7 @@
             _isUpdating = false;
             StateHasChanged();
         }
-        catch (Exception)
-        {
-            _isUpdating = false;
-        }
+        catch { _isUpdating = false; }
     }
 
     private async Task LoadDataAsync(bool withDelay = false)
@@ -349,23 +363,14 @@
         {
             _queueTickets = null;
             StateHasChanged();
-            await Task.Delay(500); // Giảm delay xuống cho cảm giác nhanh hơn
+            await Task.Delay(500);
         }
         try
         {
-            // Tải dữ liệu từ Service
-            var data = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
-            _queueTickets = data;
+            _queueTickets = await PatientService.GetDoctorQueueAsync(_currentDoctorId);
         }
-        catch (Exception)
-        {
-            _queueTickets = new();
-        }
-        finally
-        {
-            // Quan trọng: Cập nhật lại UI sau khi task background hoàn tất
-            await InvokeAsync(StateHasChanged);
-        }
+        catch { _queueTickets = new(); }
+        finally { await InvokeAsync(StateHasChanged); }
     }
 
     async ValueTask IAsyncDisposable.DisposeAsync()
@@ -373,15 +378,6 @@
         Notification.OnPatientQueueUpdated -= HandleQueueUpdatedAsync;
         Notification.OnQueueStatusUpdated -= HandleStatusChangedAsync;
         await ValueTask.CompletedTask;
-    }
-
-    private static string GetInitials(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "?";
-        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length >= 2
-            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
-            : name[..Math.Min(2, name.Length)].ToUpper();
     }
 
     private static int GetAge(DateOnly? dob)
@@ -396,7 +392,7 @@
     {
         if (!createdAt.HasValue) return "—";
         var elapsed = DateTime.Now - createdAt.Value;
-        if (elapsed.TotalHours >= 1) return $"{(int)elapsed.TotalHours} giờ {elapsed.Minutes} phút";
+        if (elapsed.TotalHours >= 1) return $"{(int)elapsed.TotalHours}h{elapsed.Minutes}m";
         if (elapsed.TotalMinutes < 1) return "Vừa xong";
         return $"{(int)elapsed.TotalMinutes} phút";
     }
@@ -437,11 +433,25 @@
         TicketStatus.Testing => "Đang xét nghiệm",
         TicketStatus.Completed => "Đã khám xong",
         TicketStatus.Done => "Hoàn tất",
-        TicketStatus.Emergency => "Trạng thái khẩn cấp",
-        TicketStatus.Missed => "Trễ hẹn",
+        TicketStatus.Emergency => "Khẩn cấp",
+        TicketStatus.Missed => "Vắng mặt",
         TicketStatus.Cancelled => "Đã hủy",
         _ => status.ToString()
     };
+
+    private Task OnExaminePatientAsync(int ticketId, int? patientId)
+    {
+        if (!patientId.HasValue) return Task.CompletedTask;
+        try
+        {
+            NavigationManager.NavigateTo($"/doctor/examination/{ticketId}/{patientId.Value}");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Lỗi: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
 
     private async Task AddTestTicketAsync(bool isEmergency)
     {
@@ -466,25 +476,12 @@
             });
 
             ToastService.ShowSuccess(isEmergency ? "Đã thêm bệnh nhân khẩn cấp!" : "Đã thêm bệnh nhân thường!");
+            await RefreshQueueAsync();
         }
         catch (Exception ex)
         {
             ToastService.ShowError($"Lỗi: {ex.Message}");
         }
-    }
-
-    private Task OnExaminePatientAsync(int ticketId, int? patientId)
-    {
-        if (!patientId.HasValue) return Task.CompletedTask;
-        try
-        {
-            NavigationManager.NavigateTo($"/doctor/examination/{ticketId}/{patientId.Value}");
-        }
-        catch (Exception ex)
-        {
-            ToastService.ShowError($"Lỗi: {ex.Message}");
-        }
-        return Task.CompletedTask;
     }
 
     private async Task StartExaminationAsync(int ticketId)
@@ -492,27 +489,83 @@
         try
         {
             var ticket = _queueTickets?.FirstOrDefault(t => t.Id == ticketId);
-            if (ticket == null)
-            {
-                ToastService.ShowError("Không tìm thấy phiếu");
-                return;
-            }
+            if (ticket == null) return;
 
             ticket.StatusEnum = TicketStatus.Examinating;
             ticket.DoctorId = _currentDoctorId;
-            ticket.UpdatedBy = _currentDoctorId;
             ticket.UpdatedAt = DateTime.Now;
             
             using var context = DbFactory.CreateDbContext();
             context.QueueTickets.Update(ticket);
             await context.SaveChangesAsync();
             
-            StateHasChanged();
-            ToastService.ShowSuccess($"Đang bắt đầu khám cho {ticket.PatientUser?.FullName}");
+            ToastService.ShowSuccess($"Bắt đầu khám: {ticket.PatientUser?.FullName}");
         }
-        catch (Exception ex)
+        catch (Exception ex) { ToastService.ShowError($"Lỗi: {ex.Message}"); }
+    }
+
+    private async Task UpdateTicketStatusAsync(int ticketId, TicketStatus newStatus, string actionName)
+    {
+        try
         {
-            ToastService.ShowError($"Lỗi: {ex.Message}");
+            using var context = await DbFactory.CreateDbContextAsync();
+            var ticket = await context.QueueTickets.FindAsync(ticketId);
+            if (ticket == null) return;
+            ticket.StatusEnum = newStatus;
+            ticket.UpdatedAt = DateTime.Now;
+            ticket.UpdatedBy = _currentDoctorId;
+            await context.SaveChangesAsync();
+            ToastService.ShowInfo($"{actionName} thành công");
+            await RefreshQueueAsync();
+        }
+        catch (Exception ex) { ToastService.ShowError($"Lỗi: {ex.Message}"); }
+    }
+
+    private async Task HandleStopReceivingAsync()
+    {
+        if (_activeShift == null) return;
+        _isClosingShift = true;
+        try
+        {
+            var (success, error) = await DoctorShiftService.StopReceivingPatientsAsync(_activeShift.Id, _currentDoctorId);
+            if (success)
+            {
+                ToastService.ShowSuccess("Đã chốt sổ. Dừng nhận bệnh nhân mới.");
+                _activeShift = await PatientService.GetActiveDoctorShiftAsync(_currentDoctorId);
+            }
+            else ToastService.ShowError(error);
+        }
+        finally
+        {
+            _isClosingShift = false;
         }
     }
+
+    private async Task HandleEndShiftAsync()
+    {
+        if (_activeShift == null) return;
+        _isEndingShift = true;
+        try
+        {
+            var (success, error) = await DoctorShiftService.EndShiftAsync(_activeShift.Id, _currentDoctorId);
+            if (success)
+            {
+                ToastService.ShowSuccess("Ca trực đã kết thúc.");
+                NavigationManager.NavigateTo("/", true);
+            }
+            else ToastService.ShowWarning(error);
+        }
+        finally 
+        {
+            _isEndingShift = false;
+        }
+    }
+
+    private static string GetShiftStatusClass(DoctorShiftStatus status) => status switch
+    {
+        DoctorShiftStatus.Active => "bg-emerald-100 text-emerald-700",
+        DoctorShiftStatus.Closing => "bg-amber-100 text-amber-700 border border-amber-200",
+        DoctorShiftStatus.Completed => "bg-slate-100 text-slate-700",
+        _ => "bg-slate-100 text-slate-600"
+    };
 }

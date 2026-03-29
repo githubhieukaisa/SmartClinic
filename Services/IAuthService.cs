@@ -16,5 +16,6 @@ namespace SmartClinic.Services
         // Medical History Access OTP (Distributed via MemoryCache + Email)
         Task<PasswordResetResult> SendHistoryAccessOtpAsync(int ticketId, string email, string patientName);
         Task<bool> VerifyHistoryAccessOtpAsync(int ticketId, string otp);
+        string GetRedirectUrl(int roleMask);
     }
 }

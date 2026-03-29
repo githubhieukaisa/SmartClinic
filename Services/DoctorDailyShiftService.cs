@@ -67,6 +67,7 @@ public class DoctorDailyShiftService : IAsyncDisposable
         _todayShifts = await ctx.DoctorShifts
             .AsNoTracking()
             .Include(s => s.ShiftDefinition)
+            .Include(s => s.Room)
             .Where(s => s.DoctorId == _doctorId && s.Date == today)
             .ToListAsync();
 

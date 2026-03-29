@@ -84,7 +84,7 @@ public class AppointmentService : IAppointmentService
 
         // Lọc bỏ ca đã bắt đầu (in-memory vì ComputedStatus dùng DateTime.Now)
         var availableShifts = shifts
-            .Where(s => s.ComputedStatus == "Sắp diễn ra")
+            .Where(s => s.ComputedStatus == "Sắp diễn ra" || s.ComputedStatus == "Đang trực")
             .ToList();
 
         // Lấy rating trung bình cho tất cả bác sĩ

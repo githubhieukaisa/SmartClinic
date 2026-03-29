@@ -188,8 +188,8 @@ namespace SmartClinic.Services
                     .AsNoTracking()
                     .Include(t => t.PatientUser)
                     .Where(t =>
-                        // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi, Khẩn cấp) - Chỉ trong ngày + Phải có Shift
-                        (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency) && t.CreatedAt >= today)
+                        // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi, Khẩn cấp, Vắng mặt) - Chỉ trong ngày + Phải có Shift
+                        (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency || t.StatusEnum == TicketStatus.Missed) && t.CreatedAt >= today)
                         ||
                         // TH2: Bệnh nhân riêng của bác sĩ (Đang khám, Đang xét nghiệm) - KHÔNG LỌC NGÀY
                         (t.DoctorId == doctorId && (t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing))
