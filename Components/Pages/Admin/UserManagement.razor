@@ -90,10 +90,6 @@ else
                                                     class="px-3 py-1 text-xs font-medium @(user.IsActive == true ? "text-red-700 bg-red-50 hover:bg-red-100" : "text-green-700 bg-green-50 hover:bg-green-100") rounded-lg transition-colors">
                                                 @(user.IsActive == true ? "Vô hiệu hóa" : "Kích hoạt")
                                             </button>
-                                            <button @onclick="() => OpenResetPasswordModal(user)"
-                                                    class="px-3 py-1 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
-                                                Đặt lại MK
-                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -102,7 +98,7 @@ else
                 else
                         {
                             <tr>
-                                <td colspan="8" class="px-6 py-12 text-center text-slate-400">Chưa có tài khoản nào.</td>
+                                <td colspan="7" class="px-6 py-12 text-center text-slate-400">Chưa có tài khoản nào.</td>
                             </tr>
                         }
                     </tbody>
@@ -216,6 +212,23 @@ else
                                                     </div>
                                                 </div>
 
+                                                @if (RequiresDepartment(createDto.RoleMask))
+                                                {
+                                                    <div class="mb-4">
+                                                        <label class="block mb-1 text-sm font-medium text-slate-700">
+                                                            Chuyên khoa <span class="text-red-500">*</span>
+                                                        </label>
+                                                        <InputSelect @bind-Value="createDto.DepartmentId"
+                                                                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                                            <option value="">— Chọn chuyên khoa —</option>
+                                                            @foreach (var dept in departments)
+                                                            {
+                                                                <option value="@dept.Id">@dept.Name</option>
+                                                            }
+                                                        </InputSelect>
+                                                    </div>
+                                                }
+
                                                 <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
                                                     <button type="button" @onclick="CloseModal"
                                                             class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
@@ -296,6 +309,23 @@ else
                                                             </div>
                                                         </div>
 
+                                                        @if (RequiresDepartment(editDto.RoleMask))
+                                                        {
+                                                            <div class="mb-4">
+                                                                <label class="block mb-1 text-sm font-medium text-slate-700">
+                                                                    Chuyên khoa <span class="text-red-500">*</span>
+                                                                </label>
+                                                                <InputSelect @bind-Value="editDto.DepartmentId"
+                                                                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                                                    <option value="">— Chọn chuyên khoa —</option>
+                                                                    @foreach (var dept in departments)
+                                                                    {
+                                                                        <option value="@dept.Id">@dept.Name</option>
+                                                                    }
+                                                                </InputSelect>
+                                                            </div>
+                                                        }
+
                                                         <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
                                                             <button type="button" @onclick="CloseModal"
                                                                     class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
@@ -313,48 +343,6 @@ else
                                     </div>
                                 }
 
-                                <!-- ═══════════ MODAL RESET MẬT KHẨU ═══════════ -->
-                                @if (showResetPasswordModal)
-                                {
-                                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                                        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-                                            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                                                <h3 class="text-lg font-bold text-slate-800">Đặt lại mật khẩu</h3>
-                                                <button @onclick="() => showResetPasswordModal = false" class="text-slate-400 hover:text-slate-600">
-                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            <div class="px-6 py-4">
-                                                <p class="text-sm text-slate-600 mb-4">
-                                                    Đặt lại mật khẩu cho tài khoản <strong>@resetPasswordUsername</strong>
-                                                </p>
-                                                <div class="mb-4">
-                                                    <label class="block mb-1 text-sm font-medium text-slate-700">Mật khẩu mới</label>
-                                                    <input type="password" @bind="newPassword"
-                                                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                                                           placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)..." />
-                                                </div>
-                                                @if (!string.IsNullOrEmpty(resetPasswordError))
-                                                {
-                                                    <div class="mb-4 p-2 text-sm text-red-600 bg-red-50 rounded">@resetPasswordError</div>
-                                                }
-                                                <div class="flex justify-end gap-3">
-                                                    <button @onclick="() => showResetPasswordModal = false"
-                                                            class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
-                                                        Hủy
-                                                    </button>
-                                                    <button @onclick="HandleResetPassword" disabled="@isSaving"
-                                                            class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors">
-                                                        @(isSaving ? "Đang xử lý..." : "Đặt lại mật khẩu")
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-
                                 <!-- ═══════════ TOAST THÔNG BÁO ═══════════ -->
                                 @if (!string.IsNullOrEmpty(successMessage))
                                 {
@@ -366,6 +354,7 @@ else
 @code {
     // ──────── STATE ────────
     private List<User> users = new();
+    private List<Department> departments = new();
     private bool isLoading = true;
     private bool showModal = false;
     private bool isEditMode = false;
@@ -378,13 +367,6 @@ else
     private EditUserDto editDto = new();
     private int editingUserId;
     private string editingUsername = "";
-
-    // Reset password
-    private bool showResetPasswordModal = false;
-    private int resetPasswordUserId;
-    private string resetPasswordUsername = "";
-    private string newPassword = "";
-    private string? resetPasswordError;
 
     // ──────── ĐỊNH NGHĨA CÁC ROLE (BITWISE) ────────
     // Mỗi role là 1 bit trong RoleMask.
@@ -409,6 +391,7 @@ else
     private async Task LoadData()
     {
         isLoading = true;
+        departments = await UserService.GetDepartmentsAsync();
         users = await UserService.GetAllUsersAsync();
         isLoading = false;
     }
@@ -434,7 +417,8 @@ else
             PhoneNumber = user.PhoneNumber,
             Address = user.Address,
             Gender = user.Gender,
-            RoleMask = user.RoleMask
+            RoleMask = user.RoleMask,
+            DepartmentId = user.DepartmentId
         };
         modalError = null;
         showModal = true;
@@ -446,15 +430,6 @@ else
         modalError = null;
     }
 
-    private void OpenResetPasswordModal(User user)
-    {
-        resetPasswordUserId = user.Id;
-        resetPasswordUsername = user.Username;
-        newPassword = "";
-        resetPasswordError = null;
-        showResetPasswordModal = true;
-    }
-
     // ──────── XỬ LÝ BITWISE CHECKBOX ────────
     // Khi user tick 1 checkbox → BẬT bit đó bằng OR (|)
     // Khi user bỏ tick → TẮT bit đó bằng AND NOT (& ~)
@@ -464,6 +439,9 @@ else
             createDto.RoleMask |= bit; // BẬT bit: 0000 | 0010 = 0010
         else
             createDto.RoleMask &= ~bit; // TẮT bit: 0010 & 1101 = 0000
+
+        if (!RequiresDepartment(createDto.RoleMask))
+            createDto.DepartmentId = null;
     }
 
     private void ToggleEditRole(int bit, bool isChecked)
@@ -472,6 +450,9 @@ else
             editDto.RoleMask |= bit;
         else
             editDto.RoleMask &= ~bit;
+
+        if (!RequiresDepartment(editDto.RoleMask))
+            editDto.DepartmentId = null;
     }
 
     // ──────── SUBMIT FORM ────────
@@ -479,6 +460,13 @@ else
     {
         isSaving = true;
         modalError = null;
+
+        if (RequiresDepartment(createDto.RoleMask) && !createDto.DepartmentId.HasValue)
+        {
+            modalError = "Vui lòng chọn chuyên khoa cho tài khoản Bác sĩ/Xét nghiệm.";
+            isSaving = false;
+            return;
+        }
 
         var success = await UserService.CreateUserAsync(createDto);
         if (success)
@@ -489,7 +477,7 @@ else
         }
         else
         {
-            modalError = "Tên đăng nhập đã tồn tại! Vui lòng chọn tên khác.";
+            modalError = "Không thể tạo tài khoản. Vui lòng kiểm tra tên đăng nhập hoặc chuyên khoa đã chọn.";
         }
 
         isSaving = false;
@@ -500,6 +488,13 @@ else
         isSaving = true;
         modalError = null;
 
+        if (RequiresDepartment(editDto.RoleMask) && !editDto.DepartmentId.HasValue)
+        {
+            modalError = "Vui lòng chọn chuyên khoa cho tài khoản Bác sĩ/Xét nghiệm.";
+            isSaving = false;
+            return;
+        }
+
         var success = await UserService.UpdateUserAsync(editingUserId, editDto);
         if (success)
         {
@@ -509,7 +504,7 @@ else
         }
         else
         {
-            modalError = "Không tìm thấy tài khoản này!";
+            modalError = "Không thể cập nhật tài khoản. Vui lòng kiểm tra chuyên khoa đã chọn.";
         }
 
         isSaving = false;
@@ -522,33 +517,16 @@ else
         await ShowSuccess("Cập nhật trạng thái thành công!");
     }
 
-    private async Task HandleResetPassword()
+    // ──────── TOAST HELPER ────────
+    private static bool RequiresDepartment(int roleMask)
     {
-        resetPasswordError = null;
+        const int DoctorRoleMask = 2;
+        const int LabTechRoleMask = 32;
 
-        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
-        {
-            resetPasswordError = "Mật khẩu phải có ít nhất 6 ký tự!";
-            return;
-        }
-
-        isSaving = true;
-        var success = await UserService.ResetPasswordAsync(resetPasswordUserId, newPassword);
-
-        if (success)
-        {
-            showResetPasswordModal = false;
-            await ShowSuccess($"Đã đặt lại mật khẩu cho {resetPasswordUsername}!");
-        }
-        else
-        {
-            resetPasswordError = "Không tìm thấy tài khoản!";
-        }
-
-        isSaving = false;
+        return (roleMask & DoctorRoleMask) == DoctorRoleMask
+            || (roleMask & LabTechRoleMask) == LabTechRoleMask;
     }
 
-    // ──────── TOAST HELPER ────────
     private async Task ShowSuccess(string message)
     {
         successMessage = message;
