@@ -111,9 +111,10 @@
 							@foreach (var shift in dayGroup)
 							{
 								bool isPast = shift.EndTime.HasValue ? shift.EndTime.Value < DateTime.Now : shift.StartTime.Date < DateTime.Today;
+								bool isForget = shift.ShiftStatus == "Chưa chốt sổ";
 								bool isDraft = shift.ShiftStatus == "Chờ kích hoạt";
-								bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || isPast;
-								bool isActive = (shift.ShiftStatus == "Đang nhận bệnh" || shift.ShiftStatus == "Đang chốt sổ" || shift.ShiftStatus == "Đã kích hoạt") && !isCompleted;
+								bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || (isPast && !isForget);
+								bool isActive = (shift.ShiftStatus == "Đang nhận bệnh" || shift.ShiftStatus == "Đang chốt sổ" || shift.ShiftStatus == "Đã kích hoạt" || isForget) && !isCompleted;
 
 								<div class="relative flex flex-col rounded-xl border p-5 transition-all @(isDraft && !isCompleted ? "bg-white border-amber-200 hover:border-amber-300 hover:shadow-md" : isActive && !isCompleted ? "bg-emerald-50/30 border-emerald-200" : "bg-slate-50 border-slate-200 opacity-70")">
 									<div class="flex items-start justify-between mb-4">
@@ -130,6 +131,12 @@
                                         {
                                             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Chờ kích hoạt
+                                            </span>
+                                        }
+                                        else if (isForget)
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> Chưa chốt sổ
                                             </span>
                                         }
                                         else if (isActive && !isCompleted)
@@ -191,6 +198,13 @@
                                                         </button>
                                                     </div>
                                                 </div>
+                                                @if (isForget)
+                                                {
+                                                    <button @onclick="() => CloseSingleShift(shift.Id)" disabled="@_isProcessing"
+                                                            class="mt-3 w-full flex justify-center items-center gap-2 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold rounded-lg transition text-sm disabled:opacity-50">
+                                                        <i class="ph-bold ph-power"></i> Chốt sổ ngay
+                                                    </button>
+                                                }
                                             </div>
                                         }
                                         else
@@ -323,6 +337,29 @@
 			else
 			{
 				ToastService.ShowError(result.Error);
+			}
+		}
+		finally
+		{
+			_isProcessing = false;
+		}
+	}
+
+	private async Task CloseSingleShift(int shiftId)
+	{
+		if (_isProcessing) return;
+		_isProcessing = true;
+		try
+		{
+			var result = await ShiftService.EndShiftAsync(shiftId, _doctorId);
+			if (result.Success)
+			{
+				ToastService.ShowSuccess("Đã chốt sổ thành công ca trực quá hạn!");
+				await LoadShiftsAsync();
+			}
+			else
+			{
+				ToastService.ShowWarning(result.Error);
 			}
 		}
 		finally

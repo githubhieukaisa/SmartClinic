@@ -54,12 +54,23 @@ namespace SmartClinic.Models
         /// Hiển thị tiếng Việt cho StatusEnum. Dùng cho UI.
         /// </summary>
         [NotMapped]
-        public string StatusDisplay => StatusEnum switch
+        public string StatusDisplay 
         {
-            DoctorShiftStatus.Active => "Đang nhận bệnh",
-            DoctorShiftStatus.Closing => "Đang chốt sổ",
-            DoctorShiftStatus.Completed => "Đã hoàn thành",
-            _ => "Chờ kích hoạt"
-        };
+            get
+            {
+                if (ComputedStatus == "Đã hết ca" && StatusEnum != DoctorShiftStatus.Completed)
+                {
+                    return "Chưa chốt sổ";
+                }
+
+                return StatusEnum switch
+                {
+                    DoctorShiftStatus.Active => "Đang nhận bệnh",
+                    DoctorShiftStatus.Closing => "Đang chốt sổ",
+                    DoctorShiftStatus.Completed => "Đã hoàn thành",
+                    _ => "Chờ kích hoạt"
+                };
+            }
+        }
     }
 }
