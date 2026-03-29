@@ -160,7 +160,7 @@ namespace SmartClinic.Services
 
             return todayShifts
                 .OrderByDescending(s => s.Date).ThenByDescending(s => s.ShiftDefinition.StartTime)
-                .FirstOrDefault(s => s.ComputedStatus == "Đang trực");
+                .FirstOrDefault(s => s.ComputedStatus == "Đang trong ca");
         }
 
         /// <summary>

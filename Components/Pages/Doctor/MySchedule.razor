@@ -127,80 +127,75 @@
 											</p>
 										</div>
 
-										@if (isDraft && !isCompleted)
-										{
-											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-												<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Chờ kích hoạt
-											</span>
-										}
-										else if (isActive && !isCompleted)
-										{
-											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-												<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Đã kích hoạt
-											</span>
-										}
-										else
-										{
-											<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
-												Đã hoàn thành
-											</span>
-										}
-									</div>
+                                    <div class="flex items-center gap-2 mb-5 text-sm mt-4 border-t border-slate-100 pt-3">
+                                        <i class="ph ph-door text-muted-foreground"></i>
+                                        <span class="font-medium text-foreground">@shift.RoomName</span>
+                                        <span class="text-muted-foreground mx-1">•</span>
+                                        <span class="text-slate-500">@shift.DepartmentName</span>
+                                    </div>
 
-									<div class="mt-auto space-y-4">
-										@if (isDraft)
-										{
-											<div class="flex items-center justify-between">
-												<label class="text-sm font-medium text-slate-600">Số BN tối đa:</label>
-												<div class="flex items-center gap-2">
-													<input type="number" min="1" max="100"
-														   value="@(_editCapacityMap.ContainsKey(shift.Id) ? _editCapacityMap[shift.Id] : shift.Capacity)"
-														   @onchange="@(e => UpdateEditCapacity(shift.Id, e.Value))"
-														   class="w-20 px-2 py-1 text-sm border border-slate-200 rounded text-center focus:ring-1 focus:ring-primary focus:border-primary outline-none" />
-												</div>
-											</div>
-											<button @onclick="() => ActivateSingleShift(shift.Id)" class="w-full flex justify-center items-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold rounded-lg transition text-sm">
-												<i class="ph-bold ph-check"></i> Kích hoạt ngay
-											</button>
-										}
-										else if (isActive && !isCompleted)
-										{
-											<div class="space-y-2">
-												<div class="flex items-center justify-between text-sm">
-													<span class="text-slate-600 font-medium">Bệnh nhân đã đặt:</span>
-													<span class="font-bold text-foreground">@shift.BookedCount / @shift.Capacity</span>
-												</div>
-												<div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-													<div class="h-full bg-emerald-500 rounded-full" style="width: @(shift.Capacity > 0 ? Math.Min(100, (shift.BookedCount * 100) / shift.Capacity) : 0)%"></div>
-												</div>
-												<div class="flex items-center justify-between pt-2">
-													<label class="text-xs font-medium text-slate-500">Giới hạn mới:</label>
-													<div class="flex items-center gap-1.5">
-														<input type="number" min="@shift.BookedCount" max="100"
-															   value="@(_editCapacityMap.ContainsKey(shift.Id) ? _editCapacityMap[shift.Id] : shift.Capacity)"
-															   @onchange="@(e => UpdateEditCapacity(shift.Id, e.Value))"
-															   class="w-16 px-1.5 py-1 text-xs border border-slate-200 rounded text-center focus:ring-1 focus:ring-primary outline-none" />
-														<button @onclick="() => SaveCapacity(shift.Id)" class="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition shadow-sm" title="Lưu số lượng">
-															<i class="ph-bold ph-check"></i> Lưu
-														</button>
-													</div>
-												</div>
-												<button @onclick="() => ActivateSingleShift(shift.Id)"
-														class="w-full flex justify-center items-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold rounded-lg transition text-sm">
-													<i class="ph-bold ph-check"></i> Kích hoạt ngay
-												</button>
-											</div>
-										}
-									</div>
-								</div>
-							}
-						</div>
-					</div>
-				}
-			</div>
-		}
-	}
-</div>
+                                    <div class="mt-auto space-y-4">
+                                        @if (isDraft && !isCompleted)
+                                        {
+                                            <div class="flex items-center justify-between">
+                                                <label class="text-sm font-medium text-slate-600">Số BN tối đa:</label>
+                                                <div class="flex items-center gap-2">
+                                                    <input type="number" min="1" max="100" 
+                                                           value="@(_editCapacityMap.ContainsKey(shift.Id) ? _editCapacityMap[shift.Id] : shift.Capacity)"
+                                                           @onchange="@(e => UpdateEditCapacity(shift.Id, e.Value))"
+                                                           class="w-20 px-2 py-1 text-sm border border-slate-200 rounded text-center focus:ring-1 focus:ring-primary focus:border-primary outline-none" />
+                                                </div>
+                                            </div>
+                                            <button @onclick="() => ActivateSingleShift(shift.Id)" class="w-full flex justify-center items-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold rounded-lg transition text-sm">
+                                                <i class="ph-bold ph-check"></i> Kích hoạt ngay
+                                            </button>
+                                        }
+                                        else if (isActive && !isCompleted)
+                                        {
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between text-sm">
+                                                    <span class="text-slate-600 font-medium">Bệnh nhân đã đặt:</span>
+                                                    <span class="font-bold text-foreground">@shift.BookedCount / @shift.Capacity</span>
+                                                </div>
+                                                <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                                    <div class="h-full bg-emerald-500 rounded-full" style="width: @(shift.Capacity > 0 ? Math.Min(100, (shift.BookedCount * 100) / shift.Capacity) : 0)%"></div>
+                                                </div>
+                                                <div class="flex items-center justify-between pt-2">
+                                                    <label class="text-xs font-medium text-slate-500">Giới hạn mới:</label>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <input type="number" min="@shift.BookedCount" max="100" 
+                                                               value="@(_editCapacityMap.ContainsKey(shift.Id) ? _editCapacityMap[shift.Id] : shift.Capacity)"
+                                                               @onchange="@(e => UpdateEditCapacity(shift.Id, e.Value))"
+                                                               class="w-16 px-1.5 py-1 text-xs border border-slate-200 rounded text-center focus:ring-1 focus:ring-primary outline-none" />
+                                                        <button @onclick="() => SaveCapacity(shift.Id)" class="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition shadow-sm" title="Lưu số lượng">
+                                                            <i class="ph-bold ph-check"></i> Lưu
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="space-y-2">
+                                                <div class="flex items-center justify-between text-sm">
+                                                    <span class="text-slate-500">Số lượng bệnh nhân:</span>
+                                                    <span class="font-medium text-slate-600">@shift.BookedCount / @shift.Capacity</span>
+                                                </div>
+                                                <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                    <div class="h-full bg-slate-400 rounded-full" style="width: @(shift.Capacity > 0 ? Math.Min(100, (shift.BookedCount * 100) / shift.Capacity) : 0)%"></div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
 
 @code {
 	private int _doctorId = 0;

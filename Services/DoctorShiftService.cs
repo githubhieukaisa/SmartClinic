@@ -662,7 +662,7 @@ public class DoctorShiftService : IDoctorShiftService
             return (false, "Số lượng bệnh nhân tối đa phải >= 1.");
 
         // Không sửa ca đang diễn ra
-        if (shift.StatusEnum == DoctorShiftStatus.Active && shift.ComputedStatus == "Đang trực")
+        if (shift.StatusEnum == DoctorShiftStatus.Active && shift.ComputedStatus == "Đang trong ca")
             return (false, "Không thể chỉnh sửa ca trực đang diễn ra.");
 
         if (shift.StatusEnum == DoctorShiftStatus.Completed)
