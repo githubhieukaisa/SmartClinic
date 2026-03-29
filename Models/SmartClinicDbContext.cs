@@ -252,6 +252,11 @@ public partial class SmartClinicDbContext : DbContext
             entity.Property(e => e.Date).HasColumnType("date");
             entity.Property(e => e.Capacity).HasDefaultValue(10);
 
+            entity.Property(e => e.StatusEnum)
+                .HasConversion<short>()
+                .HasColumnType("smallint")
+                .HasDefaultValue(DoctorShiftStatus.Draft);
+
             entity.HasOne(d => d.Doctor).WithMany(p => p.DoctorShifts)
                 .HasForeignKey(d => d.DoctorId)
                 .HasConstraintName("DoctorShifts_DoctorId_fkey");
