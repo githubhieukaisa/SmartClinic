@@ -69,10 +69,10 @@ public class AutoScheduleRequestDto
     public DateTime ToDate { get; set; } = DateTime.Today.AddDays(6);
 
     /// <summary>Danh sách ID bác sĩ tham gia phân lịch</summary>
-    public List<int> SelectedDoctorIds { get; set; } = new();
+    public int? SelectedDoctorId { get; set; }
 
     /// <summary>Danh sách ID phòng khám cần phân</summary>
-    public List<int> SelectedRoomIds { get; set; } = new();
+    public int? SelectedRoomId { get; set; }
 
     /// <summary>Danh sách ID ca trực cần phân</summary>
     public List<int> SelectedShiftDefinitionIds { get; set; } = new();
