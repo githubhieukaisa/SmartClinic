@@ -234,6 +234,28 @@ public class DoctorShiftService : IDoctorShiftService
                 return (false, $"Không thể thao tác trên ca trực trong quá khứ (Ngày {update.Date:dd/MM/yyyy}).");
             }
 
+            if (!update.IsDeleted && update.DoctorId > 0)
+            {
+                var doctor = await ctx.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == update.DoctorId);
+
+                var room = await ctx.Rooms
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.Id == update.RoomId);
+
+                if (doctor == null || room == null)
+                    return (false, "Thông tin bác sĩ hoặc phòng khám không hợp lệ.");
+
+                bool roleMatch = (room.IsLab && (doctor.RoleMask & 32) == 32)
+                              || (!room.IsLab && (doctor.RoleMask & 2) == 2);
+
+                bool departmentMatch = doctor.DepartmentId.HasValue && doctor.DepartmentId.Value == room.DepartmentId;
+
+                if (!roleMatch || !departmentMatch)
+                    return (false, $"Không thể phân công bác sĩ vào phòng này ở ngày {update.Date:dd/MM/yyyy}. Bác sĩ phải đúng vai trò và cùng chuyên khoa với phòng khám.");
+            }
+
             if (update.IsDeleted)
             {
                 if (update.Id > 0)
@@ -307,10 +329,10 @@ public class DoctorShiftService : IDoctorShiftService
             return (new(), "Ngày kết thúc phải >= ngày bắt đầu.");
         if ((request.ToDate.Date - request.FromDate.Date).Days > 13)
             return (new(), "Phạm vi phân lịch tối đa là 2 tuần (14 ngày).");
-        if (!request.SelectedDoctorIds.Any())
-            return (new(), "Vui lòng chọn ít nhất 1 bác sĩ.");
-        if (!request.SelectedRoomIds.Any())
-            return (new(), "Vui lòng chọn ít nhất 1 phòng khám.");
+        if (!request.SelectedDoctorId.HasValue)
+            return (new(), "Vui lòng chọn 1 bác sĩ.");
+        if (!request.SelectedRoomId.HasValue)
+            return (new(), "Vui lòng chọn 1 phòng khám.");
         if (!request.SelectedShiftDefinitionIds.Any())
             return (new(), "Vui lòng chọn ít nhất 1 ca trực.");
 
@@ -326,19 +348,26 @@ public class DoctorShiftService : IDoctorShiftService
         await using var ctx = await _factory.CreateDbContextAsync();
 
         // ── Load dữ liệu cần thiết ──
-        var selectedDoctors = await ctx.Users
+        var doctor = await ctx.Users
             .AsNoTracking()
-            .Where(u => request.SelectedDoctorIds.Contains(u.Id))
-            .OrderBy(u => u.FullName)
-            .Select(u => new { u.Id, u.FullName, u.DepartmentId, u.RoleMask })
-            .ToListAsync();
+            .FirstOrDefaultAsync(u => u.Id == request.SelectedDoctorId.Value);
 
-        var selectedRooms = await ctx.Rooms
+        var room = await ctx.Rooms
             .AsNoTracking()
             .Include(r => r.Department)
-            .Where(r => request.SelectedRoomIds.Contains(r.Id))
-            .OrderBy(r => r.Department.Name).ThenBy(r => r.Name)
-            .ToListAsync();
+            .FirstOrDefaultAsync(r => r.Id == request.SelectedRoomId.Value);
+
+        if (doctor == null || room == null)
+            return (new(), "Thông tin Bác sĩ hoặc Phòng khám không hợp lệ.");
+
+        // ── Kiểm tra Match Khoa ──
+        if (doctor.DepartmentId.HasValue && room.DepartmentId != doctor.DepartmentId)
+            return (new(), $"Bác sĩ này không hợp lệ. Không thể phân công vào phòng thuộc {room.Department?.Name ?? "khoa khác"}.");
+
+        // Bác sĩ (Bit 2) chỉ trực phòng Clinic, KTV (Bit 32) chỉ trực phòng Lab
+        bool isSuitable = (room.IsLab && (doctor.RoleMask & 32) == 32) || (!room.IsLab && (doctor.RoleMask & 2) == 2);
+        if (!isSuitable)
+            return (new(), "Vai trò của bác sĩ không phù hợp với loại phòng này.");
 
         var selectedShiftDefs = await ctx.ShiftDefinitions
             .AsNoTracking()
@@ -361,11 +390,11 @@ public class DoctorShiftService : IDoctorShiftService
         var roomOccupied = new HashSet<string>(
             existingShifts.Select(s => $"{s.RoomId}_{s.Date:yyyyMMdd}_{s.ShiftDefinitionId}"));
 
-        // ── Round-Robin: phân bác sĩ vào các ô ──
+        // ── Phân lịch cho 1 Bác Sĩ, 1 Phòng ──
         var result = new List<AutoSchedulePreviewItemDto>();
         int totalDays = (effectiveTo - effectiveFrom).Days + 1;
-        int doctorIndex = 0; // Round-Robin pointer
-        int skipped = 0;
+        int skipped = 0; // Số ca bỏ qua do phòng đã có người
+        int conflictOccupied = 0; // Số ca bỏ qua do bác sĩ bị trùng lịch ca khác
 
         for (int dayOffset = 0; dayOffset < totalDays; dayOffset++)
         {
@@ -373,83 +402,55 @@ public class DoctorShiftService : IDoctorShiftService
 
             foreach (var shiftDef in selectedShiftDefs)
             {
-                foreach (var room in selectedRooms)
+                var roomKey = $"{room.Id}_{currentDate:yyyyMMdd}_{shiftDef.Id}";
+                var docKey = $"{doctor.Id}_{currentDate:yyyyMMdd}_{shiftDef.Id}";
+                bool isOverwrite = false;
+
+                // Kiểm tra phòng đã có ca chưa
+                if (roomOccupied.Contains(roomKey))
                 {
-                    var roomKey = $"{room.Id}_{currentDate:yyyyMMdd}_{shiftDef.Id}";
-                    bool isOverwrite = false;
-
-                    // Kiểm tra phòng đã có ca chưa
-                    if (roomOccupied.Contains(roomKey))
-                    {
-                        if (!request.OverwriteExisting)
-                        {
-                            skipped++;
-                            continue; // Skip ô đã có ca
-                        }
-                        isOverwrite = true;
-
-                        // ★ FIX: Giải phóng bác sĩ cũ khi ghi đè
-                        // BS cũ sẽ bị thay thế → xóa khỏi doctorOccupied để không chặn logic sau
-                        var displacedShift = existingShifts.FirstOrDefault(s =>
-                            s.RoomId == room.Id &&
-                            s.Date.Date == currentDate.Date &&
-                            s.ShiftDefinitionId == shiftDef.Id);
-                        if (displacedShift != null)
-                        {
-                            doctorOccupied.Remove(
-                                $"{displacedShift.DoctorId}_{currentDate:yyyyMMdd}_{shiftDef.Id}");
-                        }
-                    }
-
-                    // ── Tìm bác sĩ phù hợp bằng Round-Robin ──
-                    // Bác sĩ (Bit 2) chỉ trực phòng Clinic, KTV (Bit 32) chỉ trực phòng Lab
-                    var sortedDoctors = selectedDoctors
-                        .Where(d => (room.IsLab && (d.RoleMask & 32) == 32) || (!room.IsLab && (d.RoleMask & 2) == 2))
-                        .OrderByDescending(d => d.DepartmentId == room.DepartmentId)
-                        .ThenByDescending(d => d.DepartmentId == null)
-                        .ThenBy(d => d.FullName)
-                        .ToList();
-
-                    if (!sortedDoctors.Any())
+                    if (!request.OverwriteExisting)
                     {
                         skipped++;
-                        continue;
+                        continue; // Skip ô đã có ca
                     }
+                    isOverwrite = true;
 
-                    bool assigned = false;
-                    for (int attempt = 0; attempt < sortedDoctors.Count; attempt++)
+                    // ★ FIX: Giải phóng bác sĩ cũ khi ghi đè
+                    // BS cũ sẽ bị thay thế → xóa khỏi doctorOccupied để không chặn logic sau
+                    var displacedShift = existingShifts.FirstOrDefault(s =>
+                        s.RoomId == room.Id &&
+                        s.Date.Date == currentDate.Date &&
+                        s.ShiftDefinitionId == shiftDef.Id);
+                    if (displacedShift != null)
                     {
-                        var doctor = sortedDoctors[(doctorIndex + attempt) % sortedDoctors.Count];
-                        var docKey = $"{doctor.Id}_{currentDate:yyyyMMdd}_{shiftDef.Id}";
-
-                        // ★ FIX: Check cả doctorOccupied (DB) lẫn preview đã gán (cùng HashSet)
-                        if (doctorOccupied.Contains(docKey))
-                            continue;
-
-                        // ── Gán thành công ──
-                        result.Add(new AutoSchedulePreviewItemDto
-                        {
-                            DoctorId = doctor.Id,
-                            DoctorName = doctor.FullName ?? "N/A",
-                            RoomId = room.Id,
-                            RoomName = room.Name,
-                            Date = currentDate,
-                            ShiftDefinitionId = shiftDef.Id,
-                            ShiftName = shiftDef.Name,
-                            IsOverwrite = isOverwrite
-                        });
-
-                        // ★ FIX: Cập nhật state cho các vòng lặp tiếp theo
-                        doctorOccupied.Add(docKey);   // BS này đã bận ở slot này
-                        roomOccupied.Add(roomKey);     // Phòng này đã được gán
-
-                        assigned = true;
-                        doctorIndex = (doctorIndex + attempt + 1) % sortedDoctors.Count;
-                        break;
+                        doctorOccupied.Remove($"{displacedShift.DoctorId}_{currentDate:yyyyMMdd}_{shiftDef.Id}");
                     }
-
-                    if (!assigned) skipped++;
                 }
+
+                // ── Kiểm tra bác sĩ có bận không ──
+                if (doctorOccupied.Contains(docKey))
+                {
+                    conflictOccupied++;
+                    continue;
+                }
+
+                // ── Gán thành công ──
+                result.Add(new AutoSchedulePreviewItemDto
+                {
+                    DoctorId = doctor.Id,
+                    DoctorName = doctor.FullName ?? doctor.Username,
+                    RoomId = room.Id,
+                    RoomName = room.Name,
+                    Date = currentDate,
+                    ShiftDefinitionId = shiftDef.Id,
+                    ShiftName = shiftDef.Name,
+                    IsOverwrite = isOverwrite
+                });
+
+                // Cập nhật state cho vòng lặp tiếp theo
+                doctorOccupied.Add(docKey);
+                roomOccupied.Add(roomKey);
             }
         }
 

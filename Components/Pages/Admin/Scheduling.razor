@@ -183,8 +183,7 @@ else
                                                 <option value="0">- Trống -</option>
                                                 @foreach (var doc in doctors)
                                                 {
-                                                    // Bác sĩ (Bit 2) chỉ trực phòng Clinic, KTV (Bit 32) chỉ trực phòng Lab
-                                                    bool isSuitable = (room.IsLab && (doc.RoleMask & 32) == 32) || (!room.IsLab && (doc.RoleMask & 2) == 2);
+                                                    bool isSuitable = IsDoctorAssignableToRoom(doc, room);
                                                     if (!isSuitable) continue;
 
                                                     if (cellState.DoctorId == doc.Id)
@@ -285,18 +284,15 @@ else
                 @* ── Chọn bác sĩ ── *@
                 <div>
                     <div class="flex items-center justify-between mb-2">
-                        <label class="text-sm font-semibold text-slate-700">Bác sĩ</label>
-                        <button @onclick="ToggleAllDoctors" class="text-xs text-teal-600 hover:text-teal-800 font-medium">
-                            @(autoRequest.SelectedDoctorIds.Count == doctors.Count ? "Bỏ chọn tất cả" : "Chọn tất cả")
-                        </button>
+                        <label class="text-sm font-semibold text-slate-700">Bác sĩ <span class="text-xs text-slate-400 font-normal">(Chỉ chọn 1)</span></label>
                     </div>
                     <div class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50/50">
                         @foreach (var doc in doctors.Where(d => (_scheduleMode == 0 && (d.RoleMask & 2) == 2) || (_scheduleMode == 1 && (d.RoleMask & 32) == 32)))
                         {
                             <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-teal-700">
-                                <input type="checkbox" checked="@autoRequest.SelectedDoctorIds.Contains(doc.Id)"
-                                       @onchange="(e) => ToggleDoctor(doc.Id, (bool)(e.Value ?? false))"
-                                       class="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                                <input type="radio" name="autoSchedDoctor" value="@doc.Id" checked="@(autoRequest.SelectedDoctorId == doc.Id)"
+                                       @onchange="(e) => autoRequest.SelectedDoctorId = doc.Id"
+                                       class="border-slate-300 text-teal-600 focus:ring-teal-500" />
                                 <span>
                                     @(doc.FullName ?? doc.Username)
                                     @if (doc.Department != null)
@@ -312,18 +308,15 @@ else
                 @* ── Chọn phòng khám ── *@
                 <div>
                     <div class="flex items-center justify-between mb-2">
-                        <label class="text-sm font-semibold text-slate-700">Phòng khám</label>
-                        <button @onclick="ToggleAllRooms" class="text-xs text-teal-600 hover:text-teal-800 font-medium">
-                            @(autoRequest.SelectedRoomIds.Count == rooms.Count ? "Bỏ chọn tất cả" : "Chọn tất cả")
-                        </button>
+                        <label class="text-sm font-semibold text-slate-700">Phòng khám <span class="text-xs text-slate-400 font-normal">(Chỉ chọn 1)</span></label>
                     </div>
                     <div class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50/50">
                         @foreach (var room in rooms.Where(r => (_scheduleMode == 0 && !r.IsLab) || (_scheduleMode == 1 && r.IsLab)))
                         {
                             <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-teal-700">
-                                <input type="checkbox" checked="@autoRequest.SelectedRoomIds.Contains(room.Id)"
-                                       @onchange="(e) => ToggleRoom(room.Id, (bool)(e.Value ?? false))"
-                                       class="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                                <input type="radio" name="autoSchedRoom" value="@room.Id" checked="@(autoRequest.SelectedRoomId == room.Id)"
+                                       @onchange="(e) => autoRequest.SelectedRoomId = room.Id"
+                                       class="border-slate-300 text-teal-600 focus:ring-teal-500" />
                                 <span>@room.Department?.Name - @room.Name</span>
                             </label>
                         }
@@ -399,8 +392,8 @@ else
         if (_scheduleMode != mode)
         {
             _scheduleMode = mode;
-            autoRequest.SelectedDoctorIds.Clear();
-            autoRequest.SelectedRoomIds.Clear();
+            autoRequest.SelectedDoctorId = null;
+            autoRequest.SelectedRoomId = null;
         }
     }
 
@@ -511,6 +504,19 @@ else
 
             if (cell.DoctorId != originalDocId)
             {
+                if (cell.DoctorId > 0)
+                {
+                    var selectedDoctor = doctors.FirstOrDefault(d => d.Id == cell.DoctorId);
+                    var selectedRoom = rooms.FirstOrDefault(r => r.Id == cell.RoomId);
+
+                    if (selectedDoctor == null || selectedRoom == null || !IsDoctorAssignableToRoom(selectedDoctor, selectedRoom))
+                    {
+                        errorMessage = "Bác sĩ được chọn không cùng chuyên khoa với phòng khám hoặc không phù hợp loại phòng. Vui lòng kiểm tra lại.";
+                        isSaving = false;
+                        return;
+                    }
+                }
+
                 if (cell.DoctorId == 0 && cell.Id > 0)
                 {
                     cell.IsDeleted = true;
@@ -569,8 +575,8 @@ else
         {
             FromDate = currentWeekMonday,
             ToDate = currentWeekMonday.AddDays(6),
-            SelectedDoctorIds = new(),
-            SelectedRoomIds = new(),
+            SelectedDoctorId = null,
+            SelectedRoomId = null,
             SelectedShiftDefinitionIds = new(),
             OverwriteExisting = false
         };
@@ -583,38 +589,6 @@ else
         autoScheduleError = string.Empty;
     }
 
-    // ── Toggle helpers cho checkbox ──
-    private void ToggleDoctor(int id, bool isChecked)
-    {
-        if (isChecked && !autoRequest.SelectedDoctorIds.Contains(id))
-            autoRequest.SelectedDoctorIds.Add(id);
-        else if (!isChecked)
-            autoRequest.SelectedDoctorIds.Remove(id);
-    }
-
-    private void ToggleAllDoctors()
-    {
-        if (autoRequest.SelectedDoctorIds.Count == doctors.Count)
-            autoRequest.SelectedDoctorIds.Clear();
-        else
-            autoRequest.SelectedDoctorIds = doctors.Select(d => d.Id).ToList();
-    }
-
-    private void ToggleRoom(int id, bool isChecked)
-    {
-        if (isChecked && !autoRequest.SelectedRoomIds.Contains(id))
-            autoRequest.SelectedRoomIds.Add(id);
-        else if (!isChecked)
-            autoRequest.SelectedRoomIds.Remove(id);
-    }
-
-    private void ToggleAllRooms()
-    {
-        if (autoRequest.SelectedRoomIds.Count == rooms.Count)
-            autoRequest.SelectedRoomIds.Clear();
-        else
-            autoRequest.SelectedRoomIds = rooms.Select(r => r.Id).ToList();
-    }
 
     private void ToggleShiftDef(int id, bool isChecked)
     {
@@ -677,6 +651,17 @@ else
     // ══════════════════════════════════════════════════════
     // HELPERS
     // ══════════════════════════════════════════════════════
+
+    private static bool IsDoctorAssignableToRoom(User doctor, Room room)
+    {
+        // Bác sĩ (Bit 2) chỉ trực phòng Clinic, KTV (Bit 32) chỉ trực phòng Lab
+        bool roleMatch = (room.IsLab && (doctor.RoleMask & 32) == 32)
+                      || (!room.IsLab && (doctor.RoleMask & 2) == 2);
+
+        bool departmentMatch = doctor.DepartmentId.HasValue && doctor.DepartmentId.Value == room.DepartmentId;
+
+        return roleMatch && departmentMatch;
+    }
 
     private string GetDayName(DateTime date)
     {
