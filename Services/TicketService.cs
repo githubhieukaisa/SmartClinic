@@ -95,7 +95,55 @@ namespace SmartClinic.Services
                 var todayDate = DateTime.Today;
                 var nowTime = DateTime.Now;
 
-                // 2. Tìm phòng đang Active (Có ca trực hiện hành)
+                // 1. Kiểm tra xem bệnh nhân đã có Lịch hẹn (Appointment) trực tuyến hôm nay ở khoa này không?
+                var existingAppointment = await _context.QueueTickets
+                    .Include(t => t.Room)
+                    .Include(t => t.DoctorShift)
+                    .FirstOrDefaultAsync(t => 
+                        t.PatientId == patient.Id &&
+                        t.StatusEnum == TicketStatus.Appointment &&
+                        t.Room.DepartmentId == departmentId &&
+                        t.DoctorShift != null &&
+                        t.DoctorShift.Date == todayDate);
+
+                if (existingAppointment != null)
+                {
+                    // Đã có lịch hẹn. Chỉ cấp số và chuyển thành Waiting
+                    existingAppointment.StatusEnum = status; // Waiting hoặc Emergency
+                    existingAppointment.TicketNumber = await _context.Database
+                        .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
+                        .SingleAsync();
+                    existingAppointment.UpdatedAt = DateTime.UtcNow;
+                    existingAppointment.CreatedBy = userId ?? existingAppointment.CreatedBy;
+
+                    // KHÔNG trừ RemainCapacity vì AppointmentService đã trừ lúc đặt lịch
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    // SignalR
+                    try
+                    {
+                        var displayData = await _queueService.GetDisplayDataAsync(existingAppointment.RoomId);
+                        string groupName = $"Room_{existingAppointment.RoomId}";
+
+                        await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
+                        await _patientHubContext.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new
+                        {
+                            ticketId = existingAppointment.Id,
+                            patientName,
+                            roomId = existingAppointment.RoomId
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Lỗi gửi SignalR: {ex.Message}");
+                    }
+
+                    return existingAppointment;
+                }
+
+                // 2. Nếu không có lịch hẹn (hoặc là walk-in), tìm phòng đang Active (Có ca trực hiện hành)
                 var roomsWithShifts = await _context.Rooms
                     .AsNoTracking()
                     .Include(r => r.DoctorShifts)
@@ -113,7 +161,7 @@ namespace SmartClinic.Services
                         ActiveShift = r.DoctorShifts.FirstOrDefault(ds =>
                             ds.Date == todayDate &&
                             ds.StatusEnum == DoctorShiftStatus.Active &&
-                            ds.ComputedStatus == "Đang trực"),
+                            (ds.ComputedStatus == "Đang trực" || ds.ComputedStatus == "Sắp diễn ra")),
                         WaitingCount = _context.QueueTickets.Count(t =>
                            t.RoomId == r.Id &&
                            (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency) &&
