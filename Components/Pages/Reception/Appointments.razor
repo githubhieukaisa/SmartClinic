@@ -82,7 +82,7 @@
                             <tbody>
                                 @foreach (var ticket in appointmentTickets)
                                 {
-                                    <tr class="border-t border-slate-100 @GetAppointmentRowClass(ticket.Status)">
+                                    <tr class="border-t border-slate-100 @GetAppointmentRowClass(ticket)">
                                         <td class="px-4 py-3 align-top sm:px-5">
                                             <p class="font-semibold text-slate-800">@ticket.BookingCode</p>
                                             @if (ticket.TicketNumber > 0)
@@ -100,8 +100,8 @@
                                         </td>
                                         <td class="px-4 py-3 align-top text-slate-700">@ticket.PatientPhone</td>
                                         <td class="px-4 py-3 align-top">
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold @GetStatusBadgeClass(ticket.Status)">
-                                                @GetStatusLabel(ticket.Status)
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold @GetStatusBadgeClass(ticket)">
+                                                @GetStatusLabel(ticket)
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-right align-top">
@@ -122,9 +122,17 @@
                                                     }
                                                 </button>
                                             }
-                                            else
+                                            else if (ticket.IsExpiredInShift)
+                                            {
+                                                <span class="text-xs font-medium text-amber-700">Quá giờ</span>
+                                            }
+                                            else if (ticket.Status == TicketStatus.Waiting)
                                             {
                                                 <span class="text-xs font-medium text-emerald-700">Đã check-in</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-xs font-medium text-slate-500">-</span>
                                             }
                                         </td>
                                     </tr>
@@ -300,6 +308,14 @@
         };
     }
 
+    private static string GetAppointmentRowClass(ReceptionAppointmentItemDto ticket)
+    {
+        if (ticket.IsExpiredInShift)
+            return "bg-amber-50";
+
+        return GetAppointmentRowClass(ticket.Status);
+    }
+
     private static string GetStatusBadgeClass(TicketStatus status)
     {
         return status switch
@@ -312,6 +328,14 @@
         };
     }
 
+    private static string GetStatusBadgeClass(ReceptionAppointmentItemDto ticket)
+    {
+        if (ticket.IsExpiredInShift)
+            return "bg-amber-100 text-amber-700";
+
+        return GetStatusBadgeClass(ticket.Status);
+    }
+
     private static string GetStatusLabel(TicketStatus status)
     {
         return status switch
@@ -322,6 +346,14 @@
             TicketStatus.Cancelled => "Đã hủy",
             _ => status.ToString()
         };
+    }
+
+    private static string GetStatusLabel(ReceptionAppointmentItemDto ticket)
+    {
+        if (ticket.IsExpiredInShift)
+            return "Đến muộn / quá giờ";
+
+        return GetStatusLabel(ticket.Status);
     }
 
     private static string GetLiveCardClass(ReceptionRoomLiveItemDto room)

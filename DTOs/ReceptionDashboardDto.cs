@@ -23,6 +23,7 @@ namespace SmartClinic.DTOs
         public string RoomName { get; set; } = string.Empty;
         public TicketStatus Status { get; set; }
         public bool CanCheckIn { get; set; }
+        public bool IsExpiredInShift { get; set; }
     }
 
     public class ReceptionRoomLiveItemDto
@@ -37,6 +38,7 @@ namespace SmartClinic.DTOs
         public int Capacity { get; set; }
         public int RemainCapacity { get; set; }
         public int WaitingCount { get; set; }
+        public int AppointmentCount { get; set; }
         public bool IsActiveNow { get; set; }
         public bool IsLeastBusy { get; set; }
     }

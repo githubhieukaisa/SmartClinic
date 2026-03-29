@@ -11,7 +11,7 @@ namespace SmartClinic.Services
     {
         private readonly IDbContextFactory<SmartClinicDbContext> _dbFactory;
         private readonly IHubContext<QueueHub> _hubContext;
-        private const int _displayCount = 5;
+
 
         public QueueService(IDbContextFactory<SmartClinicDbContext> dbFactory, IHubContext<QueueHub> hubContext)
         {
@@ -47,17 +47,16 @@ namespace SmartClinic.Services
                 })
                 .FirstOrDefaultAsync();
 
-            // 3. TÌM DANH SÁCH CHỜ (Emergency luôn đứng đầu)
-            var nextTickets = await context.QueueTickets
+            // 3. TÌM SỐ TIẾP THEO (Emergency luôn đứng đầu)
+            var nextTicketNumber = await context.QueueTickets
                 .Where(t => t.RoomId == roomId
                     && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
                     && t.CreatedAt.Date == today)
                 .OrderBy(t => t.StatusEnum == TicketStatus.Emergency ? 0 : 1)
                 .ThenBy(t => t.UpdatedAt ?? t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
-                .Take(_displayCount)
                 .Select(t => t.TicketNumber.ToString())
-                .ToListAsync();
+                .FirstOrDefaultAsync();
 
             // 4. TRẢ VỀ CHO TIVI
             return new QueueDisplayDto
@@ -67,7 +66,7 @@ namespace SmartClinic.Services
                 DoctorName = activeShift != null ? $"BS. {activeShift.Doctor.FullName}" : "Phòng đang trống",
                 PatientName = currentCall != null ? currentCall.PatientName : "Không có bệnh nhân",
                 Specialty = activeShift?.Room.Department?.Name ?? "",
-                NextTickets = nextTickets
+                NextTicketNumber = nextTicketNumber
             };
         }
 

@@ -12,7 +12,7 @@
 @inject ITicketService TicketService
 @inject IDepartmentService DepartmentService
 @inject IToastService ToastService
-@inject ILogger<CheckIn> Logger
+@inject ILogger<CheckInTicket> Logger
 @rendermode InteractiveServer
 
 <div class="flex items-center justify-center min-h-screen p-4 bg-slate-50">
@@ -260,6 +260,7 @@
 	private bool isLoadingDepts = false;
 	private bool isLoadingShifts = false;
 	private int? currentUserId;
+	private const int WalkInOverflowCapacity = 3;
 
 	protected override async Task OnInitializedAsync()
 	{
@@ -436,7 +437,12 @@
 
 	private static int GetEffectiveRemainCapacity(ReceptionRoomLiveItemDto shift)
 	{
-		return Math.Clamp(shift.RemainCapacity, 0, shift.Capacity);
+		if (shift.RemainCapacity > 0)
+		{
+			return Math.Clamp(shift.RemainCapacity, 0, shift.Capacity);
+		}
+
+		return Math.Max(0, WalkInOverflowCapacity - shift.WaitingCount);
 	}
 
 	// === Ticket Type ===
@@ -484,4 +490,3 @@
 		};
 	}
 }
-
