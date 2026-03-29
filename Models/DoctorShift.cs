@@ -36,7 +36,10 @@ namespace SmartClinic.Models
         {
             get
             {
-                if (ShiftDefinition == null) return "Sắp diễn ra"; // Fallback nếu chưa load relate
+                // Nếu ca đã kết thúc hoàn toàn thì báo xong
+                if (StatusEnum == DoctorShiftStatus.Completed) return "Đã hoàn thành";
+
+                if (ShiftDefinition == null) return "Sắp diễn ra";
                 var now = DateTime.Now;
                 var startDateTime = Date.Date.Add(ShiftDefinition.StartTime);
                 var endDateTime = Date.Date.Add(ShiftDefinition.EndTime);
@@ -53,9 +56,10 @@ namespace SmartClinic.Models
         [NotMapped]
         public string StatusDisplay => StatusEnum switch
         {
-            DoctorShiftStatus.Active => "Đã kích hoạt",
+            DoctorShiftStatus.Active => "Đang nhận bệnh",
+            DoctorShiftStatus.Closing => "Đang chốt sổ",
             DoctorShiftStatus.Completed => "Đã hoàn thành",
             _ => "Chờ kích hoạt"
         };
     }
-}
+}
