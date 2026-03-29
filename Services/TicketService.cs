@@ -423,7 +423,13 @@ namespace SmartClinic.Services
                 if (existingAppointment != null)
                 {
                     // Đã có lịch hẹn. Chỉ cấp số và chuyển thành Waiting
-                    var (apptStatus, apptUpdatedAt) = ResolveTicketStatusAndUpdatedAt(now, request.IsEmergency, request.IsPriority);
+                    var (apptStatus, apptUpdatedAt) = await ResolveTicketStatusAndUpdatedAtAsync(
+                        _context,
+                        now,
+                        todayDate,
+                        existingAppointment.RoomId,
+                        request.IsEmergency,
+                        request.IsPriority);
                     
                     existingAppointment.StatusEnum = apptStatus;
                     existingAppointment.TicketNumber = await _context.Database
