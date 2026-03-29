@@ -1,4 +1,4 @@
-﻿namespace SmartClinic.DTOs
+namespace SmartClinic.DTOs
 {
     /// <summary>
     /// DTO hiển thị đơn thuốc cho Dược sĩ
@@ -12,6 +12,10 @@
         public string DoctorName { get; set; } = "";
         public string? DoctorNote { get; set; }
         public string Status { get; set; } = "Pending";    // Pending | Dispensed | Paid
+        public string StatusDisplay { get; set; } = "";
+        public decimal ConsultationFee { get; set; } = 300000;
+        public decimal MedicineAmount { get; set; }
+        public decimal LabTestAmount { get; set; }
         public decimal TotalAmount { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<PrescriptionDetailDto> Details { get; set; } = new();

@@ -1,0 +1,275 @@
+@page "/admin/cashier-reconciliation"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SmartClinic.DTOs
+@using SmartClinic.Services
+@using SmartClinic.Components.Layout
+@using Blazored.Toast.Services
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "ManagerPolicy")]
+@inject ICashierService CashierService
+@inject IToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="p-8 pb-32">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Đối Soát Thu Ngân</h1>
+            <p class="text-muted-foreground mt-1">Xác nhận thu ngân đã nộp đúng số tiền trong ngày</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <input type="date" class="px-4 py-2 bg-card border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm"
+                   @bind="_selectedDate" @bind:event="onchange" />
+            <button @onclick="LoadDataAsync" class="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-90 transition text-sm">
+                <i class="ph ph-arrows-clockwise font-bold"></i> Làm mới
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex flex-col items-center justify-center p-16">
+            <i class="ph ph-spinner-gap text-4xl text-primary animate-spin mb-4"></i>
+            <p class="text-sm text-muted-foreground">Đang tổng hợp dữ liệu...</p>
+        </div>
+    }
+    else if (_summaries == null || !_summaries.Any())
+    {
+        <div class="bg-card border border-border rounded-2xl flex flex-col items-center justify-center p-16 text-center shadow-sm">
+            <i class="ph ph-chart-line-down text-6xl text-muted-foreground/30 mb-4"></i>
+            <p class="text-lg font-medium text-foreground">Không có dữ liệu</p>
+            <p class="text-sm text-muted-foreground mt-1">Không có giao dịch thanh toán nào trong ngày @_selectedDate.ToString("dd/MM/yyyy").</p>
+        </div>
+    }
+    else
+    {
+        var totalTxn = _summaries.Sum(s => s.TransactionCount);
+        var totalCash = _summaries.Sum(s => s.CashTotal);
+        var totalVNPay = _summaries.Sum(s => s.VNPayTotal);
+        var totalAll = _summaries.Sum(s => s.GrandTotal);
+        var confirmedCount = _summaries.Count(s => s.IsConfirmed);
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                <p class="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Tổng Giao Dịch</p>
+                <p class="text-2xl font-black text-foreground">@totalTxn</p>
+            </div>
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm border-l-4 border-l-green-500">
+                <p class="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Tiền Mặt</p>
+                <p class="text-2xl font-black text-green-600">@totalCash.ToString("N0")đ</p>
+            </div>
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm border-l-4 border-l-blue-500">
+                <p class="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">VNPay</p>
+                <p class="text-2xl font-black text-blue-600">@totalVNPay.ToString("N0")đ</p>
+            </div>
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm border-l-4 border-l-primary">
+                <p class="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Tổng Thu</p>
+                <p class="text-2xl font-black text-primary">@totalAll.ToString("N0")đ</p>
+            </div>
+            <div class="bg-card border border-border p-5 rounded-2xl shadow-sm">
+                <p class="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Đã Xác Nhận</p>
+                <p class="text-2xl font-black @(confirmedCount == _summaries.Count ? "text-green-600" : "text-amber-600")">
+                    @confirmedCount / @_summaries.Count
+                </p>
+            </div>
+        </div>
+
+        <!-- Per-Cashier Table -->
+        <div class="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-border bg-muted/20 flex items-center gap-2">
+                <i class="ph ph-users text-lg text-foreground"></i>
+                <h3 class="font-bold text-foreground">Chi tiết theo Thu Ngân</h3>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-muted/30 border-b border-border">
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground w-10"></th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Thu Ngân</th>
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Số GD</th>
+                            <th class="text-right py-3 px-4 font-semibold text-muted-foreground">Tiền Mặt</th>
+                            <th class="text-right py-3 px-4 font-semibold text-muted-foreground">VNPay</th>
+                            <th class="text-right py-3 px-4 font-semibold text-muted-foreground">Tổng Thu</th>
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Trạng Thái</th>
+                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in _summaries)
+                        {
+                            var cid = s.CashierId;
+
+                            <tr class="border-b border-border hover:bg-muted/10 transition">
+                                <td class="py-3 px-4 text-center">
+                                    <button @onclick="@(() => ToggleExpand(cid))"
+                                            class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground">
+                                        <i class="ph @(_expanded.Contains(cid) ? "ph-caret-up" : "ph-caret-down") text-base"></i>
+                                    </button>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
+                                            <i class="ph ph-user"></i>
+                                        </div>
+                                        <span class="font-semibold text-foreground">@s.CashierName</span>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 text-center font-medium text-foreground">@s.TransactionCount</td>
+                                <td class="py-3 px-4 text-right font-semibold text-green-600">@s.CashTotal.ToString("N0")đ</td>
+                                <td class="py-3 px-4 text-right font-semibold text-blue-600">@s.VNPayTotal.ToString("N0")đ</td>
+                                <td class="py-3 px-4 text-right font-black text-foreground">@s.GrandTotal.ToString("N0")đ</td>
+                                <td class="py-3 px-4 text-center">
+                                    @if (s.IsConfirmed)
+                                    {
+                                        <div class="flex flex-col items-center">
+                                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                                <i class="ph-bold ph-check-circle"></i> Đã xác nhận
+                                            </span>
+                                            @if (s.ConfirmedByName != null)
+                                            {
+                                                <span class="text-[10px] text-muted-foreground mt-0.5">bởi @s.ConfirmedByName</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                            <i class="ph-bold ph-hourglass"></i> Chờ xác nhận
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    @if (!s.IsConfirmed)
+                                    {
+                                        <button @onclick="@(() => ConfirmAsync(cid))"
+                                                disabled="@_processing.Contains(cid)"
+                                                class="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 mx-auto">
+                                            @if (_processing.Contains(cid))
+                                            {
+                                                <i class="ph ph-spinner-gap animate-spin"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="ph-bold ph-check-square-offset"></i>
+                                            }
+                                            <span>Xác nhận</span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs text-muted-foreground">
+                                            @(s.ConfirmedAt?.ToString("HH:mm dd/MM"))
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+
+                            @if (_expanded.Contains(cid))
+                            {
+                                <tr class="bg-muted/5 border-b border-border">
+                                    <td colspan="8" class="px-6 py-4">
+                                        <div class="rounded-xl border border-border overflow-hidden bg-card">
+                                            <div class="px-4 py-2 bg-muted/30 border-b border-border">
+                                                <span class="text-xs font-semibold text-foreground uppercase tracking-wide">
+                                                    Chi tiết giao dịch — @s.CashierName
+                                                </span>
+                                            </div>
+                                            <table class="w-full text-xs">
+                                                <thead>
+                                                    <tr class="border-b border-border bg-muted/20">
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Mã GD</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Thời gian</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Bệnh nhân</th>
+                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">HTTT</th>
+                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Số tiền</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var d in s.Details)
+                                                    {
+                                                        <tr class="border-t border-border hover:bg-muted/10 transition">
+                                                            <td class="py-2 px-4 text-muted-foreground font-mono">#@d.PaymentId.ToString("D5")</td>
+                                                            <td class="py-2 px-4 text-foreground">@d.PaymentTime.ToString("HH:mm:ss")</td>
+                                                            <td class="py-2 px-4 text-foreground font-medium">@d.PatientName</td>
+                                                            <td class="py-2 px-4">
+                                                                <span class="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase
+                                                                    @(d.PaymentMethod == "Cash" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700")">
+                                                                    @d.PaymentMethod
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-2 px-4 text-right font-bold text-foreground">@d.TotalAmount.ToString("N0")đ</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime _selectedDate = DateTime.Today;
+    private bool _isLoading = true;
+    private List<CashierDailySummaryDto>? _summaries;
+    private HashSet<int> _expanded = new();
+    private HashSet<int> _processing = new();
+    private int _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (idClaim != null) int.TryParse(idClaim.Value, out _currentUserId);
+
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        _summaries = await CashierService.GetDailySummariesAsync(_selectedDate);
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private void ToggleExpand(int cashierId)
+    {
+        if (!_expanded.Remove(cashierId))
+            _expanded.Add(cashierId);
+    }
+
+    private async Task ConfirmAsync(int cashierId)
+    {
+        _processing.Add(cashierId);
+        StateHasChanged();
+
+        var (success, error) = await CashierService.ConfirmReconciliationAsync(
+            cashierId, _selectedDate, _currentUserId, null);
+
+        _processing.Remove(cashierId);
+
+        if (success)
+        {
+            ToastService.ShowSuccess("Đã xác nhận thu ngân nộp tiền thành công!");
+            await LoadDataAsync();
+        }
+        else
+        {
+            ToastService.ShowError(error);
+        }
+
+        StateHasChanged();
+    }
+}

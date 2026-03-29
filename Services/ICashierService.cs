@@ -12,5 +12,9 @@ namespace SmartClinic.Services
         Task<(bool Success, string ErrorMessage)> HandleVNPayCallbackAsync(IQueryCollection query);
 
         Task<List<PaymentHistoryDto>> GetPaymentHistoryAsync(DateTime date, int? cashierId = null);
+
+        // ── Manager reconciliation ──
+        Task<List<CashierDailySummaryDto>> GetDailySummariesAsync(DateTime date);
+        Task<(bool Success, string Error)> ConfirmReconciliationAsync(int cashierId, DateTime date, int confirmedByUserId, string? note);
     }
 }
