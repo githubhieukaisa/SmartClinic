@@ -142,18 +142,9 @@
                                         @ticket.TicketNumber
                                     </span>
                                 </td>
-                                <td class="py-3 px-5">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                                            @GetInitials(ticket.PatientUser?.FullName)
-                                        </div>
-                                        <div>
-                                            <p class="font-medium text-foreground">@(ticket.PatientUser?.FullName ?? "—")</p>
-                                            <p class="text-xs text-muted-foreground">@(ticket.PatientUser?.Address ?? "Không có địa chỉ")
-                                            </p>
-                                        </div>
-                                    </div>
+                                <td class="py-3 px-5 text-center">
+                                    <p class="font-medium text-foreground">@(ticket.PatientUser?.FullName ?? "—")</p>
+                                    <p class="text-xs text-muted-foreground">@(ticket.PatientUser?.Address ?? "Không có địa chỉ")</p>
                                 </td>
                                 <td class="py-3 px-5 text-center text-foreground">
                                     @(GetAge(ticket.PatientUser?.DoB) > 0 ? $"{GetAge(ticket.PatientUser?.DoB)} tuổi" : "—")

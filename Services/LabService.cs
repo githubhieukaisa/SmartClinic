@@ -59,13 +59,13 @@ public class LabService : ILabService
             Status = LabOrderStatus.Pending
         };
         context.LabOrders.Add(labOrder);
-        await context.SaveChangesAsync(); 
+        await context.SaveChangesAsync();
 
         var labTests = await context.LabTests
             .Include(lt => lt.LabPrices)
             .Where(lt => labTestIds.Contains(lt.Id))
             .ToListAsync();
-            
+
         var now = System.DateTime.Now;
         foreach (var test in labTests)
         {
@@ -180,7 +180,7 @@ public class LabService : ILabService
             .Include(lo => lo.LabOrderDetails)
                 .ThenInclude(lod => lod.LabTest)
             .Where(lo => lo.CreatedAt >= today);
-            
+
         // Strict filtering: If roomId is 0 or null, we return nothing (LabTech must have a shift)
         if (roomId == null || roomId <= 0)
         {
@@ -188,7 +188,7 @@ public class LabService : ILabService
         }
 
         query = query.Where(o => o.LabOrderDetails.Any(d => d.LabTest != null && d.LabTest.DefaultRoomId == roomId));
-        
+
         return await query.OrderBy(lo => lo.CreatedAt).ToListAsync();
     }
     public async Task<List<Room>> GetLabStationsAsync()

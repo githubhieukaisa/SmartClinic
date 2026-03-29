@@ -31,7 +31,7 @@
     {
         <div class="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-6">
             <p class="text-yellow-700">@(string.IsNullOrEmpty(_errorMessage) ? "Không tìm thấy thông tin hồ sơ bệnh án." :
-                                                                                                                                                                                                                                            _errorMessage)</p>
+                                                                                                                                                                                                                                                                            _errorMessage)</p>
             </div>
         }
     else
@@ -132,7 +132,8 @@
                             <thead class="bg-muted text-muted-foreground uppercase text-[11px] font-bold">
                                 <tr>
                                     <th class="px-4 py-3">Tên Xét Nghiệm</th>
-                                    <th class="px-4 py-3 text-center">Kết quả / Ghi chú</th>
+                                    <th class="px-4 py-3">Kết quả / Ghi chú</th>
+                                    <th class="px-4 py-3 text-center w-32">Tệp đính kèm</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border">
@@ -151,12 +152,19 @@
                                                 {
                                                     <span class="text-muted-foreground italic">Chưa có kết quả</span>
                                                 }
+                                            </td>
+                                            <td class="px-4 py-4 text-center">
                                                 @if (!string.IsNullOrEmpty(detail.ResultFileUrl))
                                                 {
                                                     <a href="@detail.ResultFileUrl" target="_blank"
-                                                           class="ml-2 text-primary hover:underline inline-flex items-center gap-1">
-                                                        <i class="ph ph-file-pdf"></i> File
+                                                           class="text-primary hover:underline inline-flex items-center gap-1.5 font-medium">
+                                                        <i class="ph ph-file-arrow-down text-lg"></i>
+                                                        Tải File
                                                     </a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted-foreground text-xs">—</span>
                                                 }
                                             </td>
                                         </tr>
