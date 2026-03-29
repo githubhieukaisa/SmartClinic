@@ -123,38 +123,7 @@ authProperties);
 
                 if (int.TryParse(roleMaskClaim, out int roleMask))
                 {
-                    if ((roleMask & 16) == 16)
-                    {
-                        redirectUrl = "/admin/users";
-                    }
-                    else if ((roleMask & 64) == 64)
-                    {
-                        redirectUrl = "/";
-                    }
-                    else if ((roleMask & 128) == 128)
-                    {
-                        redirectUrl = "/patient/medical-history";
-                    }
-                    else if ((roleMask & 2) == 2)
-                    {
-                        redirectUrl = "/doctor/dashboard";
-                    }
-                    else if ((roleMask & 1) == 1)
-                    {
-                        redirectUrl = "/checkin";
-                    }
-                    else if ((roleMask & 32) == 32)
-                    {
-                        redirectUrl = "/lab";
-                    }
-                    else if ((roleMask & 8) == 8)
-                    {
-                        redirectUrl = "/cashier/payments";
-                    }
-                    else if ((roleMask & 4) == 4)
-                    {
-                        redirectUrl = "/pharmacist/prescriptions";
-                    }
+                    redirectUrl = AuthService.GetRedirectUrl(roleMask);
                 }
                 NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
             }

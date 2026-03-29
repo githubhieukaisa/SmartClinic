@@ -33,20 +33,24 @@
     else
     {
         <!-- Week Navigator & Batch Actions -->
-        <div class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8 flex flex-wrap gap-6 items-end justify-between">
+        <div
+            class="bg-card rounded-xl border border-border p-6 shadow-sm mb-8 flex flex-wrap gap-6 items-end justify-between">
             <div>
                 <label class="block text-sm font-medium text-foreground mb-2">Chọn tuần làm việc</label>
                 <div class="flex items-center gap-3">
-                    <button @onclick="PreviousWeek" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
+                    <button @onclick="PreviousWeek"
+                            class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
                         <i class="ph ph-caret-left"></i>
                     </button>
-                    <div class="px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium text-slate-700 min-w-56 text-center">
+                    <div
+                        class="px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 font-medium text-slate-700 min-w-56 text-center">
                         Tuần: @(_weekStart.ToString("dd/MM/yyyy")) - @(_weekStart.AddDays(6).ToString("dd/MM/yyyy"))
                     </div>
                     <button @onclick="NextWeek" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
                         <i class="ph ph-caret-right"></i>
                     </button>
-                    <button @onclick="ResetToCurrentWeek" class="px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition ml-2">
+                    <button @onclick="ResetToCurrentWeek"
+                            class="px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition ml-2">
                         Tuần này
                     </button>
                 </div>
@@ -61,13 +65,16 @@
                             <span class="text-xs text-amber-700 mt-0.5">Cho các ca chưa kích hoạt</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <input type="number" min="1" @bind="_batchCapacity" class="w-20 px-3 py-1.5 text-sm border border-amber-300 rounded focus:ring-amber-500 focus:border-amber-500 outline-none" />
-                            <button @onclick="BatchUpdateCapacity" class="px-3 py-1.5 text-sm font-medium bg-white text-amber-700 border border-amber-300 rounded hover:bg-amber-100 transition">
+                            <input type="number" min="1" @bind="_batchCapacity"
+                                   class="w-20 px-3 py-1.5 text-sm border border-amber-300 rounded focus:ring-amber-500 focus:border-amber-500 outline-none" />
+                            <button @onclick="BatchUpdateCapacity"
+                                    class="px-3 py-1.5 text-sm font-medium bg-white text-amber-700 border border-amber-300 rounded hover:bg-amber-100 transition">
                                 Áp dụng
                             </button>
                         </div>
                         <div class="h-8 w-px bg-amber-200 mx-2"></div>
-                        <button @onclick="BatchActivate" class="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded shadow-sm transition">
+                        <button @onclick="BatchActivate"
+                                class="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded shadow-sm transition">
                             <i class="ph-bold ph-check-square-offset"></i> Kích hoạt tất cả
                         </button>
                     </div>
@@ -93,53 +100,63 @@
                 {
                     <div class="bg-card rounded-xl border border-border overflow-hidden">
                         <div class="bg-slate-50 px-6 py-3 border-b border-border flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex flex-col items-center justify-center shadow-sm">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase leading-none mb-0.5">@dayGroup.Key.ToString("ddd")</span>
+                            <div
+                                class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex flex-col items-center justify-center shadow-sm">
+                                <span
+                                class="text-[10px] font-bold text-slate-500 uppercase leading-none mb-0.5">@dayGroup.Key.ToString("ddd")</span>
                                 <span class="text-sm font-bold text-slate-800 leading-none">@dayGroup.Key.ToString("dd")</span>
                             </div>
                             <h2 class="text-lg font-bold text-foreground">
                                 @(dayGroup.Key == DateTime.Today ? "Hôm nay" : dayGroup.Key == DateTime.Today.AddDays(-1) ? "Hôm qua" : dayGroup.Key == DateTime.Today.AddDays(1) ? "Ngày mai" : dayGroup.Key.ToString("dd/MM/yyyy"))
                             </h2>
                         </div>
-                        
+
                         <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             @foreach (var shift in dayGroup)
                             {
+                                bool isPast = shift.EndTime.HasValue ? shift.EndTime.Value < DateTime.Now : shift.StartTime.Date <
+                DateTime.Today;
                                 bool isDraft = shift.ShiftStatus == "Chờ kích hoạt";
-                                bool isActive = shift.ShiftStatus == "Đã kích hoạt";
-                                bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || shift.Status == "Đã hoàn thành";
-                                bool isPast = shift.StartTime < DateTime.Now && !isActive && !isDraft;
+                                bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || isPast;
+                                bool isActive = (shift.ShiftStatus == "Đang nhận bệnh" || shift.ShiftStatus == "Đang chốt sổ" ||
+                shift.ShiftStatus == "Đã kích hoạt") && !isCompleted;
 
-                                <div class="relative flex flex-col rounded-xl border p-5 transition-all @(isDraft ? "bg-white border-amber-200 hover:border-amber-300 hover:shadow-md" : isActive ? "bg-emerald-50/30 border-emerald-200" : "bg-slate-50 border-slate-200 opacity-70")">
+                                <div
+                                    class="relative flex flex-col rounded-xl border p-5 transition-all @(isDraft && !isCompleted ? "bg-white border-amber-200 hover:border-amber-300 hover:shadow-md" : isActive && !isCompleted ? "bg-emerald-50/30 border-emerald-200" : "bg-slate-50 border-slate-200 opacity-70")">
                                     <div class="flex items-start justify-between mb-4">
                                         <div>
                                             <div class="flex items-center gap-2 mb-1">
-                                                <i class="ph-fill @(shift.StartTime.Hour < 12 ? "ph-sun text-orange-400" : shift.StartTime.Hour < 18 ? "ph-sun-horizon text-amber-500" : "ph-moon text-indigo-500") text-lg"></i>
+                                                <i
+                                                class="ph-fill @(shift.StartTime.Hour < 12 ? "ph-sun text-orange-400" : shift.StartTime.Hour < 18 ? "ph-sun-horizon text-amber-500" : "ph-moon text-indigo-500") text-lg"></i>
                                                 <h3 class="font-bold text-foreground">@shift.ShiftName</h3>
                                             </div>
-                                            <p class="text-sm text-muted-foreground font-medium">@shift.StartTime.ToString("HH:mm") - @shift.EndTime?.ToString("HH:mm")</p>
+                                            <p class="text-sm text-muted-foreground font-medium">@shift.StartTime.ToString("HH:mm") -
+                                                @shift.EndTime?.ToString("HH:mm")</p>
+                                            </div>
+                                            @if (isDraft && !isCompleted)
+                                            {
+                                                <span
+                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Chờ kích hoạt
+                                                </span>
+                                            }
+                                            else if (isActive && !isCompleted)
+                                            {
+                                                <span
+                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Đã kích hoạt
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span
+                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
+                                                    Đã hoàn thành
+                                                </span>
+                                            }
                                         </div>
-                                        @if (isDraft)
-                                        {
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Chờ kích hoạt
-                                            </span>
-                                        }
-                                        else if (isActive && !isCompleted)
-                                        {
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã kích hoạt
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
-                                                Đã hoàn thành
-                                            </span>
-                                        }
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-2 mb-5 text-sm">
+
+                                    <div class="flex items-center gap-2 mb-5 text-sm mt-4 border-t border-slate-100 pt-3">
                                         <i class="ph ph-door text-muted-foreground"></i>
                                         <span class="font-medium text-foreground">@shift.RoomName</span>
                                         <span class="text-muted-foreground mx-1">•</span>
@@ -147,7 +164,7 @@
                                     </div>
 
                                     <div class="mt-auto space-y-4">
-                                        @if (isDraft)
+                                        @if (isDraft && !isCompleted)
                                         {
                                             <div class="flex items-center justify-between">
                                                 <label class="text-sm font-medium text-slate-600">Số BN tối đa:</label>
@@ -199,28 +216,28 @@
                                             </div>
                                         }
                                     </div>
-                                </div>
-                            }
+                                    </div>
+                                }
+                            </div>
                         </div>
-                    </div>
-                }
-            </div>
+                    }
+                </div>
+            }
         }
-    }
-</div>
+    </div>
 
 @code {
     private int _doctorId = 0;
     private bool _isLoading = true;
     private bool _isProcessing = false;
     private DateTime _weekStart;
-    
+
     private List<DoctorShiftDisplayDto> _shifts = new();
     private bool _hasDraftShifts => _shifts.Any(s => s.ShiftStatus == "Chờ kích hoạt");
-    
+
     // Batch edit
     private int _batchCapacity = 10;
-    
+
     // Individual edit track
     private Dictionary<int, int> _editCapacityMap = new();
 
@@ -264,7 +281,7 @@
     private async Task LoadShiftsAsync()
     {
         if (_doctorId <= 0) return;
-        
+
         _isLoading = true;
         StateHasChanged();
 
@@ -272,10 +289,10 @@
         {
             var weekEnd = _weekStart.AddDays(6).Date.AddHours(23).AddMinutes(59).AddSeconds(59);
             _shifts = await ShiftService.GetMyShiftsAsync(_doctorId, _weekStart, weekEnd);
-            
+
             // Re-init edit map
             _editCapacityMap.Clear();
-            foreach(var s in _shifts)
+            foreach (var s in _shifts)
             {
                 _editCapacityMap[s.Id] = s.Capacity;
             }

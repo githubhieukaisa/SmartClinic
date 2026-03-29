@@ -243,26 +243,43 @@
                                     <i class="ph ph-clock text-xl text-foreground"></i>
                                     <h3 class="text-lg font-bold text-foreground">Ca trực hiện tại</h3>
                                 </div>
-                                @if (DailyShiftService.IsOnDuty && DailyShiftService.CurrentRoomId.HasValue)
+                                @if (DailyShiftService.IsOnDuty && DailyShiftService.CurrentShift != null)
                                 {
-                                    <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
-                                        <div class="flex items-center justify-between mb-3 border-b border-emerald-100 pb-3">
-                                            <span class="text-sm text-emerald-600">Phòng khám</span>
-                                            <span class="font-bold text-emerald-800">Phòng @DailyShiftService.CurrentRoomId.Value</span>
+                                    var status = DailyShiftService.CurrentShift.StatusEnum;
+                                    var (bgClass, borderClass, textClass, titleClass, dotClass, textStatus) = status switch
+                                    {
+                                        DoctorShiftStatus.Active => ("bg-emerald-50", "border-emerald-100", "text-emerald-600",
+ "text-emerald-800", "bg-emerald-500", "Đang nhận bệnh"),
+                                        DoctorShiftStatus.Draft => ("bg-amber-50", "border-amber-100", "text-amber-600", "text-amber-800",
+         "bg-amber-500", "Chờ kích hoạt"),
+                                        DoctorShiftStatus.Closing => ("bg-orange-50", "border-orange-100", "text-orange-600", "text-orange-800",
+                "bg-orange-500", "Đang chốt sổ"),
+                                        DoctorShiftStatus.Completed => ("bg-slate-50", "border-slate-200", "text-slate-500", "text-slate-700",
+              "bg-slate-400", "Đã kết thúc"),
+                                        _ => ("bg-slate-50", "border-slate-200", "text-slate-500", "text-slate-700", "bg-slate-400", "Không rõ")
+                                    };
+
+                                    <div class="@bgClass rounded-lg p-4 border @borderClass">
+                                        <div class="flex items-center justify-between mb-3 border-b @borderClass pb-3">
+                                            <span class="text-sm @textClass">Phòng khám</span>
+                                            <span class="font-bold @titleClass">@(DailyShiftService.CurrentShift?.Room?.Name ?? $"Phòng        {DailyShiftService.CurrentRoomId}")</span>
                                         </div>
                                         <div class="flex items-center justify-between mb-3 border-b border-border pb-3">
-                                            <span class="text-sm text-muted-foreground">Bắt đầu</span>
-                                            <span class="font-medium text-foreground">@DailyShiftService.CurrentShift?.ShiftDefinition?.StartTime.ToString(@"hh\:mm")</span>
+                                            <span class="text-sm text-muted-foreground">Thời gian</span>
+                                            <span class="font-medium text-foreground">
+                                                @DailyShiftService.CurrentShift.ShiftDefinition?.StartTime.ToString(@"hh\:mm")
+                                                <span class="text-muted-foreground mx-1">-</span>
+                                                @DailyShiftService.CurrentShift.ShiftDefinition?.EndTime.ToString(@"hh\:mm")
+                                            </span>
                                         </div>
                                         <div class="flex items-center justify-between">
                                             <span class="text-sm text-muted-foreground">Trạng thái</span>
                                             <span
-                                                class="inline-flex py-1 px-2.5 rounded-md text-xs font-semibold bg-green-100 text-green-700">
-                                                Đang hoạt động
+                                                class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-md  text-xs font-semibold bg-white border @borderClass @textClass">
+                                                <span
+                                                class="w-1.5 h-1.5 rounded-full @dotClass @(status == DoctorShiftStatus.Active ? "animate-pulse" : "")"></span>
+                                                @textStatus
                                             </span>
-                                        </div>
-                                        <div class="text-[10px] text-emerald-500 italic text-center mt-2">
-                                            Dữ liệu cập nhật thời gian thực
                                         </div>
                                     </div>
                                 }

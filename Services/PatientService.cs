@@ -160,7 +160,7 @@ namespace SmartClinic.Services
 
             return todayShifts
                 .OrderByDescending(s => s.Date).ThenByDescending(s => s.ShiftDefinition.StartTime)
-                .FirstOrDefault(s => s.ComputedStatus == "Đang trực");
+                .FirstOrDefault(s => s.ComputedStatus == "Đang trong ca");
         }
 
         /// <summary>
@@ -188,8 +188,8 @@ namespace SmartClinic.Services
                     .AsNoTracking()
                     .Include(t => t.PatientUser)
                     .Where(t =>
-                        // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi, Khẩn cấp) - Chỉ trong ngày + Phải có Shift
-                        (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency) && t.CreatedAt >= today)
+                        // TH1: Hàng chờ chung của phòng (Chờ khám, Đang gọi, Khẩn cấp, Vắng mặt) - Chỉ trong ngày + Phải có Shift
+                        (roomId != null && t.RoomId == roomId && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Calling || t.StatusEnum == TicketStatus.Emergency || t.StatusEnum == TicketStatus.Missed) && t.CreatedAt >= today)
                         ||
                         // TH2: Bệnh nhân riêng của bác sĩ (Đang khám, Đang xét nghiệm) - KHÔNG LỌC NGÀY
                         (t.DoctorId == doctorId && (t.StatusEnum == TicketStatus.Examinating || t.StatusEnum == TicketStatus.Testing))
@@ -434,6 +434,30 @@ namespace SmartClinic.Services
                 .ToList();
 
             return result;
+        }
+
+        /// <summary>
+        /// Get the most active ticket for a patient (not completed or cancelled)
+        /// </summary>
+        public async Task<QueueTicket?> GetActiveTicketForPatientAsync(int patientId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var today = DateTime.Today;
+
+            return await context.QueueTickets
+                .AsNoTracking()
+                .Include(t => t.Room)
+                    .ThenInclude(r => r.Department)
+                .Include(t => t.Doctor)
+                .Include(t => t.DoctorShift)
+                    .ThenInclude(s => s!.ShiftDefinition)
+                .Where(t => t.PatientId == patientId && 
+                           t.StatusEnum != TicketStatus.Completed && 
+                           t.StatusEnum != TicketStatus.Done && 
+                           t.StatusEnum != TicketStatus.Cancelled &&
+                           t.CreatedAt >= today)
+                .OrderByDescending(t => t.CreatedAt)
+                .FirstOrDefaultAsync();
         }
     }
 }
