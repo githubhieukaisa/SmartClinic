@@ -1183,7 +1183,8 @@ namespace SmartClinic.Services
 
         public string GetRedirectUrl(int roleMask)
         {
-            if ((roleMask & AdminRoleMask) == AdminRoleMask) return "/admin/daily-revenue";
+            if ((roleMask & AdminRoleMask) == AdminRoleMask) return "/admin/statistics";
+            if ((roleMask & ManagerRoleMask) == ManagerRoleMask) return "/manager/users";
             if ((roleMask & DoctorRoleMask) == DoctorRoleMask) return "/doctor/dashboard";
             if ((roleMask & PatientRoleMask) == PatientRoleMask) return "/patient/medical-history";
             if ((roleMask & ReceptionRoleMask) == ReceptionRoleMask) return "/checkin";
