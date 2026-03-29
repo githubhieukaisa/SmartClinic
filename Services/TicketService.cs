@@ -343,9 +343,6 @@ namespace SmartClinic.Services
                 if (ticket == null)
                     throw new BusinessException("Không tìm thấy lịch hẹn.");
 
-                if (ticket.StatusEnum != TicketStatus.Appointment)
-                    throw new BusinessException("Lịch hẹn này đã được check-in hoặc không còn ở trạng thái Appointment.");
-
                 if (ticket.DoctorShift == null || ticket.DoctorShift.ShiftDefinition == null)
                     throw new BusinessException("Lịch hẹn thiếu thông tin ca khám. Vui lòng kiểm tra lại dữ liệu.");
 
@@ -374,23 +371,7 @@ namespace SmartClinic.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                try
-                {
-                    var displayData = await _queueService.GetDisplayDataAsync(ticket.RoomId);
-                    var groupName = $"Room_{ticket.RoomId}";
 
-                    await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
-                    await _patientHubContext.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new
-                    {
-                        ticketId = ticket.Id,
-                        patientName = ticket.PatientUser?.FullName ?? "Bệnh nhân",
-                        roomId = ticket.RoomId
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Lỗi gửi SignalR sau check-in lịch hẹn: {ex.Message}");
-                }
 
                 return new AppointmentCheckInResultDto
                 {
@@ -427,6 +408,56 @@ namespace SmartClinic.Services
             try
             {
                 var patient = await GetOrCreatePatientAsync(_context, normalizedName, normalizedPhone, request.PatientGender);
+
+                // 1. Kiểm tra xem bệnh nhân đã có Lịch hẹn (Appointment) trực tuyến hôm nay ở khoa này không?
+                var existingAppointment = await _context.QueueTickets
+                    .Include(t => t.Room)
+                    .Include(t => t.DoctorShift)
+                    .FirstOrDefaultAsync(t => 
+                        t.PatientId == patient.Id &&
+                        t.StatusEnum == TicketStatus.Appointment &&
+                        t.Room.DepartmentId == request.DepartmentId &&
+                        t.DoctorShift != null &&
+                        t.DoctorShift.Date == todayDate);
+
+                if (existingAppointment != null)
+                {
+                    // Đã có lịch hẹn. Chỉ cấp số và chuyển thành Waiting
+                    var (apptStatus, apptUpdatedAt) = ResolveTicketStatusAndUpdatedAt(now, request.IsEmergency, request.IsPriority);
+                    
+                    existingAppointment.StatusEnum = apptStatus;
+                    existingAppointment.TicketNumber = await _context.Database
+                        .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
+                        .SingleAsync();
+                    existingAppointment.UpdatedAt = apptUpdatedAt;
+                    existingAppointment.CreatedBy = request.UserId ?? existingAppointment.CreatedBy;
+
+                    // KHÔNG trừ RemainCapacity vì AppointmentService đã trừ lúc đặt lịch
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    // SignalR
+                    try
+                    {
+                        var displayData = await _queueService.GetDisplayDataAsync(existingAppointment.RoomId);
+                        string groupName = $"Room_{existingAppointment.RoomId}";
+
+                        await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
+                        await _patientHubContext.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new
+                        {
+                            ticketId = existingAppointment.Id,
+                            patientName = normalizedName,
+                            roomId = existingAppointment.RoomId
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Lỗi gửi SignalR: {ex.Message}");
+                    }
+
+                    return existingAppointment;
+                }
 
                 var selectedShiftId = request.DoctorShiftId ?? await ResolveLeastBusyShiftIdAsync(_context, request.DepartmentId, todayDate, currentTime);
                 var selectedShift = await LockAndLoadDoctorShiftAsync(_context, selectedShiftId);

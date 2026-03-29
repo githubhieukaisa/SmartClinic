@@ -34,7 +34,7 @@ namespace SmartClinic.Services
                 .Where(s => s.RoomId == roomId && s.Date == today)
                 .ToListAsync();
 
-            var activeShift = shiftsToday.FirstOrDefault(s => s.ComputedStatus == "Đang trực");
+            var activeShift = shiftsToday.FirstOrDefault(s => s.ComputedStatus == "Đang trong ca");
 
             // 2. TÌM SỐ ĐANG GỌI
             var currentCall = await context.QueueTickets

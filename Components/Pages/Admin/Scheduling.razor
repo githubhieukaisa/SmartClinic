@@ -157,7 +157,7 @@ else
                                     else if (cellState != null)
                                     {
                                         var dbShift = originalShifts.FirstOrDefault(s => s.Id == cellState.Id);
-                                        bool isCompleted = dbShift != null && dbShift.Status == "Đã hoàn thành";
+                                        bool isCompleted = dbShift != null && dbShift.Status == "Đã hết ca";
 
                                         // Business Rules validation
                                         bool canEdit = false;
@@ -697,9 +697,9 @@ else
     {
         return status switch
         {
-            "Đã hoàn thành" => "bg-slate-100 text-slate-600 border-slate-200",
-            "Đang trực" => "bg-emerald-100 text-emerald-700 border-emerald-200",
-            "Sắp diễn ra" => "bg-amber-100 text-amber-700 border-amber-200",
+            "Đã hết ca" => "bg-slate-100 text-slate-600 border-slate-200",
+            "Đang trong ca" => "bg-emerald-100 text-emerald-700 border-emerald-200",
+            "Chưa tới ca" => "bg-amber-100 text-amber-700 border-amber-200",
             _ => "bg-slate-100 text-slate-600 border-slate-200"
         };
     }
@@ -708,7 +708,9 @@ else
     {
         return workflowStatus switch
         {
-            "Đã kích hoạt" => "bg-blue-100 text-blue-700 border-blue-200",
+            "Đang nhận bệnh" => "bg-blue-100 text-blue-700 border-blue-200",
+            "Đang chốt sổ" => "bg-indigo-100 text-indigo-700 border-indigo-200",
+            "Chưa chốt sổ" => "bg-red-100 text-red-700 border-red-200",
             "Chờ kích hoạt" => "bg-orange-100 text-orange-700 border-orange-200",
             "Đã hoàn thành" => "bg-slate-100 text-slate-600 border-slate-200",
             _ => "bg-slate-100 text-slate-600 border-slate-200"
