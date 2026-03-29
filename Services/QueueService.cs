@@ -94,7 +94,8 @@ namespace SmartClinic.Services
                 }
                 else
                 {
-                    currentCalling.StatusEnum = TicketStatus.Waiting;
+                    bool isEmergencyMarked = currentCalling.AdditionalNotes != null && currentCalling.AdditionalNotes.StartsWith("[EMERGENCY]");
+                    currentCalling.StatusEnum = isEmergencyMarked ? TicketStatus.Emergency : TicketStatus.Waiting;
                     currentCalling.UpdatedAt = DateTime.Now;
                     // Tìm 3 người tiếp theo đang chờ
                     var nextWaitings = await context.QueueTickets
