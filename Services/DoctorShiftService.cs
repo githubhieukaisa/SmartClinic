@@ -16,6 +16,13 @@ public interface IDoctorShiftService
     Task<(bool Success, string Error)> BulkSaveShiftsAsync(List<DoctorShiftWeeklyUpdateDto> updates);
     Task<(List<AutoSchedulePreviewItemDto> Items, string Error)> PreviewAutoScheduleAsync(AutoScheduleRequestDto request);
     Task<AutoScheduleResultDto> ConfirmAutoScheduleAsync(List<AutoSchedulePreviewItemDto> items);
+
+    // ── Doctor Schedule Management ──
+    Task<List<DoctorShiftDisplayDto>> GetMyShiftsAsync(int doctorId, DateTime from, DateTime to);
+    Task<(bool Success, string Error)> ActivateShiftAsync(int shiftId, int? callerDoctorId);
+    Task<(bool Success, string Error)> BatchActivateAsync(int doctorId, DateTime weekStart);
+    Task<(bool Success, string Error)> UpdateShiftCapacityAsync(int shiftId, int callerDoctorId, int newCapacity);
+    Task<(bool Success, string Error)> BatchUpdateCapacityAsync(int doctorId, DateTime weekStart, int capacity);
 }
 
 /// <summary>
@@ -76,7 +83,8 @@ public class DoctorShiftService : IDoctorShiftService
             EndTime = s.Date.Date.Add(s.ShiftDefinition.EndTime),
             Status = s.ComputedStatus,
             Capacity = s.Capacity,
-            ShiftName = s.ShiftDefinition.Name
+            ShiftName = s.ShiftDefinition.Name,
+            ShiftStatus = s.StatusDisplay
         }).ToList();
     }
 
@@ -515,5 +523,180 @@ public class DoctorShiftService : IDoctorShiftService
             TotalSkipped = skipped,
             Summary = $"Đã tạo {created} ca trực thành công" + (skipped > 0 ? $", bỏ qua {skipped} ca trùng lịch." : ".")
         };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 10. LẤY CA TRỰC CỦA BÁC SĨ (Doctor Schedule)
+    //     Kèm BookedCount = đếm QueueTickets chưa hủy
+    // ══════════════════════════════════════════════════════════
+    public async Task<List<DoctorShiftDisplayDto>> GetMyShiftsAsync(int doctorId, DateTime from, DateTime to)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shifts = await ctx.DoctorShifts
+            .AsNoTracking()
+            .Include(s => s.Room).ThenInclude(r => r.Department)
+            .Include(s => s.ShiftDefinition)
+            .Where(s => s.DoctorId == doctorId && s.Date >= from.Date && s.Date <= to.Date)
+            .OrderBy(s => s.Date).ThenBy(s => s.ShiftDefinition.SortOrder)
+            .ToListAsync();
+
+        // Đếm số BN đã đặt cho mỗi ca (tất cả ticket chưa hủy)
+        var shiftIds = shifts.Select(s => s.Id).ToList();
+        var bookedCounts = await ctx.QueueTickets
+            .Where(t => t.DoctorShiftId != null
+                      && shiftIds.Contains(t.DoctorShiftId.Value)
+                      && t.StatusEnum != TicketStatus.Cancelled)
+            .GroupBy(t => t.DoctorShiftId)
+            .Select(g => new { ShiftId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var bookedMap = bookedCounts.ToDictionary(x => x.ShiftId!.Value, x => x.Count);
+
+        return shifts.Select(s =>
+        {
+            bookedMap.TryGetValue(s.Id, out int booked);
+            return new DoctorShiftDisplayDto
+            {
+                Id = s.Id,
+                DoctorId = s.DoctorId,
+                RoomId = s.RoomId,
+                RoomName = s.Room.Name,
+                DepartmentName = s.Room.Department.Name,
+                StartTime = s.Date.Date.Add(s.ShiftDefinition.StartTime),
+                EndTime = s.Date.Date.Add(s.ShiftDefinition.EndTime),
+                Capacity = s.Capacity,
+                ShiftName = s.ShiftDefinition.Name,
+                Status = s.ComputedStatus,
+                BookedCount = booked,
+                ShiftStatus = s.StatusDisplay
+            };
+        }).ToList();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 11. KÍCH HOẠT 1 CA TRỰC (Doctor hoặc Manager)
+    //     callerDoctorId = null → Manager (bỏ qua check ownership)
+    //     callerDoctorId = X   → Doctor (chỉ active ca của mình)
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> ActivateShiftAsync(int shiftId, int? callerDoctorId)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts.FirstOrDefaultAsync(s => s.Id == shiftId);
+        if (shift == null)
+            return (false, "Ca trực không tồn tại.");
+
+        if (callerDoctorId.HasValue && shift.DoctorId != callerDoctorId.Value)
+            return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (shift.StatusEnum != DoctorShiftStatus.Draft)
+            return (false, "Ca trực đã được kích hoạt trước đó.");
+
+        shift.StatusEnum = DoctorShiftStatus.Active;
+        await ctx.SaveChangesAsync();
+        return (true, string.Empty);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 12. KÍCH HOẠT TẤT CẢ CA DRAFT TRONG TUẦN
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> BatchActivateAsync(int doctorId, DateTime weekStart)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+        var weekEnd = weekStart.AddDays(6);
+
+        var draftShifts = await ctx.DoctorShifts
+            .Where(s => s.DoctorId == doctorId
+                      && s.Date >= weekStart.Date
+                      && s.Date <= weekEnd.Date
+                      && s.StatusEnum == DoctorShiftStatus.Draft)
+            .ToListAsync();
+
+        if (!draftShifts.Any())
+            return (false, "Không có ca trực nào cần kích hoạt trong tuần này.");
+
+        foreach (var shift in draftShifts)
+        {
+            shift.StatusEnum = DoctorShiftStatus.Active;
+        }
+
+        await ctx.SaveChangesAsync();
+        return (true, $"Đã kích hoạt {draftShifts.Count} ca trực.");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 13. SỬA CAPACITY 1 CA TRỰC
+    //     Tăng/giảm đều được, nhưng không < BookedCount
+    //     Không sửa ca đang diễn ra hoặc đã hoàn thành
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> UpdateShiftCapacityAsync(int shiftId, int callerDoctorId, int newCapacity)
+    {
+        await using var ctx = await _factory.CreateDbContextAsync();
+
+        var shift = await ctx.DoctorShifts
+            .Include(s => s.ShiftDefinition)
+            .FirstOrDefaultAsync(s => s.Id == shiftId);
+
+        if (shift == null)
+            return (false, "Ca trực không tồn tại.");
+
+        if (shift.DoctorId != callerDoctorId)
+            return (false, "Bạn không có quyền thao tác trên ca trực này.");
+
+        if (newCapacity < 1)
+            return (false, "Số lượng bệnh nhân tối đa phải >= 1.");
+
+        // Không sửa ca đang diễn ra
+        if (shift.StatusEnum == DoctorShiftStatus.Active && shift.ComputedStatus == "Đang trực")
+            return (false, "Không thể chỉnh sửa ca trực đang diễn ra.");
+
+        if (shift.StatusEnum == DoctorShiftStatus.Completed)
+            return (false, "Không thể chỉnh sửa ca trực đã hoàn thành.");
+
+        // Đếm số BN đã đặt
+        var bookedCount = await ctx.QueueTickets
+            .CountAsync(t => t.DoctorShiftId == shiftId
+                          && t.StatusEnum != TicketStatus.Cancelled);
+
+        if (newCapacity < bookedCount)
+            return (false, $"Không thể đặt số lượng = {newCapacity}. Hiện đã có {bookedCount} bệnh nhân đặt lịch.");
+
+        shift.Capacity = newCapacity;
+        shift.RemainCapacity = newCapacity - bookedCount;
+
+        await ctx.SaveChangesAsync();
+        return (true, string.Empty);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 14. ĐẶT CAPACITY HÀNG LOẠT CHO CA DRAFT TRONG TUẦN
+    //     Chỉ áp dụng cho ca Draft (chưa có ai đặt)
+    // ══════════════════════════════════════════════════════════
+    public async Task<(bool Success, string Error)> BatchUpdateCapacityAsync(int doctorId, DateTime weekStart, int capacity)
+    {
+        if (capacity < 1)
+            return (false, "Số lượng bệnh nhân tối đa phải >= 1.");
+
+        await using var ctx = await _factory.CreateDbContextAsync();
+        var weekEnd = weekStart.AddDays(6);
+
+        var draftShifts = await ctx.DoctorShifts
+            .Where(s => s.DoctorId == doctorId
+                      && s.Date >= weekStart.Date
+                      && s.Date <= weekEnd.Date
+                      && s.StatusEnum == DoctorShiftStatus.Draft)
+            .ToListAsync();
+
+        if (!draftShifts.Any())
+            return (false, "Không có ca trực Draft nào trong tuần để cập nhật.");
+
+        foreach (var shift in draftShifts)
+        {
+            shift.Capacity = capacity;
+            shift.RemainCapacity = capacity;
+        }
+
+        await ctx.SaveChangesAsync();
+        return (true, $"Đã cập nhật capacity = {capacity} cho {draftShifts.Count} ca trực.");
     }
 }

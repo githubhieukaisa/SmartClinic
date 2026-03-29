@@ -19,6 +19,12 @@ public class DoctorShiftDisplayDto
     public string Status { get; set; } = string.Empty;
     public int Capacity { get; set; }
     public string ShiftName { get; set; } = string.Empty;
+
+    /// <summary>Số BN đã đặt lịch vào ca này (từ QueueTickets)</summary>
+    public int BookedCount { get; set; }
+
+    /// <summary>Trạng thái workflow: "Chờ kích hoạt" / "Đã kích hoạt" / "Đã hoàn thành" (từ StatusEnum)</summary>
+    public string ShiftStatus { get; set; } = string.Empty;
 }
 
 /// <summary>

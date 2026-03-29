@@ -203,9 +203,12 @@ else
                                         {
                                             if (dbShift != null)
                                             {
-                                                <div class="mt-1 flex justify-center">
-                                                    <span class="text-[10px] font-medium px-2 py-[1px] border rounded-full @GetStatusColor(dbShift.Status)">
+                                                <div class="mt-1 flex flex-col items-center gap-1">
+                                                    <span class="text-[10px] font-medium px-2 py-[1px] border rounded-full @GetStatusColor(dbShift.Status)" title="Trạng thái thời gian">
                                                         @dbShift.Status
+                                                    </span>
+                                                    <span class="text-[10px] font-medium px-2 py-[1px] border rounded-full @GetWorkflowStatusColor(dbShift.ShiftStatus)" title="Trạng thái quy trình">
+                                                        @dbShift.ShiftStatus
                                                     </span>
                                                 </div>
                                             }
@@ -694,9 +697,21 @@ else
     {
         return status switch
         {
-            "Đang trực" => "text-green-700 bg-green-100 border-green-200",
-            "Đã hoàn thành" => "text-slate-600 bg-slate-100 border-slate-200",
-            _ => "text-teal-700 bg-teal-100 border-teal-200"
+            "Đã hoàn thành" => "bg-slate-100 text-slate-600 border-slate-200",
+            "Đang trực" => "bg-emerald-100 text-emerald-700 border-emerald-200",
+            "Sắp diễn ra" => "bg-amber-100 text-amber-700 border-amber-200",
+            _ => "bg-slate-100 text-slate-600 border-slate-200"
+        };
+    }
+
+    private string GetWorkflowStatusColor(string workflowStatus)
+    {
+        return workflowStatus switch
+        {
+            "Đã kích hoạt" => "bg-blue-100 text-blue-700 border-blue-200",
+            "Chờ kích hoạt" => "bg-orange-100 text-orange-700 border-orange-200",
+            "Đã hoàn thành" => "bg-slate-100 text-slate-600 border-slate-200",
+            _ => "bg-slate-100 text-slate-600 border-slate-200"
         };
     }
 }
