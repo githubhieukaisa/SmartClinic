@@ -265,8 +265,9 @@ namespace SmartClinic.Services
             DoctorName = p.Ticket?.Doctor?.FullName ?? "Not assigned",
             DoctorNote = p.DoctorNote,
             Status = p.Status.ToString(),
-            TotalAmount = p.TotalAmount ?? p.PrescriptionDetails
-                                .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.MedicinePrices.OrderByDescending(x => x.EffectiveFrom).FirstOrDefault()?.Price ?? 0m)) * d.Quantity),
+            TotalAmount = (p.TotalAmount ?? 0) > 0 
+                ? p.TotalAmount!.Value 
+                : p.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : (d.Medicine?.MedicinePrices.OrderByDescending(x => x.EffectiveFrom).FirstOrDefault()?.Price ?? 0m)) * d.Quantity),
             CreatedAt = p.CreatedAt,
             Details = p.PrescriptionDetails.Select(d => new PrescriptionDetailDto
             {
