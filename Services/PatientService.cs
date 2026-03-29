@@ -434,5 +434,29 @@ namespace SmartClinic.Services
 
             return result;
         }
+
+        /// <summary>
+        /// Get the most active ticket for a patient (not completed or cancelled)
+        /// </summary>
+        public async Task<QueueTicket?> GetActiveTicketForPatientAsync(int patientId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var today = DateTime.Today;
+
+            return await context.QueueTickets
+                .AsNoTracking()
+                .Include(t => t.Room)
+                    .ThenInclude(r => r.Department)
+                .Include(t => t.Doctor)
+                .Include(t => t.DoctorShift)
+                    .ThenInclude(s => s!.ShiftDefinition)
+                .Where(t => t.PatientId == patientId && 
+                           t.StatusEnum != TicketStatus.Completed && 
+                           t.StatusEnum != TicketStatus.Done && 
+                           t.StatusEnum != TicketStatus.Cancelled &&
+                           t.CreatedAt >= today)
+                .OrderByDescending(t => t.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
     }
 }

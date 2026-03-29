@@ -1,0 +1,258 @@
+@page "/patient/my-ticket"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.SignalR.Client
+@using SmartClinic.Services
+@using SmartClinic.Models
+@using SmartClinic.Constant
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "PatientPolicy")]
+@inject PatientService PatientService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<div class="p-6 max-w-2xl mx-auto space-y-8">
+    @* ── Header ── *@
+    <div class="text-center space-y-2">
+        <h1 class="text-3xl font-bold text-foreground">Phiếu Khám Của Tôi</h1>
+        <p class="text-muted-foreground">Theo dõi tình trạng hàng đợi của bạn trong thời gian thực</p>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex flex-col items-center justify-center py-20 space-y-4">
+            <div class="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+            <p class="text-muted-foreground animate-pulse">Đang tải thông tin phiếu...</p>
+        </div>
+    }
+    else if (_activeTicket == null)
+    {
+        <div class="bg-card border border-dashed border-border rounded-3xl p-12 text-center space-y-4 shadow-sm">
+            <div class="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
+                <i class="ph ph-ticket text-4xl text-muted-foreground/50"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-xl font-semibold text-foreground">Bạn chưa có phiếu khám nào</h3>
+                <p class="text-muted-foreground max-w-xs mx-auto">Vui lòng đăng ký khám bệnh hoặc đến quầy lễ tân để được hỗ trợ.</p>
+            </div>
+            <div class="pt-4">
+                <a href="/patient/appointments" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-medium hover:opacity-90 transition shadow-lg shadow-primary/20">
+                    <i class="ph ph-calendar-plus"></i>
+                    Đặt lịch khám ngay
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        var statusInfo = GetStatusInfo(_activeTicket.StatusEnum);
+
+        @* ── Ticket Card ── *@
+        <div class="relative overflow-hidden bg-card border border-border rounded-[2.5rem] shadow-xl transition-all duration-500 hover:shadow-2xl">
+            @* Accent Blur *@
+            <div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-24 -left-24 w-64 h-64 @statusInfo.GlowClass rounded-full blur-3xl"></div>
+
+            <div class="relative p-8 sm:p-10 flex flex-col items-center gap-8">
+                @* Status Badge *@
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider @statusInfo.BadgeClass animate-bounce-subtle">
+                    <i class="@statusInfo.Icon text-lg"></i>
+                    @statusInfo.Label
+                </div>
+
+                @* Ticket Number Section *@
+                <div class="flex flex-col items-center text-center space-y-2">
+                    <span class="text-sm font-medium text-muted-foreground uppercase tracking-[0.2em]">Số Thứ Tự</span>
+                    @if (_activeTicket.StatusEnum == TicketStatus.Appointment)
+                    {
+                        <div class="flex flex-col items-center">
+                            <i class="ph ph-calendar-blank text-7xl text-blue-500 mb-2"></i>
+                            <span class="text-2xl font-bold text-foreground">Chưa lấy số</span>
+                            <p class="text-sm text-balance text-muted-foreground mt-2 max-w-[250px]">
+                                Bạn có lịch hẹn vào lúc <strong>@_activeTicket.DoctorShift?.ShiftDefinition?.StartTime.ToString(@"hh\:mm")</strong>. 
+                                Vui lòng đến quầy lễ tân để check-in lấy số.
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="relative">
+                            <span class="text-[120px] leading-none font-black text-primary tracking-tighter tabular-nums drop-shadow-sm">
+                                @_activeTicket.TicketNumber.ToString("D3")
+                            </span>
+                        </div>
+                    }
+                </div>
+
+                @* Divider *@
+                <div class="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
+
+                @* Details Grid *@
+                <div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wide">
+                            <i class="ph ph-map-pin"></i> Phòng Khám
+                        </span>
+                        <p class="text-lg font-bold text-foreground">@(_activeTicket.Room?.RoomName ?? "Đang sắp xếp...")</p>
+                        @if (_activeTicket.Room?.Department != null)
+                        {
+                            <p class="text-sm text-muted-foreground">Khoa: @_activeTicket.Room.Department.Name</p>
+                        }
+                    </div>
+
+                    <div class="space-y-1 sm:text-right">
+                        <span class="text-xs font-semibold text-muted-foreground flex items-center justify-start sm:justify-end gap-1.5 uppercase tracking-wide">
+                            <i class="ph ph-user-circle"></i> Bác Sĩ Phụ Trách
+                        </span>
+                        <p class="text-lg font-bold text-foreground">@(_activeTicket.Doctor?.FullName ?? "Đang phân bổ...")</p>
+                        <p class="text-sm text-muted-foreground">@_activeTicket.CreatedAt.ToString("HH:mm, dd/MM/yyyy")</p>
+                    </div>
+                </div>
+
+                @* Real-time Indicator *@
+                <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground animate-pulse">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Đang kết nối - Cập nhật tự động
+                </div>
+            </div>
+        </div>
+
+        @* ── Instructions ── *@
+        <div class="bg-muted/50 rounded-3xl p-6 border border-border">
+            <h4 class="font-bold text-foreground flex items-center gap-2 mb-3">
+                <i class="ph ph-lightbulb text-primary"></i>
+                Lưu ý quan trọng
+            </h4>
+            <ul class="text-sm text-muted-foreground space-y-3">
+                <li class="flex gap-2">
+                    <span class="text-primary">•</span>
+                    <span>Hãy theo dõi chỉ số trên màn hình tại sảnh hoặc trên trang này để biết khi nào đến lượt bạn.</span>
+                </li>
+                <li class="flex gap-2">
+                    <span class="text-primary">•</span>
+                    <span>Nếu trạng thái chuyển sang <strong>"Đang gọi"</strong>, vui lòng di chuyển đến trước cửa phòng @_activeTicket.Room?.RoomName.</span>
+                </li>
+                <li class="flex gap-2">
+                    <span class="text-primary">•</span>
+                    <span>Nếu bạn bỏ lỡ lượt, vui lòng liên hệ lễ tân để được sắp xếp lại.</span>
+                </li>
+            </ul>
+        </div>
+    }
+</div>
+
+<style>
+    @@keyframes bounce-subtle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+    }
+    .animate-bounce-subtle {
+        animation: bounce-subtle 3s ease-in-out infinite;
+    }
+</style>
+
+@code {
+    private QueueTicket? _activeTicket;
+    private bool _isLoading = true;
+    private int _patientId;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out _patientId))
+        {
+            await LoadDataAsync();
+            await SetupSignalRAsync();
+        }
+        else
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _activeTicket = await PatientService.GetActiveTicketForPatientAsync(_patientId);
+        _isLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SetupSignalRAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/patient"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        // Listen for generic status updates
+        _hubConnection.On<System.Text.Json.JsonElement>("QueueStatusUpdated", async (data) =>
+        {
+            try
+            {
+                // Check if this update is for the current patient
+                if (data.TryGetProperty("patientId", out var pIdProperty) && pIdProperty.GetInt32() == _patientId)
+                {
+                    await LoadDataAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing QueueStatusUpdated: {ex.Message}");
+            }
+        });
+
+        // Listen for specific ticket updates (e.g. check-in from receptionist)
+        _hubConnection.On<System.Text.Json.JsonElement>("QueueTicketUpdated", async (data) =>
+        {
+            try
+            {
+                // For QueueTicketUpdated, we reload to be safe but we could also check ticketId
+                await LoadDataAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing QueueTicketUpdated: {ex.Message}");
+            }
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+            
+            // Join group based on room if active
+            if (_activeTicket?.RoomId.HasValue == true)
+            {
+                // Note: PatientHub might need JoinRoomGroup if not already handling it globally
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR Error: {ex.Message}");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private record StatusDisplay(string Label, string Icon, string BadgeClass, string GlowClass);
+
+    private StatusDisplay GetStatusInfo(TicketStatus status) => status switch
+    {
+        TicketStatus.Appointment => new("Lịch Hẹn", "ph ph-calendar-blank", "bg-blue-100 text-blue-700", "bg-blue-500/10"),
+        TicketStatus.Waiting => new("Đang Chờ Đợi", "ph ph-clock", "bg-amber-100 text-amber-700", "bg-amber-500/10"),
+        TicketStatus.Calling => new("Đang Gọi Khám", "ph ph-megaphone", "bg-orange-100 text-orange-700 animate-pulse", "bg-orange-500/20"),
+        TicketStatus.Examinating => new("Đang Khám Bệnh", "ph ph-stethoscope", "bg-emerald-100 text-emerald-700", "bg-emerald-500/10"),
+        TicketStatus.Testing => new("Đang Xét Nghiệm", "ph ph-flask", "bg-purple-100 text-purple-700", "bg-purple-500/10"),
+        _ => new(status.ToString(), "ph ph-info", "bg-slate-100 text-slate-700", "bg-slate-500/10")
+    };
+}
