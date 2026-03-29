@@ -19,7 +19,7 @@ public partial class QueueTicket : BaseEntity
 
     public int? UpdatedBy { get; set; }
 
-    public DateTime? UpdatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; } 
 
     public virtual User? Doctor { get; set; }
 
