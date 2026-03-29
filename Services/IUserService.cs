@@ -8,6 +8,9 @@ namespace SmartClinic.Services
         /// <summary>Lấy toàn bộ danh sách user (kể cả đã bị vô hiệu hóa).</summary>
         Task<List<User>> GetAllUsersAsync();
 
+        /// <summary>Lấy danh sách chuyên khoa để gán cho bác sĩ/nhân viên xét nghiệm.</summary>
+        Task<List<Department>> GetDepartmentsAsync();
+
         /// <summary>Lấy 1 user theo Id.</summary>
         Task<User?> GetUserByIdAsync(int id);
 
