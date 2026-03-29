@@ -170,17 +170,17 @@
                                                     <span class="font-bold text-foreground">@shift.BookedCount / @shift.Capacity</span>
                                                 </div>
                                                 <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                    <div class="h-full bg-emerald-500 rounded-full" style="width: @(shift.Capacity > 0 ? Math.Min(100, (shift.BookedCount * 100.0) / shift.Capacity) : 0)%"></div>
+                                                    <div class="h-full bg-emerald-500 rounded-full" style="width: @(shift.Capacity > 0 ? Math.Min(100, (shift.BookedCount * 100) / shift.Capacity) : 0)%"></div>
                                                 </div>
                                                 <div class="flex items-center justify-between pt-2">
-                                                    <label class="text-xs font-medium text-slate-500">Thay đổi giới hạn:</label>
-                                                    <div class="flex items-center gap-1">
+                                                    <label class="text-xs font-medium text-slate-500">Giới hạn mới:</label>
+                                                    <div class="flex items-center gap-1.5">
                                                         <input type="number" min="@shift.BookedCount" max="100" 
                                                                value="@(_editCapacityMap.ContainsKey(shift.Id) ? _editCapacityMap[shift.Id] : shift.Capacity)"
                                                                @onchange="@(e => UpdateEditCapacity(shift.Id, e.Value))"
-                                                               class="w-16 px-1.5 py-0.5 text-xs border border-slate-200 rounded text-center focus:ring-1 focus:ring-primary outline-none" />
-                                                        <button @onclick="() => SaveCapacity(shift.Id)" class="p-1 text-primary hover:bg-primary/10 rounded transition" title="Lưu">
-                                                            <i class="ph-bold ph-floppy-disk text-base"></i>
+                                                               class="w-16 px-1.5 py-1 text-xs border border-slate-200 rounded text-center focus:ring-1 focus:ring-primary outline-none" />
+                                                        <button @onclick="() => SaveCapacity(shift.Id)" class="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition shadow-sm" title="Lưu số lượng">
+                                                            <i class="ph-bold ph-check"></i> Lưu
                                                         </button>
                                                     </div>
                                                 </div>
@@ -194,7 +194,7 @@
                                                     <span class="font-medium text-slate-600">@shift.BookedCount / @shift.Capacity</span>
                                                 </div>
                                                 <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                                    <div class="h-full bg-slate-400 rounded-full" style="width: @(shift.Capacity > 0 ? Math.Min(100, (shift.BookedCount * 100.0) / shift.Capacity) : 0)%"></div>
+                                                    <div class="h-full bg-slate-400 rounded-full" style="width: @(shift.Capacity > 0 ? Math.Min(100, (shift.BookedCount * 100) / shift.Capacity) : 0)%"></div>
                                                 </div>
                                             </div>
                                         }
@@ -212,6 +212,7 @@
 @code {
     private int _doctorId = 0;
     private bool _isLoading = true;
+    private bool _isProcessing = false;
     private DateTime _weekStart;
     
     private List<DoctorShiftDisplayDto> _shifts = new();
@@ -300,85 +301,123 @@
 
     private async Task SaveCapacity(int shiftId)
     {
-        if (!_editCapacityMap.TryGetValue(shiftId, out int newCap)) return;
+        if (_isProcessing) return;
+        _isProcessing = true;
+        try
+        {
+            if (!_editCapacityMap.TryGetValue(shiftId, out int newCap)) return;
 
-        var result = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
-        if (result.Success)
-        {
-            ToastService.ShowSuccess("Đã cập nhật số lượng bệnh nhân tối đa.");
-            await LoadShiftsAsync();
+            var result = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
+            if (result.Success)
+            {
+                ToastService.ShowSuccess("Đã cập nhật số lượng bệnh nhân tối đa.");
+                await LoadShiftsAsync();
+            }
+            else
+            {
+                ToastService.ShowError(result.Error);
+            }
         }
-        else
+        finally
         {
-            ToastService.ShowError(result.Error);
+            _isProcessing = false;
         }
     }
 
     private async Task ActivateSingleShift(int shiftId)
     {
-        // First ensure capacity is saved if changed
-        if (_editCapacityMap.TryGetValue(shiftId, out int newCap))
+        if (_isProcessing) return;
+        _isProcessing = true;
+        try
         {
-            var shift = _shifts.FirstOrDefault(s => s.Id == shiftId);
-            if (shift != null && shift.Capacity != newCap)
+            // First ensure capacity is saved if changed
+            if (_editCapacityMap.TryGetValue(shiftId, out int newCap))
             {
-                var updateRes = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
-                if (!updateRes.Success)
+                var shift = _shifts.FirstOrDefault(s => s.Id == shiftId);
+                if (shift != null && shift.Capacity != newCap)
                 {
-                    ToastService.ShowError(updateRes.Error);
-                    return;
+                    var updateRes = await ShiftService.UpdateShiftCapacityAsync(shiftId, _doctorId, newCap);
+                    if (!updateRes.Success)
+                    {
+                        ToastService.ShowError(updateRes.Error);
+                        return;
+                    }
                 }
             }
-        }
 
-        var result = await ShiftService.ActivateShiftAsync(shiftId, _doctorId);
-        if (result.Success)
-        {
-            ToastService.ShowSuccess("Đã kích hoạt ca trực thành công.");
+            var result = await ShiftService.ActivateShiftAsync(shiftId, _doctorId);
+            if (result.Success)
+            {
+                ToastService.ShowSuccess("Đã kích hoạt ca trực thành công.");
+            }
+            else
+            {
+                if (result.Error.Contains("đã được kích hoạt"))
+                {
+                    ToastService.ShowInfo("Ca trực đã được kích hoạt.");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error);
+                }
+            }
             await LoadShiftsAsync();
         }
-        else
+        finally
         {
-            ToastService.ShowError(result.Error);
+            _isProcessing = false;
         }
     }
 
     private async Task BatchUpdateCapacity()
     {
-        if (_batchCapacity < 1)
+        if (_isProcessing) return;
+        _isProcessing = true;
+        try
         {
-            ToastService.ShowWarning("Số lượng bệnh nhân phải từ 1 trở lên.");
-            return;
-        }
+            if (_batchCapacity < 1)
+            {
+                ToastService.ShowWarning("Số lượng bệnh nhân phải từ 1 trở lên.");
+                return;
+            }
 
-        var result = await ShiftService.BatchUpdateCapacityAsync(_doctorId, _weekStart, _batchCapacity);
-        if (result.Success)
-        {
-            ToastService.ShowSuccess(result.Error); // Error holds the success message in Batch
-            await LoadShiftsAsync();
+            var result = await ShiftService.BatchUpdateCapacityAsync(_doctorId, _weekStart, _batchCapacity);
+            if (result.Success)
+            {
+                ToastService.ShowSuccess(result.Error); // Error holds the success message in Batch
+                await LoadShiftsAsync();
+            }
+            else
+            {
+                ToastService.ShowError(result.Error);
+            }
         }
-        else
+        finally
         {
-            ToastService.ShowError(result.Error);
+            _isProcessing = false;
         }
     }
 
     private async Task BatchActivate()
     {
-        // For batch activate, we don't save pending individual edits yet since batch update capacity is available.
-        // It's cleaner to just activate what is saved in DB. 
-        // If users edit individual capacity visually but don't hit save, they might lose it on batch activate. 
-        // We could iterate and save all first, but that's complex. Batch Update Capacity handles the primary use case.
-
-        var result = await ShiftService.BatchActivateAsync(_doctorId, _weekStart);
-        if (result.Success)
+        if (_isProcessing) return;
+        _isProcessing = true;
+        try
         {
-            ToastService.ShowSuccess(result.Error);
+            var result = await ShiftService.BatchActivateAsync(_doctorId, _weekStart);
+            if (result.Success)
+            {
+                ToastService.ShowSuccess(result.Error);
+            }
+            else
+            {
+                ToastService.ShowError(result.Error);
+            }
             await LoadShiftsAsync();
         }
-        else
+        finally
         {
-            ToastService.ShowError(result.Error);
+            _isProcessing = false;
         }
     }
 }

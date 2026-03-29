@@ -589,7 +589,8 @@ public class DoctorShiftService : IDoctorShiftService
         if (callerDoctorId.HasValue && shift.DoctorId != callerDoctorId.Value)
             return (false, "Bạn không có quyền thao tác trên ca trực này.");
 
-        if (shift.StatusEnum != DoctorShiftStatus.Draft)
+        // Cho phép kích hoạt nếu đang là Draft (0) HOẶC dữ liệu trong DB bị lỗi/không xác định (như 3).
+        if (shift.StatusEnum != DoctorShiftStatus.Draft && Enum.IsDefined(typeof(DoctorShiftStatus), (byte)shift.StatusEnum))
             return (false, "Ca trực đã được kích hoạt trước đó.");
 
         shift.StatusEnum = DoctorShiftStatus.Active;
