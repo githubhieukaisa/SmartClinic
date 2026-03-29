@@ -113,7 +113,7 @@ namespace SmartClinic.Services
                         ActiveShift = r.DoctorShifts.FirstOrDefault(ds =>
                             ds.Date == todayDate &&
                             ds.StatusEnum == DoctorShiftStatus.Active &&
-                            ds.ComputedStatus == "Đang trực"),
+                            ds.ComputedStatus == "Đang trong ca"),
                         WaitingCount = _context.QueueTickets.Count(t =>
                            t.RoomId == r.Id &&
                            (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency) &&
