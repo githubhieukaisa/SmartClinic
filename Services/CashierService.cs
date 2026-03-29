@@ -11,15 +11,21 @@ namespace SmartClinic.Services
     {
         private readonly SmartClinicDbContext _context;
         private readonly IHubContext<PrescriptionHub> _hubContext;
+        private readonly IHubContext<PatientHub> _patientHubContext;
         private readonly VNPayService _vnpay;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public CashierService(SmartClinicDbContext context,
                                IHubContext<PrescriptionHub> hubContext,
-                               VNPayService vnpay)
+                               IHubContext<PatientHub> patientHubContext,
+                               VNPayService vnpay,
+                               IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _hubContext = hubContext;
+            _patientHubContext = patientHubContext;
             _vnpay = vnpay;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // ─── Query ────────────────────────────────────────────────────────────────
@@ -33,8 +39,10 @@ namespace SmartClinic.Services
                 .Include(t => t.Prescription)
                     .ThenInclude(p => p!.PrescriptionDetails)
                         .ThenInclude(d => d.Medicine)
+                .Include(t => t.LabOrders)
+                    .ThenInclude(lo => lo.LabOrderDetails)
                 .Where(t => t.StatusEnum == TicketStatus.Completed)
-                .OrderBy(t => t.CreatedAt)
+                .OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt)
                 .ToListAsync();
 
             return tickets.Select(MapToDto).ToList();
@@ -75,6 +83,9 @@ namespace SmartClinic.Services
                 vnpAmount = amt / 100m; // VNPay multiplies by 100
             }
 
+            // Capture VNPay transaction number for audit trail
+            _vnpTxnNo = query.TryGetValue("vnp_TransactionNo", out var txnNo) ? txnNo.ToString() : null;
+
             return await FinalizePaymentAsync(ticketId, "VNPay", vnpAmount, null);
         }
 
@@ -90,6 +101,9 @@ namespace SmartClinic.Services
                 var ticket = await _context.QueueTickets
                     .Include(t => t.PatientUser)
                     .Include(t => t.Prescription)
+                        .ThenInclude(p => p!.PrescriptionDetails)
+                    .Include(t => t.LabOrders)
+                        .ThenInclude(lo => lo.LabOrderDetails)
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
                 if (ticket == null)
@@ -98,10 +112,16 @@ namespace SmartClinic.Services
                 if (ticket.StatusEnum != TicketStatus.Completed)
                     return (false, $"Ticket is '{ticket.StatusEnum}', cannot process payment.");
 
+                // ── Anti-collusion: Block self-payment ──
+                if (cashierId.HasValue && ticket.PatientId.HasValue && cashierId.Value == ticket.PatientId.Value)
+                    return (false, "Thu ngân không được thanh toán cho chính mình.");
+
                 // Calculate the final exact amount required
-                decimal exactTotal = ticket.Prescription?.TotalAmount 
-                            ?? ticket.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) 
-                            ?? 0m;
+                decimal medicineAmount = ticket.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) ?? 0m;
+                decimal labTestAmount = ticket.LabOrders.SelectMany(lo => lo.LabOrderDetails).Sum(lod => lod.UnitPrice);
+                decimal consultationFee = 300000m;
+                
+                decimal exactTotal = consultationFee + medicineAmount + labTestAmount;
                 
                 // For VNPay if amount is 0/missing, assume full payment.
                 if (paymentMethod == "VNPay" && amountReceived == 0)
@@ -109,6 +129,9 @@ namespace SmartClinic.Services
 
                 if (amountReceived < exactTotal && paymentMethod == "Cash")
                     return (false, $"Số tiền khách đưa ({amountReceived:N0}đ) không đủ để thanh toán ({exactTotal:N0}đ).");
+
+                // ── Capture audit trail ──
+                var clientIp = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
 
                 // ── Insert Payment Record ──
                 var paymentRecord = new SmartClinic.Models.Entites.Payment
@@ -120,7 +143,9 @@ namespace SmartClinic.Services
                     ChangeAmount = amountReceived - exactTotal,
                     CashierId = cashierId,
                     PaymentTime = DateTime.UtcNow,
-                    Status = "Success"
+                    Status = "Success",
+                    VnpTransactionNo = _vnpTxnNo,   // captured from HandleVNPayCallbackAsync
+                    IpAddress = clientIp
                 };
                 
                 _context.Payments.Add(paymentRecord);
@@ -141,6 +166,12 @@ namespace SmartClinic.Services
                     ticketNumber = ticket.TicketNumber,
                     patientName = ticket.PatientUser?.FullName
                 });
+
+                // ── SignalR: Notify Patient ──
+                if (ticket.PatientId.HasValue)
+                {
+                    await _patientHubContext.Clients.All.SendAsync("QueueStatusUpdated", new { patientId = ticket.PatientId.Value, status = "Paid" });
+                }
 
                 return (true, "");
             }
@@ -197,34 +228,162 @@ namespace SmartClinic.Services
                 .ToList();
         }
 
+        // ─── Manager Reconciliation ──────────────────────────────────────────────
+
+        public async Task<List<CashierDailySummaryDto>> GetDailySummariesAsync(DateTime date)
+        {
+            var searchDate = date.Date;
+            var minUtc = searchDate.AddDays(-1);
+            var maxUtc = searchDate.AddDays(2);
+
+            var payments = await _context.Payments
+                .AsNoTracking()
+                .Include(p => p.Ticket).ThenInclude(t => t!.PatientUser)
+                .Include(p => p.Cashier)
+                .Where(p => p.PaymentTime >= minUtc && p.PaymentTime < maxUtc)
+                .OrderByDescending(p => p.PaymentTime)
+                .ToListAsync();
+
+            var filtered = payments.Where(p => p.PaymentTime.ToLocalTime().Date == searchDate).ToList();
+
+            var reconciliations = await _context.CashierReconciliations
+                .AsNoTracking()
+                .Include(r => r.ConfirmedByUser)
+                .Where(r => r.ReportDate == searchDate)
+                .ToListAsync();
+
+            var grouped = filtered
+                .GroupBy(p => p.CashierId ?? 0)
+                .Select(g =>
+                {
+                    var cashierName = g.First().Cashier?.FullName ?? g.First().Cashier?.Username ?? "VNPay (tự động)";
+                    var recon = reconciliations.FirstOrDefault(r => r.CashierId == g.Key);
+
+                    return new CashierDailySummaryDto
+                    {
+                        CashierId = g.Key,
+                        CashierName = cashierName,
+                        ReportDate = searchDate,
+                        TransactionCount = g.Count(),
+                        CashTotal = g.Where(p => p.PaymentMethod == "Cash").Sum(p => p.TotalAmount),
+                        VNPayTotal = g.Where(p => p.PaymentMethod == "VNPay").Sum(p => p.TotalAmount),
+                        IsConfirmed = recon?.IsConfirmed ?? false,
+                        ConfirmedByName = recon?.ConfirmedByUser?.FullName,
+                        ConfirmedAt = recon?.ConfirmedAt,
+                        Note = recon?.Note,
+                        Details = g.Select(p => new PaymentHistoryDto
+                        {
+                            PaymentId = p.Id,
+                            TicketId = p.TicketId,
+                            PatientName = p.Ticket?.PatientUser?.FullName ?? "—",
+                            PaymentMethod = p.PaymentMethod,
+                            TotalAmount = p.TotalAmount,
+                            AmountReceived = p.AmountReceived,
+                            ChangeAmount = p.ChangeAmount,
+                            Status = p.Status,
+                            PaymentTime = p.PaymentTime,
+                            CashierName = cashierName
+                        }).ToList()
+                    };
+                })
+                .OrderBy(s => s.CashierName)
+                .ToList();
+
+            return grouped;
+        }
+
+        public async Task<(bool Success, string Error)> ConfirmReconciliationAsync(
+            int cashierId, DateTime date, int confirmedByUserId, string? note)
+        {
+            var reportDate = date.Date;
+
+            var existing = await _context.CashierReconciliations
+                .FirstOrDefaultAsync(r => r.ReportDate == reportDate && r.CashierId == cashierId);
+
+            var minUtc = reportDate.AddDays(-1);
+            var maxUtc = reportDate.AddDays(2);
+            var payments = await _context.Payments
+                .AsNoTracking()
+                .Where(p => p.CashierId == cashierId && p.PaymentTime >= minUtc && p.PaymentTime < maxUtc)
+                .ToListAsync();
+            var filtered = payments.Where(p => p.PaymentTime.ToLocalTime().Date == reportDate).ToList();
+
+            var cashTotal = filtered.Where(p => p.PaymentMethod == "Cash").Sum(p => p.TotalAmount);
+            var vnpayTotal = filtered.Where(p => p.PaymentMethod == "VNPay").Sum(p => p.TotalAmount);
+
+            if (existing != null)
+            {
+                existing.IsConfirmed = true;
+                existing.ConfirmedBy = confirmedByUserId;
+                existing.ConfirmedAt = DateTime.UtcNow;
+                existing.Note = note;
+                existing.ExpectedCashTotal = cashTotal;
+                existing.ExpectedVNPayTotal = vnpayTotal;
+                existing.TransactionCount = filtered.Count;
+            }
+            else
+            {
+                _context.CashierReconciliations.Add(new SmartClinic.Models.Entites.CashierReconciliation
+                {
+                    ReportDate = reportDate,
+                    CashierId = cashierId,
+                    ExpectedCashTotal = cashTotal,
+                    ExpectedVNPayTotal = vnpayTotal,
+                    TransactionCount = filtered.Count,
+                    IsConfirmed = true,
+                    ConfirmedBy = confirmedByUserId,
+                    ConfirmedAt = DateTime.UtcNow,
+                    Note = note
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return (true, "");
+        }
+
+        // ─── VNPay Transaction Number (instance field for callback) ──────────────
+        private string? _vnpTxnNo;
+
         // ─── Helper ───────────────────────────────────────────────────────────────
 
-        private static PrescriptionQueueDto MapToDto(QueueTicket t) => new()
+        private static PrescriptionQueueDto MapToDto(QueueTicket t)
         {
-            // PrescriptionId is mapped to TicketId so the UI's payment callbacks work correctly
-            PrescriptionId = t.Id,
-            TicketId       = t.Id,
-            TicketNumber   = t.TicketNumber,
-            PatientName    = t.PatientUser?.FullName ?? "—",
-            DoctorName     = t.Doctor?.FullName ?? "Not assigned",
-            DoctorNote     = t.Prescription?.DoctorNote,
-            Status         = t.StatusEnum.ToString(),
-            // TotalAmount from QueueTicket (includes consultation + medicines + lab)
-            TotalAmount    = t.TotalAmount ?? t.Prescription?.TotalAmount
-                             ?? t.Prescription?.PrescriptionDetails
-                                  .Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity)
-                             ?? 0,
-            CreatedAt      = t.CreatedAt,
-            Details        = t.Prescription?.PrescriptionDetails.Select(d => new PrescriptionDetailDto
+            var medicineAmount = t.Prescription?.PrescriptionDetails.Sum(d => (d.UnitPrice > 0 ? d.UnitPrice : 0) * d.Quantity) ?? 0m;
+            var labTestAmount = t.LabOrders.SelectMany(lo => lo.LabOrderDetails).Sum(lod => lod.UnitPrice);
+            var consultationFee = 300000m;
+
+            return new PrescriptionQueueDto
             {
-                DetailId         = d.Id,
-                MedicineId       = d.MedicineId ?? 0,
-                MedicineName     = d.Medicine?.Name ?? "—",
-                Unit             = d.Medicine?.Unit,
-                Quantity         = d.Quantity,
-                UnitPrice        = d.UnitPrice > 0 ? d.UnitPrice : 0,
-                UsageInstruction = d.UsageInstruction
-            }).ToList() ?? new()
+                PrescriptionId   = t.Id,
+                TicketId         = t.Id,
+                TicketNumber     = t.TicketNumber,
+                PatientName      = t.PatientUser?.FullName ?? "—",
+                DoctorName       = t.Doctor?.FullName ?? "Not assigned",
+                DoctorNote       = t.Prescription?.DoctorNote,
+                Status           = t.StatusEnum.ToString(),
+                StatusDisplay    = GetStatusLabel(t.StatusEnum),
+                ConsultationFee  = consultationFee,
+                MedicineAmount   = medicineAmount,
+                LabTestAmount    = labTestAmount,
+                TotalAmount      = consultationFee + medicineAmount + labTestAmount,
+                CreatedAt        = t.UpdatedAt ?? t.CreatedAt,
+                Details          = t.Prescription?.PrescriptionDetails.Select(d => new PrescriptionDetailDto
+                {
+                    DetailId         = d.Id,
+                    MedicineId       = d.MedicineId ?? 0,
+                    MedicineName     = d.Medicine?.Name ?? "—",
+                    Unit             = d.Medicine?.Unit,
+                    Quantity         = d.Quantity,
+                    UnitPrice        = d.UnitPrice > 0 ? d.UnitPrice : 0,
+                    UsageInstruction = d.UsageInstruction
+                }).ToList() ?? new()
+            };
+        }
+
+        private static string GetStatusLabel(TicketStatus status) => status switch
+        {
+            TicketStatus.Completed => "Sẵn sàng thanh toán",
+            _ => "Chờ khám/xét nghiệm"
         };
     }
 }

@@ -30,6 +30,9 @@ namespace SmartClinic.Models.Entites
         
         public string Status { get; set; } = "Success"; // Success, Failed, Reflexed
         
-        public string? Note { get; set; } // Ghi chú thêm (Mã giao dịch vnpay)
+        public string? Note { get; set; } // Ghi chú thêm
+        
+        public string? VnpTransactionNo { get; set; } // Mã giao dịch VNPay (audit trail)
+        public string? IpAddress { get; set; }         // IP nguồn thanh toán (audit trail)
     }
 }

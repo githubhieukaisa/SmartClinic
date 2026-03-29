@@ -9,7 +9,9 @@
 @attribute [Authorize(Policy = "PatientPolicy")]
 @inject PatientService PatientService
 @inject AuthenticationStateProvider AuthStateProvider
+@using Blazored.Toast.Services
 @inject NavigationManager Navigation
+@inject IToastService ToastService
 @implements IAsyncDisposable
 
 <div class="p-6 max-w-2xl mx-auto space-y-8">
@@ -160,6 +162,20 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Handle VNPay return notification
+        var uri = new Uri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("vnpay_success", out var success) && success == "true")
+        {
+            var msg = query.TryGetValue("vnpay_msg", out var msgVal) ? msgVal.ToString() : "Thanh toán VNPay thành công!";
+            ToastService.ShowSuccess(msg);
+        }
+        else if (query.TryGetValue("vnpay_error", out var error) && error == "true")
+        {
+            var msg = query.TryGetValue("vnpay_msg", out var msgVal) ? msgVal.ToString() : "Thanh toán VNPay thất bại!";
+            ToastService.ShowError(msg);
+        }
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);

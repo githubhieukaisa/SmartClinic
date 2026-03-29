@@ -104,11 +104,10 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-border bg-muted/30">
-                            <th class="text-center py-3 px-4 font-semibold text-muted-foreground w-10"></th>
+                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground w-10"></th>
                             <th class="text-center py-3 px-4 font-semibold text-muted-foreground">#</th>
                             <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Bệnh nhân</th>
                             <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Bác sĩ</th>
-                            <th class="text-left py-3 px-4 font-semibold text-muted-foreground">Thuốc</th>
                             <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Thời gian</th>
                             <th class="text-center py-3 px-4 font-semibold text-muted-foreground">Trạng thái</th>
                             <th class="text-right py-3 px-4 font-semibold text-muted-foreground">Tổng cộng</th>
@@ -141,20 +140,6 @@
                                     </div>
                                 </td>
                                 <td class="py-3 px-4 text-foreground text-sm">Dr. @item.DoctorName</td>
-                                <td class="py-3 px-4">
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach (var d in item.Details.Take(2))
-                                        {
-                                            <span class="inline-block px-2 py-0.5 bg-muted text-foreground rounded text-xs">
-                                                @d.MedicineName (@d.Quantity)
-                                            </span>
-                                        }
-                                        @if (item.Details.Count > 2)
-                                        {
-                                            <span class="text-xs text-muted-foreground">+@(item.Details.Count - 2)</span>
-                                        }
-                                    </div>
-                                </td>
                                 <td class="py-3 px-4 text-center">
                                     <div class="flex items-center justify-center gap-1 text-muted-foreground">
                                         <i class="ph ph-clock text-xs"></i>
@@ -163,7 +148,7 @@
                                 </td>
                                 <td class="py-3 px-4 text-center">
                                     <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                        Đã phát thuốc
+                                        @item.StatusDisplay
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 text-right">
@@ -197,43 +182,32 @@
                             @if (_expanded.Contains(currentId))
                             {
                                 <tr class="bg-muted/10 border-b border-border">
-                                    <td colspan="9" class="px-6 py-4">
-                                        <div class="rounded-xl border border-border overflow-hidden shadow-sm bg-card">
-                                            <div class="px-4 py-2 bg-muted/30 border-b border-border flex items-center gap-2">
-                                                <i class="ph ph-pill text-sm text-primary"></i>
-                                                <span class="text-xs font-semibold text-foreground uppercase tracking-wide">
-                                                    Chi tiết đơn thuốc — @item.PatientName
+                                    <td colspan="8" class="px-6 py-4">
+                                        <div class="rounded-xl border border-border overflow-hidden shadow-sm bg-card max-w-2xl mx-auto">
+                                            <div class="px-4 py-3 bg-muted/30 border-b border-border flex items-center gap-2">
+                                                <i class="ph ph-file-text text-sm text-primary"></i>
+                                                <span class="text-xs font-bold text-foreground uppercase tracking-wide">
+                                                    Chi tiết chi phí thanh toán — @item.PatientName
                                                 </span>
                                             </div>
-                                            <table class="w-full text-xs">
-                                                <thead>
-                                                    <tr class="border-b border-border bg-muted/20">
-                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Tên thuốc</th>
-                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">SL</th>
-                                                        <th class="text-center py-2 px-4 font-semibold text-muted-foreground">ĐVT</th>
-                                                        <th class="text-left py-2 px-4 font-semibold text-muted-foreground">Cách dùng</th>
-                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Đơn giá</th>
-                                                        <th class="text-right py-2 px-4 font-semibold text-muted-foreground">Thành tiền</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach (var d in item.Details)
-                                                    {
-                                                        <tr class="border-t border-border hover:bg-muted/10 transition">
-                                                            <td class="py-2.5 px-4 font-medium text-foreground">@d.MedicineName</td>
-                                                            <td class="py-2.5 px-4 text-center text-foreground">@d.Quantity</td>
-                                                            <td class="py-2.5 px-4 text-center text-muted-foreground">@(d.Unit ?? "—")</td>
-                                                            <td class="py-2.5 px-4 text-muted-foreground">@(d.UsageInstruction ?? "—")</td>
-                                                            <td class="py-2.5 px-4 text-right text-foreground">@d.UnitPrice.ToString("N0")đ</td>
-                                                            <td class="py-2.5 px-4 text-right font-semibold text-foreground">@d.SubTotal.ToString("N0")đ</td>
-                                                        </tr>
-                                                    }
-                                                    <tr class="border-t-2 border-border bg-green-50 font-bold">
-                                                        <td colspan="5" class="py-2.5 px-4 text-foreground text-right">Tổng tiền thuốc</td>
-                                                        <td class="py-2.5 px-4 text-right text-green-700">@item.TotalAmount.ToString("N0")đ</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                            <div class="p-4 space-y-3">
+                                                <div class="flex justify-between items-center text-sm py-2 border-b border-border border-dashed">
+                                                    <span class="text-muted-foreground">1. Phí khám bệnh cơ bản</span>
+                                                    <span class="font-semibold text-foreground">@item.ConsultationFee.ToString("N0")đ</span>
+                                                </div>
+                                                <div class="flex justify-between items-center text-sm py-2 border-b border-border border-dashed">
+                                                    <span class="text-muted-foreground">2. Tiền kết quả xét nghiệm</span>
+                                                    <span class="font-semibold text-foreground">@item.LabTestAmount.ToString("N0")đ</span>
+                                                </div>
+                                                <div class="flex justify-between items-center text-sm py-2 border-b border-border border-dashed">
+                                                    <span class="text-muted-foreground">3. Tiền thuốc theo đơn</span>
+                                                    <span class="font-semibold text-foreground">@item.MedicineAmount.ToString("N0")đ</span>
+                                                </div>
+                                                <div class="flex justify-between items-center text-lg pt-2 mt-2 font-black border-t border-border">
+                                                    <span class="text-foreground">TỔNG CỘNG</span>
+                                                    <span class="text-green-700">@item.TotalAmount.ToString("N0")đ</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>

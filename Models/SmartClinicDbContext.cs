@@ -38,6 +38,7 @@ public partial class SmartClinicDbContext : DbContext
     public virtual DbSet<DoctorEvaluation> DoctorEvaluations { get; set; }
     public virtual DbSet<ShiftDefinition> ShiftDefinitions { get; set; }
     public virtual DbSet<SmartClinic.Models.Entites.Payment> Payments { get; set; }
+    public virtual DbSet<SmartClinic.Models.Entites.CashierReconciliation> CashierReconciliations { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     { }
 
@@ -305,6 +306,28 @@ public partial class SmartClinicDbContext : DbContext
                 .HasForeignKey<HistoryAccess>(d => d.QueueTicketId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("HistoryAccess_QueueTicketId_fkey");
+        });
+
+        modelBuilder.Entity<SmartClinic.Models.Entites.CashierReconciliation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.ReportDate, e.CashierId }).IsUnique();
+
+            entity.Property(e => e.ReportDate).HasColumnType("date");
+            entity.Property(e => e.ExpectedCashTotal).HasPrecision(18, 2);
+            entity.Property(e => e.ExpectedVNPayTotal).HasPrecision(18, 2);
+            entity.Property(e => e.ConfirmedAt).HasColumnType("timestamp without time zone");
+
+            entity.HasOne(e => e.Cashier)
+                .WithMany()
+                .HasForeignKey(e => e.CashierId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ConfirmedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.ConfirmedBy)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
