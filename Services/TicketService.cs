@@ -371,23 +371,7 @@ namespace SmartClinic.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                try
-                {
-                    var displayData = await _queueService.GetDisplayDataAsync(ticket.RoomId);
-                    var groupName = $"Room_{ticket.RoomId}";
 
-                    await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
-                    await _patientHubContext.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new
-                    {
-                        ticketId = ticket.Id,
-                        patientName = ticket.PatientUser?.FullName ?? "Bệnh nhân",
-                        roomId = ticket.RoomId
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Lỗi gửi SignalR sau check-in lịch hẹn: {ex.Message}");
-                }
 
                 return new AppointmentCheckInResultDto
                 {
