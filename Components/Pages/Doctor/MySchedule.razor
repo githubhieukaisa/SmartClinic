@@ -112,9 +112,10 @@
 							{
 								bool isPast = shift.EndTime.HasValue ? shift.EndTime.Value < DateTime.Now : shift.StartTime.Date < DateTime.Today;
 								bool isForget = shift.ShiftStatus == "Chưa chốt sổ";
+								bool canCloseForget = isForget && (shift.StartTime.Date == DateTime.Today);
 								bool isDraft = shift.ShiftStatus == "Chờ kích hoạt";
-								bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || (isPast && !isForget);
-								bool isActive = (shift.ShiftStatus == "Đang nhận bệnh" || shift.ShiftStatus == "Đang chốt sổ" || shift.ShiftStatus == "Đã kích hoạt" || isForget) && !isCompleted;
+								bool isCompleted = shift.ShiftStatus == "Đã hoàn thành" || (isPast && !canCloseForget);
+								bool isActive = (shift.ShiftStatus == "Đang nhận bệnh" || shift.ShiftStatus == "Đang chốt sổ" || shift.ShiftStatus == "Đã kích hoạt" || canCloseForget) && !isCompleted;
 
 								<div class="relative flex flex-col rounded-xl border p-5 transition-all @(isDraft && !isCompleted ? "bg-white border-amber-200 hover:border-amber-300 hover:shadow-md" : isActive && !isCompleted ? "bg-emerald-50/30 border-emerald-200" : "bg-slate-50 border-slate-200 opacity-70")">
 									<div class="flex items-start justify-between mb-4">
