@@ -130,8 +130,20 @@
                                             Bệnh nhân có <b class="text-foreground">@_pastRecords.Count lần khám trước đó</b>. Bác sĩ cần gửi mã OTP để bệnh nhân xác nhận cho phép xem.
                                         </p>
                                         <button @onclick="RequestHistoryAccessAsync"
-                                                class="w-full py-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 text-[11px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all flex items-center justify-center gap-2 shadow-sm">
-                                            <i class="ph ph-shield-star text-base"></i> Gửi mã OTP cho bệnh nhân
+                                                disabled="@_isHistoryLoading"
+                                                class="w-full py-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 text-[11px] font-black uppercase tracking-widest @(_isHistoryLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-amber-500 hover:text-white hover:border-amber-500 active:scale-95") transition-all flex items-center justify-center gap-2 shadow-sm">
+                                            @if (_isHistoryLoading)
+                                            {
+                                                <svg class="animate-spin h-4 w-4 text-amber-700" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                <span>Đang gửi...</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="ph ph-shield-star text-base"></i> @("Gửi mã OTP cho bệnh nhân")
+                                            }
                                         </button>
                                     }
                                     else if (!_currentTicket.HistoryAccess.IsUnlocked)
@@ -148,8 +160,20 @@
                                                    placeholder="Nhập mã OTP 6 số..."
                                                    class="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition" />
                                             <button @onclick="VerifyHistoryOtpAsync"
-                                                    class="px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-primary/90 transition shadow-sm whitespace-nowrap">
-                                                Xác minh
+                                                    disabled="@(_isVerifyingOtp || string.IsNullOrWhiteSpace(_inputOtp))"
+                                                    class="px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-lg @(_isVerifyingOtp ? "opacity-70 cursor-not-allowed" : "hover:bg-primary/90 active:scale-95") transition shadow-sm whitespace-nowrap flex items-center gap-2">
+                                                @if (_isVerifyingOtp)
+                                                {
+                                                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    <span>Đang xác minh...</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>Xác minh</span>
+                                                }
                                             </button>
                                         </div>
                                     }
@@ -229,8 +253,19 @@
                                    class="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white" />
                             <button @onclick="ProcessAiRefinementAsync"
                                     disabled="@(string.IsNullOrWhiteSpace(_aiRawInput) || _isAiLoading)"
-                                    class="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                                <i class="ph ph-magic-wand"></i> Standardize
+                                    class="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium transition @(_isAiLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-primary/90 active:scale-95") flex items-center gap-2">
+                                @if (_isAiLoading)
+                                {
+                                    <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>Đang xử lý...</span>
+                                }
+                                else
+                                {
+                                    <i class="ph ph-magic-wand"></i> <span>Standardize</span>
+                                }
                             </button>
                         </div>
                         <p class="mt-2 text-[11px] text-slate-400 italic">Gợi ý: Nhập triệu chứng tóm tắt rồi nhấn Standardize để AI
@@ -330,8 +365,20 @@
                             Quay lại kê đơn
                         </button>
                         <button @onclick="FinishCompleteAsync"
-                                class="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors text-sm">
-                            Xác nhận hoàn tất
+                                disabled="@_isCompletingFinal"
+                                class="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold @(_isCompletingFinal ? "opacity-70 cursor-not-allowed" : "hover:bg-primary/90 active:scale-95") transition-colors text-sm flex items-center gap-2">
+                            @if (_isCompletingFinal)
+                            {
+                                <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Đang xử lý...</span>
+                            }
+                            else
+                            {
+                                <span>Xác nhận hoàn tất</span>
+                            }
                         </button>
                     </div>
                 </FooterContent>
@@ -359,6 +406,10 @@
     private bool _isReadOnly = false;
     private bool _showHistoryDetails = false;
     private bool _otpRequested = false;
+
+    private bool _isHistoryLoading = false;
+    private bool _isVerifyingOtp = false;
+    private bool _isCompletingFinal = false;
 
     private bool _isLoading = true;
     private string? _errorMessage;
@@ -540,6 +591,8 @@
 
     private async Task FinishCompleteAsync()
     {
+        if (_isCompletingFinal) return;
+        _isCompletingFinal = true;
         _showPrescriptionConfirm = false;
         System.Diagnostics.Debug.WriteLine($"🔵 [Examination] Finishing completion for TicketId={TicketId}");
 
@@ -620,12 +673,20 @@
             return;
         }
 
+        finally
+        {
+            _isCompletingFinal = false;
+            StateHasChanged();
+        }
+
         System.Diagnostics.Debug.WriteLine($"✅ [Examination] Examination completed");
         NavigationManager.NavigateTo("/doctor/my-patients");
     }
 
     private async Task RequestHistoryAccessAsync()
     {
+        if (_isHistoryLoading) return;
+
         // Debug logger
         System.Diagnostics.Debug.WriteLine($"[OTP Request] Patient: {(_patient?.FullName ?? "NULL")}, Email: {(_patient?.Email ?? "NULL")}");
 
@@ -634,6 +695,12 @@
             ToastService.ShowError("Bệnh nhân chưa có email. Không thể gửi OTP qua email.");
             return;
         }
+
+        _isHistoryLoading = true;
+        StateHasChanged();
+
+        try
+        {
 
         var result = await AuthService.SendHistoryAccessOtpAsync(TicketId, _patient.Email, _patient.FullName ?? "Bệnh nhân");
         if (result.Success)
@@ -653,38 +720,56 @@
         {
             ToastService.ShowError(result.Message);
         }
+
+        }
+        finally
+        {
+            _isHistoryLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task VerifyHistoryOtpAsync()
     {
-        if (string.IsNullOrWhiteSpace(_inputOtp)) return;
+        if (string.IsNullOrWhiteSpace(_inputOtp) || _isVerifyingOtp) return;
 
-        var isValid = await AuthService.VerifyHistoryAccessOtpAsync(TicketId, _inputOtp);
-        if (isValid)
+        _isVerifyingOtp = true;
+        StateHasChanged();
+
+        try
         {
-            using var context = DbFactory.CreateDbContext();
-            var ticket = await context.QueueTickets.Include(t => t.HistoryAccess).FirstOrDefaultAsync(t => t.Id == TicketId);
-            if (ticket?.HistoryAccess != null)
+            var isValid = await AuthService.VerifyHistoryAccessOtpAsync(TicketId, _inputOtp);
+            if (isValid)
             {
-                ticket.HistoryAccess.IsUnlocked = true;
-                ticket.HistoryAccess.UnlockedAt = DateTime.Now;
-                
-                // Keep DoctorId synced
-                if (ticket.DoctorId == null || ticket.DoctorId != _currentDoctorId)
+                using var context = DbFactory.CreateDbContext();
+                var ticket = await context.QueueTickets.Include(t => t.HistoryAccess).FirstOrDefaultAsync(t => t.Id == TicketId);
+                if (ticket?.HistoryAccess != null)
                 {
-                    ticket.DoctorId = _currentDoctorId;
-                }
+                    ticket.HistoryAccess.IsUnlocked = true;
+                    ticket.HistoryAccess.UnlockedAt = DateTime.Now;
 
-                await context.SaveChangesAsync();
-                _currentTicket = ticket;
-                _showHistoryDetails = true;
-                _otpRequested = false;
-                ToastService.ShowSuccess("Đã xác minh và mở khóa hồ sơ bệnh án!");
+                    // Keep DoctorId synced
+                    if (ticket.DoctorId == null || ticket.DoctorId != _currentDoctorId)
+                    {
+                        ticket.DoctorId = _currentDoctorId;
+                    }
+
+                    await context.SaveChangesAsync();
+                    _currentTicket = ticket;
+                    _showHistoryDetails = true;
+                    _otpRequested = false;
+                    ToastService.ShowSuccess("Đã xác minh và mở khóa hồ sơ bệnh án!");
+                }
+            }
+            else
+            {
+                ToastService.ShowError("Mã OTP không đúng hoặc đã hết hạn.");
             }
         }
-        else
+        finally
         {
-            ToastService.ShowError("Mã OTP không đúng hoặc đã hết hạn.");
+            _isVerifyingOtp = false;
+            StateHasChanged();
         }
     }
 

@@ -19,7 +19,13 @@ namespace SmartClinic.Services
         public async Task<MedicalRecordResult?> RefineMedicalRecordAsync(string rawInput)
         {
             var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey) || string.IsNullOrWhiteSpace(rawInput)) return null;
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                System.Diagnostics.Debug.WriteLine("❌ [AiService] Gemini:ApiKey missing in config.");
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(rawInput)) return null;
 
             var prompt = $@"Bạn là một trợ lý y tế chuyên nghiệp. Bác sĩ vừa nhập ghi chú nhanh: '{rawInput}'. 
                             Hãy chuẩn hóa thông tin này thành một hồ sơ bệnh án đầy đủ bằng Tiếng Việt, chuyên nghiệp và chuẩn y khoa.
@@ -42,17 +48,29 @@ namespace SmartClinic.Services
                 }
             };
 
-            var response = await _httpClient.PostAsJsonAsync($"{GEMINI_BASE_URL}?key={apiKey}", requestBody);
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                var json = await response.Content.ReadFromJsonAsync<GeminiResponse>();
-                var content = json?.Candidates?[0]?.Content?.Parts?[0]?.Text;
+                var response = await _httpClient.PostAsJsonAsync($"{GEMINI_BASE_URL}?key={apiKey}", requestBody);
 
-                if (!string.IsNullOrEmpty(content))
+                if (response.IsSuccessStatusCode)
                 {
-                    return JsonSerializer.Deserialize<MedicalRecordResult>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    var json = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+                    var content = json?.Candidates?[0]?.Content?.Parts?[0]?.Text;
+
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        return JsonSerializer.Deserialize<MedicalRecordResult>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    }
                 }
+                else
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    System.Diagnostics.Debug.WriteLine($"❌ [AiService] AI Error ({response.StatusCode}): {errorBody}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [AiService] AI Exception: {ex.Message}");
             }
 
             return null;
