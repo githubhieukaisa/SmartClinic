@@ -36,14 +36,14 @@ namespace SmartClinic.Models
         {
             get
             {
-                if (ShiftDefinition == null) return "Sắp diễn ra"; // Fallback nếu chưa load relate
+                if (ShiftDefinition == null) return "Chưa tới ca"; // Fallback nếu chưa load relate
                 var now = DateTime.Now;
                 var startDateTime = Date.Date.Add(ShiftDefinition.StartTime);
                 var endDateTime = Date.Date.Add(ShiftDefinition.EndTime);
 
-                if (now < startDateTime) return "Sắp diễn ra";
-                if (now > endDateTime) return "Đã hoàn thành";
-                return "Đang trực";
+                if (now < startDateTime) return "Chưa tới ca";
+                if (now > endDateTime) return "Đã hết ca";
+                return "Đang trong ca";
             }
         }
 
