@@ -55,7 +55,8 @@ public class AppointmentService : IAppointmentService
             .Include(s => s.Room).ThenInclude(r => r.Department)
             .Include(s => s.ShiftDefinition)
             .Where(s => s.RemainCapacity > 0
-                     && s.Date >= today);
+                     && s.Date >= today
+                     && s.StatusEnum == DoctorShiftStatus.Active);
 
         // Lọc theo ngày
         if (dateFilter.HasValue)
