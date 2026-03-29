@@ -1,6 +1,7 @@
 @page "/admin/statistics"
 @using Microsoft.AspNetCore.Authorization
 @using SmartClinic.DTOs
+@using System.Globalization
 
 @attribute [Authorize(Policy = "AdminPolicy")]
 @rendermode InteractiveServer
@@ -116,18 +117,47 @@ else
             <h3 class="text-base font-bold text-slate-800 mb-4">Doanh thu theo ngày</h3>
             @if (dailyRevenue.Any())
             {
-                <RadzenChart Style="width: 100%; height: 320px;">
-                    <RadzenColumnSeries Data="@dailyRevenue"
-                                        CategoryProperty="Date"
-                                        ValueProperty="Revenue"
-                                        Title="Doanh thu (VNĐ)">
-                        <RadzenSeriesDataLabels Visible="false" />
-                    </RadzenColumnSeries>
-                    <RadzenCategoryAxis FormatString="{0:dd/MM}" />
-                    <RadzenValueAxis FormatString="{0:N0}" />
-                    <RadzenColumnOptions Radius="4" Width="20" />
-                    <RadzenLegend Visible="false" />
-                </RadzenChart>
+                <div class="relative" style="height:320px;">
+                    <RadzenChart Style="width: 100%; height: 320px;" TooltipTolerance="120">
+                        <RadzenColumnSeries Data="@dailyRevenueChart"
+                                            CategoryProperty="DateLabel"
+                                            ValueProperty="Revenue"
+                                            Title="Doanh thu (VNĐ)">
+                            <TooltipTemplate Context="item">
+                                <div class="px-1 py-0.5">
+                                    <div class="text-xs text-slate-500">@item.DateLabel</div>
+                                    <div class="text-sm font-semibold text-slate-800">@item.Revenue.ToString("N0")đ</div>
+                                </div>
+                            </TooltipTemplate>
+                        </RadzenColumnSeries>
+                        <RadzenChartTooltipOptions Visible="true"
+                                                   Shared="true"
+                                                   Style="background:#0f172a;color:#fff;padding:6px 8px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.2);font-size:12px;" />
+                        <RadzenCategoryAxis />
+                        <RadzenValueAxis FormatString="{0:N0}" />
+                        <RadzenColumnOptions Radius="4" Width="20" />
+                        <RadzenLegend Visible="false" />
+                    </RadzenChart>
+
+                    <div class="absolute inset-0 z-10 grid" style="@GetRevenueHoverGridStyle()">
+                        @for (int i = 0; i < dailyRevenueChart.Count; i++)
+                        {
+                            var point = dailyRevenueChart[i];
+                            <div class="h-full"
+                                 @onmouseenter="() => OnRevenuePointHover(point, i)"
+                                 @onmouseleave="ClearRevenuePointHover"></div>
+                        }
+                    </div>
+
+                    @if (hoveredRevenuePoint is not null)
+                    {
+                        <div class="pointer-events-none absolute top-2 z-20 bg-slate-900 text-white rounded-lg px-3 py-2 shadow-lg"
+                             style="@GetRevenueTooltipStyle()">
+                            <div class="text-[11px] text-slate-300">@hoveredRevenuePoint.DateLabel</div>
+                            <div class="text-sm font-bold">@hoveredRevenuePoint.Revenue.ToString("N0")đ</div>
+                        </div>
+                    }
+                </div>
             }
             else
             {
@@ -287,6 +317,9 @@ else
 
     private OverviewStats overview = new();
     private List<DailyRevenueItem> dailyRevenue = new();
+    private List<DailyRevenueChartPoint> dailyRevenueChart = new();
+    private DailyRevenueChartPoint? hoveredRevenuePoint;
+    private int hoveredRevenueIndex = -1;
     private List<RevenueBreakdownItem> revenueBreakdown = new();
     private List<PatientsByDepartmentItem> patientsByDept = new();
 
@@ -310,6 +343,16 @@ else
 
         overview = await StatisticsService.GetOverviewAsync(DateTime.Today);
         dailyRevenue = await StatisticsService.GetDailyRevenueAsync(fromDate, toDate);
+        dailyRevenueChart = dailyRevenue
+            .OrderBy(x => x.Date)
+            .Select(x => new DailyRevenueChartPoint
+            {
+                DateLabel = DateTime.SpecifyKind(x.Date, DateTimeKind.Unspecified).ToString("dd/MM/yyyy"),
+                Revenue = x.Revenue
+            })
+            .ToList();
+        hoveredRevenuePoint = null;
+        hoveredRevenueIndex = -1;
         revenueBreakdown = await StatisticsService.GetRevenueBreakdownAsync(fromDate, toDate);
         patientsByDept = await StatisticsService.GetPatientsByDepartmentAsync(fromDate, toDate);
         medicineInsights = await PharmacyService.GetMedicineInsightsAsync(fromDate, toDate);
@@ -358,4 +401,38 @@ else
         builder.AddContent(2, label);
         builder.CloseElement();
     };
+
+    private string GetRevenueHoverGridStyle()
+    {
+        var columns = Math.Max(dailyRevenueChart.Count, 1);
+        return $"grid-template-columns: repeat({columns}, minmax(0, 1fr));";
+    }
+
+    private void OnRevenuePointHover(DailyRevenueChartPoint point, int index)
+    {
+        hoveredRevenuePoint = point;
+        hoveredRevenueIndex = index;
+    }
+
+    private void ClearRevenuePointHover()
+    {
+        hoveredRevenuePoint = null;
+        hoveredRevenueIndex = -1;
+    }
+
+    private string GetRevenueTooltipStyle()
+    {
+        if (dailyRevenueChart.Count == 0 || hoveredRevenueIndex < 0)
+            return "left: 50%; transform: translateX(-50%);";
+
+        var leftPercent = ((hoveredRevenueIndex + 0.5m) / dailyRevenueChart.Count) * 100m;
+        var leftCss = leftPercent.ToString("0.##", CultureInfo.InvariantCulture);
+        return $"left: {leftCss}%; transform: translateX(-50%);";
+    }
+
+    private sealed class DailyRevenueChartPoint
+    {
+        public string DateLabel { get; set; } = string.Empty;
+        public decimal Revenue { get; set; }
+    }
 }
