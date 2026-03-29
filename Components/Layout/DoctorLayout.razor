@@ -1,4 +1,4 @@
-﻿@using Blazored.Toast.Configuration
+@using Blazored.Toast.Configuration
 @using SmartClinic.Components.Common
 @using SmartClinic.Services
 @using Blazored.Toast
@@ -49,17 +49,23 @@
                 <li>
                     <NavLink href="/doctor/dashboard" Match="NavLinkMatch.All" class="@NavClass("/doctor/dashboard", exact: true)">
                         <i class="ph ph-squares-four text-lg"></i>
-                                <span>Dashboard</span>
-                            </NavLink>
-                        </li>
-                        <li>
-                            <NavLink href="/doctor/my-patients" class="@NavClass("/doctor/my-patients")">
-                                <i class="ph ph-queue text-lg"></i>
-                                <span>Patient Queue</span>
-                            </NavLink>
-                        </li>
-                        <li>
-                            <NavLink href="/doctor/patients" class="@NavClass("/doctor/patients")">
+                        <span>Dashboard</span>
+                    </NavLink>
+                </li>
+                <li>
+                    <NavLink href="/doctor/my-schedule" class="@NavClass("/doctor/my-schedule")">
+                        <i class="ph ph-calendar-check text-lg"></i>
+                        <span>Lịch làm việc</span>
+                    </NavLink>
+                </li>
+                <li>
+                    <NavLink href="/doctor/my-patients" class="@NavClass("/doctor/my-patients")">
+                        <i class="ph ph-queue text-lg"></i>
+                        <span>Patient Queue</span>
+                    </NavLink>
+                </li>
+                <li>
+                    <NavLink href="/doctor/patients" class="@NavClass("/doctor/patients")">
                                 <i class="ph ph-users text-lg"></i>
                                 <span>Patients</span>
                             </NavLink>
