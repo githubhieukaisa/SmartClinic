@@ -126,6 +126,25 @@
 												@shift.StartTime.ToString("HH:mm") - @shift.EndTime?.ToString("HH:mm")
 											</p>
 										</div>
+                                        @if (isDraft && !isCompleted)
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Chờ kích hoạt
+                                            </span>
+                                        }
+                                        else if (isActive && !isCompleted)
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Đã kích hoạt
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
+                                                Đã hoàn thành
+                                            </span>
+                                        }
+                                    </div>
 
                                     <div class="flex items-center gap-2 mb-5 text-sm mt-4 border-t border-slate-100 pt-3">
                                         <i class="ph ph-door text-muted-foreground"></i>

@@ -374,28 +374,7 @@ namespace SmartClinic.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // 2. Tìm phòng đang Active (Có ca trực hiện hành)
-                var roomsWithShifts = await _context.Rooms
-                    .AsNoTracking()
-                    .Include(r => r.DoctorShifts)
-                        .ThenInclude(ds => ds.ShiftDefinition)
-                    .Where(r => r.DepartmentId == departmentId
-                        && (r.Flags & RoomFlags.IsActive) != 0
-                        && r.DoctorShifts.Any(ds => ds.Date == todayDate && ds.ComputedStatus == "Đang trong ca"))
-                    .ToListAsync();
 
-                    await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNewCall", displayData);
-                    await _patientHubContext.Clients.Group(groupName).SendAsync("QueueTicketUpdated", new
-                    {
-                        ticketId = ticket.Id,
-                        patientName = ticket.PatientUser?.FullName ?? "Bệnh nhân",
-                        roomId = ticket.RoomId
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Lỗi gửi SignalR sau check-in lịch hẹn: {ex.Message}");
-                }
 
                 return new AppointmentCheckInResultDto
                 {
