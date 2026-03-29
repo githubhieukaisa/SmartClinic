@@ -18,10 +18,20 @@ namespace SmartClinic.Services
 
         public async Task<List<User>> GetAllUsersAsync()
         {
-            // Lấy tất cả user, sắp xếp theo ngày tạo mới nhất lên đầu.
-            // Include Room để hiển thị tên phòng nếu user là Bác sĩ.
+            const int PatientRoleMask = 128;
+
+            // Không lấy tài khoản bệnh nhân ở màn quản lý user của manager.
             return await _context.Users
+                .Where(u => (u.RoleMask & PatientRoleMask) != PatientRoleMask)
                 .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<List<Department>> GetDepartmentsAsync()
+        {
+            return await _context.Departments
+                .AsNoTracking()
+                .OrderBy(d => d.Name)
                 .ToListAsync();
         }
 
@@ -35,9 +45,25 @@ namespace SmartClinic.Services
 
         public async Task<bool> CreateUserAsync(CreateUserDto dto)
         {
+            const int DoctorRoleMask = 2;
+            const int LabTechRoleMask = 32;
+
             // Kiểm tra trùng username trước khi tạo
             if (await IsUsernameExistsAsync(dto.Username))
                 return false;
+
+            var requiresDepartment = (dto.RoleMask & DoctorRoleMask) == DoctorRoleMask
+                                  || (dto.RoleMask & LabTechRoleMask) == LabTechRoleMask;
+
+            if (requiresDepartment)
+            {
+                if (!dto.DepartmentId.HasValue)
+                    return false;
+
+                var departmentExists = await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId.Value);
+                if (!departmentExists)
+                    return false;
+            }
 
             var user = new User
             {
@@ -50,6 +76,7 @@ namespace SmartClinic.Services
                 Address = dto.Address,
                 Gender = dto.Gender,
                 RoleMask = dto.RoleMask,
+                DepartmentId = requiresDepartment ? dto.DepartmentId : null,
                 IsActive = true
             };
 
@@ -62,8 +89,24 @@ namespace SmartClinic.Services
 
         public async Task<bool> UpdateUserAsync(int id, EditUserDto dto)
         {
+            const int DoctorRoleMask = 2;
+            const int LabTechRoleMask = 32;
+
             var user = await _context.Users.FindAsync(id);
             if (user == null) return false;
+
+            var requiresDepartment = (dto.RoleMask & DoctorRoleMask) == DoctorRoleMask
+                                  || (dto.RoleMask & LabTechRoleMask) == LabTechRoleMask;
+
+            if (requiresDepartment)
+            {
+                if (!dto.DepartmentId.HasValue)
+                    return false;
+
+                var departmentExists = await _context.Departments.AnyAsync(d => d.Id == dto.DepartmentId.Value);
+                if (!departmentExists)
+                    return false;
+            }
 
             // Chỉ cập nhật các trường thông tin, KHÔNG đụng vào Password
             user.FullName = dto.FullName;
@@ -72,6 +115,7 @@ namespace SmartClinic.Services
             user.Address = dto.Address;
             user.Gender = dto.Gender;
             user.RoleMask = dto.RoleMask;
+            user.DepartmentId = requiresDepartment ? dto.DepartmentId : null;
 
             await _context.SaveChangesAsync();
             return true;

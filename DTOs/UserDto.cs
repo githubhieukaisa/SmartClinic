@@ -34,6 +34,11 @@ namespace SmartClinic.DTOs
         /// Ví dụ: Bác sĩ + Admin = 2 | 16 = 18
         /// </summary>
         public int RoleMask { get; set; } = 0;
+
+        /// <summary>
+        /// Khoa chuyên môn (bắt buộc với role Bác sĩ/Xét nghiệm).
+        /// </summary>
+        public int? DepartmentId { get; set; }
     }
 
     /// <summary>
@@ -55,5 +60,6 @@ namespace SmartClinic.DTOs
         public string? Address { get; set; }
         public bool? Gender { get; set; }
         public int RoleMask { get; set; } = 0;
+        public int? DepartmentId { get; set; }
     }
 }
