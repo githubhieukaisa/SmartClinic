@@ -24,6 +24,10 @@ namespace SmartClinic.Services
             Console.WriteLine($"Fetching display data for RoomId {roomId}...");
             await using var context = await _dbFactory.CreateDbContextAsync();
             var today = DateTime.Today;
+            var roomTicketsToday = context.QueueTickets.Where(t =>
+                t.RoomId == roomId &&
+                ((t.DoctorShiftId != null && t.DoctorShift != null && t.DoctorShift.Date == today)
+                 || (t.DoctorShiftId == null && t.CreatedAt.Date == today)));
 
             // 1. TÌM CA TRỰC ĐANG HOẠT ĐỘNG CỦA PHÒNG NÀY
             var shiftsToday = await context.DoctorShifts
@@ -37,8 +41,8 @@ namespace SmartClinic.Services
             var activeShift = shiftsToday.FirstOrDefault(s => s.ComputedStatus == "Đang trong ca");
 
             // 2. TÌM SỐ ĐANG GỌI
-            var currentCall = await context.QueueTickets
-                .Where(t => t.RoomId == roomId && t.StatusEnum == TicketStatus.Calling && t.CreatedAt.Date == today)
+            var currentCall = await roomTicketsToday
+                .Where(t => t.StatusEnum == TicketStatus.Calling)
                 .OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt)
                 .Select(t => new
                 {
@@ -48,10 +52,8 @@ namespace SmartClinic.Services
                 .FirstOrDefaultAsync();
 
             // 3. TÌM SỐ TIẾP THEO (Emergency luôn đứng đầu)
-            var nextTicketNumber = await context.QueueTickets
-                .Where(t => t.RoomId == roomId
-                    && (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
-                    && t.CreatedAt.Date == today)
+            var nextTicketNumber = await roomTicketsToday
+                .Where(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
                 .OrderBy(t => t.StatusEnum == TicketStatus.Emergency ? 0 : 1)
                 .ThenBy(t => t.UpdatedAt ?? t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)
@@ -64,7 +66,7 @@ namespace SmartClinic.Services
                 CurrentTicketNumber = currentCall?.TicketNumber.ToString() ?? "---",
                 RoomName = activeShift?.Room?.Name ?? $"Phòng {roomId}", // Nếu có ca trực thì lấy tên phòng từ DB
                 DoctorName = activeShift != null ? $"BS. {activeShift.Doctor.FullName}" : "Phòng đang trống",
-                PatientName = currentCall != null ? currentCall.PatientName : "Không có bệnh nhân",
+                PatientName = currentCall?.PatientName ?? "Không có bệnh nhân",
                 Specialty = activeShift?.Room.Department?.Name ?? "",
                 NextTicketNumber = nextTicketNumber
             };
@@ -74,14 +76,18 @@ namespace SmartClinic.Services
         {
             var today = DateTime.Today;
             await using var context = await _dbFactory.CreateDbContextAsync();
+            var roomTicketsToday = context.QueueTickets.Where(t =>
+                t.RoomId == roomId &&
+                ((t.DoctorShiftId != null && t.DoctorShift != null && t.DoctorShift.Date == today)
+                 || (t.DoctorShiftId == null && t.CreatedAt.Date == today)));
 
-            bool isExamining = await context.QueueTickets.AnyAsync(t => t.StatusEnum == TicketStatus.Examinating && t.CreatedAt.Date == today && t.RoomId == roomId);
+            bool isExamining = await roomTicketsToday.AnyAsync(t => t.StatusEnum == TicketStatus.Examinating);
             if (isExamining) return false;
 
             // Chú ý: Nếu bệnh nhân đang ở trạng thái Testing (đi xét nghiệm), bác sĩ VẪN có thể gọi người mới.
 
-            var currentCalling = await context.QueueTickets
-                .FirstOrDefaultAsync(t => t.StatusEnum == TicketStatus.Calling && t.CreatedAt.Date == today && t.RoomId == roomId);
+            var currentCalling = await roomTicketsToday
+                .FirstOrDefaultAsync(t => t.StatusEnum == TicketStatus.Calling);
             if (currentCalling != null)
             {
                 currentCalling.MissCount += 1;
@@ -99,9 +105,8 @@ namespace SmartClinic.Services
                     currentCalling.StatusEnum = isEmergencyMarked ? TicketStatus.Emergency : TicketStatus.Waiting;
                     currentCalling.UpdatedAt = DateTime.Now;
                     // Tìm 3 người tiếp theo đang chờ
-                    var nextWaitings = await context.QueueTickets
-                        .Where(t => (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
-                            && t.CreatedAt.Date == today && t.RoomId == roomId)
+                    var nextWaitings = await roomTicketsToday
+                        .Where(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
                         .OrderBy(t => t.StatusEnum == TicketStatus.Emergency ? 0 : 1)
                         .ThenBy(t => t.UpdatedAt ?? t.CreatedAt)
                         .Take(3) // Số N = 3
@@ -127,9 +132,8 @@ namespace SmartClinic.Services
             }
 
             // 2. Tìm bệnh nhân tiếp theo đang chờ (Ưu tiên Emergency)
-            var nextPatient = await context.QueueTickets
-                .Where(t => (t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
-                    && t.CreatedAt.Date == today && t.RoomId == roomId)
+            var nextPatient = await roomTicketsToday
+                .Where(t => t.StatusEnum == TicketStatus.Waiting || t.StatusEnum == TicketStatus.Emergency)
                 .OrderBy(t => t.StatusEnum == TicketStatus.Emergency ? 0 : 1)
                 .ThenBy(t => t.UpdatedAt ?? t.CreatedAt)
                 .ThenBy(t => t.TicketNumber)

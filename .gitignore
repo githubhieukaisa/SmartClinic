@@ -502,3 +502,5 @@ yarn.lock
 .github/copilot-instructions.md
 wwwroot/css/app.css
 wwwroot/css/app.css
+appsettings.json
+appsettings.json

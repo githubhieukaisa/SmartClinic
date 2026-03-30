@@ -108,8 +108,7 @@ namespace SmartClinic.Services
                 .Where(t =>
                     t.DoctorShiftId != null &&
                     shiftIds.Contains(t.DoctorShiftId.Value) &&
-                    occupiedStatuses.Contains(t.StatusEnum) &&
-                    t.CreatedAt.Date == today)
+                    occupiedStatuses.Contains(t.StatusEnum))
                 .GroupBy(t => new { t.DoctorShiftId, t.StatusEnum })
                 .Select(g => new { g.Key.DoctorShiftId, g.Key.StatusEnum, Count = g.Count() })
                 .ToListAsync();
@@ -127,6 +126,7 @@ namespace SmartClinic.Services
                         .Where(x => x.StatusEnum == TicketStatus.Appointment)
                         .Sum(x => x.Count);
                     var realRemain = Math.Max(0, shift.Capacity - totalOccupied);
+                    var walkInRemain = GetEffectiveWalkInRemainCapacity(realRemain, waitingCount);
 
                     return new ReceptionRoomLiveItemDto
                     {
@@ -138,7 +138,7 @@ namespace SmartClinic.Services
                         ShiftStartTime = shift.ShiftDefinition.StartTime,
                         ShiftEndTime = shift.ShiftDefinition.EndTime,
                         Capacity = shift.Capacity,
-                        RemainCapacity = realRemain,
+                        RemainCapacity = walkInRemain,
                         WaitingCount = waitingCount,
                         AppointmentCount = appointmentCount,
                         IsActiveNow = true
@@ -413,7 +413,7 @@ namespace SmartClinic.Services
                 var existingAppointment = await _context.QueueTickets
                     .Include(t => t.Room)
                     .Include(t => t.DoctorShift)
-                    .FirstOrDefaultAsync(t => 
+                    .FirstOrDefaultAsync(t =>
                         t.PatientId == patient.Id &&
                         t.StatusEnum == TicketStatus.Appointment &&
                         t.Room.DepartmentId == request.DepartmentId &&
@@ -430,7 +430,7 @@ namespace SmartClinic.Services
                         existingAppointment.RoomId,
                         request.IsEmergency,
                         request.IsPriority);
-                    
+
                     existingAppointment.StatusEnum = apptStatus;
                     existingAppointment.TicketNumber = await _context.Database
                         .SqlQueryRaw<int>(@"SELECT nextval('""TicketNumberSeq""') AS ""Value""")
